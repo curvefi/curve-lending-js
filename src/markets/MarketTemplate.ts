@@ -1,27 +1,28 @@
-import { ethers } from "ethers";
+/*import { ethers } from "ethers";
 import memoize from "memoizee";
 import BigNumber from "bignumber.js";
-import { crvusd } from "../crvusd";
+import { lending } from "../lending";
 import {
     _getAddress,
     parseUnits,
     BN,
     toBN,
     fromBN,
-    getBalances,
-    ensureAllowance,
-    hasAllowance,
-    ensureAllowanceEstimateGas,
+    //getBalances,
+    //ensureAllowance,
+    //hasAllowance,
+    //ensureAllowanceEstimateGas,
     isEth,
     _cutZeros,
+    formatUnits,
     MAX_ALLOWANCE,
     MAX_ACTIVE_BAND,
 } from "../utils";
 import { IDict } from "../interfaces";
 import { _getUserCollateral } from "../external-api.js";
+*/
 
-
-export class LlammaTemplate {
+/*export class MarketTemplate {
     id: string;
     address: string;
     controller: string;
@@ -81,43 +82,10 @@ export class LlammaTemplate {
     wallet: {
         balances: (address?: string) => Promise<{ stablecoin: string, collateral: string }>,
     };
-    leverage: {
-        createLoanMaxRecv: (collateral: number | string, range: number) => Promise<{ maxBorrowable: string, maxCollateral: string, leverage: string, routeIdx: number }>,
-        createLoanMaxRecvAllRanges: (collateral: number | string) => Promise<IDict<{ maxBorrowable: string, maxCollateral: string, leverage: string, routeIdx: number }>>,
-        createLoanCollateral: (userCollateral: number | string, debt: number | string) => Promise<{ collateral: string, leverage: string, routeIdx: number }>,
-        getRouteName: (routeIdx: number) => Promise<string>,
-        getMaxRange: (collateral: number | string, debt: number | string) => Promise<number>,
-        createLoanBands: (collateral: number | string, debt: number | string, range: number) => Promise<[number, number]>,
-        createLoanBandsAllRanges: (collateral: number | string, debt: number | string) => Promise<IDict<[number, number] | null>>,
-        createLoanPrices: (collateral: number | string, debt: number | string, range: number) => Promise<string[]>,
-        createLoanPricesAllRanges: (collateral: number | string, debt: number | string) => Promise<IDict<[string, string] | null>>,
-        createLoanHealth: (collateral: number | string, debt: number | string, range: number, full?: boolean, address?: string) => Promise<string>,
-        createLoanIsApproved: (collateral: number | string) => Promise<boolean>,
-        createLoanApprove: (collateral: number | string) => Promise<string[]>,
-        priceImpact: (collateral: number | string, debt: number | string) => Promise<string>,
-        createLoan: (collateral: number | string, debt: number | string, range: number, slippage?: number) => Promise<string>,
-        estimateGas: {
-            createLoanApprove: (collateral: number | string) => Promise<number>,
-            createLoan: (collateral: number | string, debt: number | string, range: number, slippage?: number) => Promise<number>,
-        }
-    }
-    deleverage: {
-        repayStablecoins: (collateral: number | string) => Promise<{ stablecoins: string, routeIdx: number }>,
-        getRouteName: (routeIdx: number) => Promise<string>,
-        isAvailable: (deleverageCollateral: number | string, address?: string) => Promise<boolean>,
-        isFullRepayment: (deleverageCollateral: number | string, address?: string) => Promise<boolean>,
-        repayBands: (collateral: number | string, address?: string) => Promise<[number, number]>,
-        repayPrices: (collateral: number | string, address?: string) => Promise<string[]>,
-        repayHealth: (collateral: number | string, full?: boolean, address?: string) => Promise<string>,
-        repay: (collateral: number | string, slippage?: number) => Promise<string>,
-        priceImpact: (collateral: number | string) => Promise<string>,
-        estimateGas: {
-            repay: (collateral: number | string, slippage?: number) => Promise<number>,
-        }
-    }
 
     constructor(id: string) {
-        const llammaData = crvusd.constants.LLAMMAS[id];
+
+        const llammaData = lending.constants.LLAMMAS[id];
 
         this.id = id;
         this.address = llammaData.amm_address;
@@ -129,8 +97,8 @@ export class LlammaTemplate {
         this.healthCalculator = llammaData.health_calculator_zap;
         this.collateralSymbol = llammaData.collateral_symbol;
         this.collateralDecimals = llammaData.collateral_decimals;
-        this.coins = ["crvUSD", llammaData.collateral_symbol];
-        this.coinAddresses = [crvusd.address, llammaData.collateral_address];
+        this.coins = ["lending", llammaData.collateral_symbol];
+        this.coinAddresses = [lending.address, llammaData.collateral_address];
         this.coinDecimals = [18, llammaData.collateral_decimals];
         this.minBands = llammaData.min_bands;
         this.maxBands = llammaData.max_bands;
@@ -172,40 +140,6 @@ export class LlammaTemplate {
         this.wallet = {
             balances: this.walletBalances.bind(this),
         }
-        this.leverage = {
-            createLoanMaxRecv: this.leverageCreateLoanMaxRecv.bind(this),
-            createLoanMaxRecvAllRanges: this.leverageCreateLoanMaxRecvAllRanges.bind(this),
-            createLoanCollateral: this.leverageCreateLoanCollateral.bind(this),
-            getRouteName: this.leverageGetRouteName.bind(this),
-            getMaxRange: this.leverageGetMaxRange.bind(this),
-            createLoanBands: this.leverageCreateLoanBands.bind(this),
-            createLoanBandsAllRanges: this.leverageCreateLoanBandsAllRanges.bind(this),
-            createLoanPrices: this.leverageCreateLoanPrices.bind(this),
-            createLoanPricesAllRanges: this.leverageCreateLoanPricesAllRanges.bind(this),
-            createLoanHealth: this.leverageCreateLoanHealth.bind(this),
-            createLoanIsApproved: this.createLoanIsApproved.bind(this),
-            createLoanApprove: this.createLoanApprove.bind(this),
-            priceImpact: this.leveragePriceImpact.bind(this),
-            createLoan: this.leverageCreateLoan.bind(this),
-            estimateGas: {
-                createLoanApprove: this.createLoanApproveEstimateGas.bind(this),
-                createLoan: this.leverageCreateLoanEstimateGas.bind(this),
-            },
-        }
-        this.deleverage = {
-            repayStablecoins: this.deleverageRepayStablecoins.bind(this),
-            getRouteName: this.deleverageGetRouteName.bind(this),
-            isAvailable: this.deleverageIsAvailable.bind(this),
-            isFullRepayment: this.deleverageIsFullRepayment.bind(this),
-            repayBands: this.deleverageRepayBands.bind(this),
-            repayPrices: this.deleverageRepayPrices.bind(this),
-            repayHealth: this.deleverageRepayHealth.bind(this),
-            priceImpact: this.deleveragePriceImpact.bind(this),
-            repay: this.deleverageRepay.bind(this),
-            estimateGas: {
-                repay: this.deleverageRepayEstimateGas.bind(this),
-            },
-        }
     }
 
     // ---------------- STATS ----------------
@@ -218,22 +152,22 @@ export class LlammaTemplate {
         liquidation_discount: string, // %
         loan_discount: string, // %
     }> => {
-        const llammaContract = crvusd.contracts[this.address].multicallContract;
-        const controllerContract = crvusd.contracts[this.controller].multicallContract;
-        const monetaryPolicyContract = crvusd.contracts[this.monetaryPolicy].multicallContract;
+        const llammaContract = lending.contracts[this.address].multicallContract;
+        const controllerContract = lending.contracts[this.controller].multicallContract;
+        const monetaryPolicyContract = lending.contracts[this.monetaryPolicy].multicallContract;
 
         const calls = [
             llammaContract.fee(),
             llammaContract.admin_fee(),
             llammaContract.rate(),
-            "rate(address)" in crvusd.contracts[this.monetaryPolicy].contract ? monetaryPolicyContract.rate(this.controller) : monetaryPolicyContract.rate(),
+            "rate(address)" in lending.contracts[this.monetaryPolicy].contract ? monetaryPolicyContract.rate(this.controller) : monetaryPolicyContract.rate(),
             controllerContract.liquidation_discount(),
             controllerContract.loan_discount(),
         ]
 
-        const [_fee, _admin_fee, _rate, _mp_rate, _liquidation_discount, _loan_discount]: ethers.BigNumber[] = await crvusd.multicallProvider.all(calls) as ethers.BigNumber[];
+        const [_fee, _admin_fee, _rate, _mp_rate, _liquidation_discount, _loan_discount]: bigint[] = await lending.multicallProvider.all(calls) as bigint[];
         const [fee, admin_fee, liquidation_discount, loan_discount] = [_fee, _admin_fee, _liquidation_discount, _loan_discount]
-            .map((x) => ethers.utils.formatUnits(x.mul(100)));
+            .map((x) => formatUnits(x.mul(100)));
 
         // (1+rate)**(365*86400)-1 ~= (e**(rate*365*86400))-1
         const rate = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
@@ -247,32 +181,32 @@ export class LlammaTemplate {
     });
 
     private async statsBalances(): Promise<[string, string]> {
-        const crvusdContract = crvusd.contracts[crvusd.address].multicallContract;
-        const collateralContract = crvusd.contracts[isEth(this.collateral) ? crvusd.constants.WETH : this.collateral].multicallContract;
-        const contract = crvusd.contracts[this.address].multicallContract;
+        const lendingContract = lending.contracts[lending.address].multicallContract;
+        const collateralContract = lending.contracts[isEth(this.collateral) ? lending.constants.WETH : this.collateral].multicallContract;
+        const contract = lending.contracts[this.address].multicallContract;
         const calls = [
-            crvusdContract.balanceOf(this.address),
+            lendingContract.balanceOf(this.address),
             collateralContract.balanceOf(this.address),
             contract.admin_fees_x(),
             contract.admin_fees_y(),
         ]
-        const [_crvusdBalance, _collateralBalance, _crvusdAdminFees, _collateralAdminFees]: ethers.BigNumber[] = await crvusd.multicallProvider.all(calls);
+        const [_lendingBalance, _collateralBalance, _lendingAdminFees, _collateralAdminFees]: bigint[] = await lending.multicallProvider.all(calls);
 
         return [
-            ethers.utils.formatUnits(_crvusdBalance.sub(_crvusdAdminFees)),
-            ethers.utils.formatUnits(_collateralBalance.sub(_collateralAdminFees), this.collateralDecimals),
+            formatUnits(_lendingBalance.sub(_lendingAdminFees)),
+            formatUnits(_collateralBalance.sub(_collateralAdminFees), this.collateralDecimals),
         ];
     }
 
     private statsMaxMinBands = memoize(async (): Promise<[number, number]> => {
-        const llammaContract = crvusd.contracts[this.address].multicallContract;
+        const llammaContract = lending.contracts[this.address].multicallContract;
 
         const calls1 = [
             llammaContract.max_band(),
             llammaContract.min_band(),
         ]
 
-        return (await crvusd.multicallProvider.all(calls1) as ethers.BigNumber[]).map((_b) => _b.toNumber()) as [number, number];
+        return (await lending.multicallProvider.all(calls1) as bigint[]).map((_b) => _b.toNumber()) as [number, number];
     },
     {
         promise: true,
@@ -280,7 +214,7 @@ export class LlammaTemplate {
     });
 
     private statsActiveBand = memoize(async (): Promise<number> => {
-        return (await crvusd.contracts[this.address].contract.active_band()).toNumber()
+        return (await lending.contracts[this.address].contract.active_band()).toNumber()
     },
     {
         promise: true,
@@ -295,11 +229,11 @@ export class LlammaTemplate {
     }
 
     private async statsBandBalances(n: number): Promise<{ stablecoin: string, collateral: string }> {
-        const llammaContract = crvusd.contracts[this.address].multicallContract;
+        const llammaContract = lending.contracts[this.address].multicallContract;
         const calls = [];
         calls.push(llammaContract.bands_x(n), llammaContract.bands_y(n));
 
-        const _balances: ethers.BigNumber[] = await crvusd.multicallProvider.all(calls);
+        const _balances: bigint[] = await lending.multicallProvider.all(calls);
 
         return {
             stablecoin: ethers.utils.formatUnits(_balances[0]),
@@ -310,13 +244,13 @@ export class LlammaTemplate {
     private async statsBandsBalances(): Promise<{ [index: number]: { stablecoin: string, collateral: string } }> {
         const [max_band, min_band]: number[] = await this.statsMaxMinBands();
 
-        const llammaContract = crvusd.contracts[this.address].multicallContract;
+        const llammaContract = lending.contracts[this.address].multicallContract;
         const calls = [];
         for (let i = min_band; i <= max_band; i++) {
             calls.push(llammaContract.bands_x(i), llammaContract.bands_y(i));
         }
 
-        const _bands: ethers.BigNumber[] = await crvusd.multicallProvider.all(calls);
+        const _bands: bigint[] = await lending.multicallProvider.all(calls);
 
         const bands: { [index: number]: { stablecoin: string, collateral: string } } = {};
         for (let i = min_band; i <= max_band; i++) {
@@ -334,9 +268,9 @@ export class LlammaTemplate {
     }
 
     private statsTotalSupply = memoize(async (): Promise<string> => {
-        const controllerContract = crvusd.contracts[this.controller].multicallContract;
+        const controllerContract = lending.contracts[this.controller].multicallContract;
         const calls = [controllerContract.minted(), controllerContract.redeemed()]
-        const [_minted, _redeemed]: ethers.BigNumber[] = await crvusd.multicallProvider.all(calls);
+        const [_minted, _redeemed]: bigint[] = await lending.multicallProvider.all(calls);
 
         return toBN(_minted).minus(toBN(_redeemed)).toString();
     },
@@ -346,7 +280,7 @@ export class LlammaTemplate {
     });
 
     private statsTotalDebt = memoize(async (): Promise<string> => {
-        const debt = await crvusd.contracts[this.controller].contract.total_debt(crvusd.constantOptions);
+        const debt = await lending.contracts[this.controller].contract.total_debt(lending.constantOptions);
 
         return ethers.utils.formatUnits(debt);
     },
@@ -356,10 +290,10 @@ export class LlammaTemplate {
     });
 
     private statsTotalStablecoin = memoize(async (): Promise<string> => {
-        const stablecoinContract = crvusd.contracts[crvusd.address].multicallContract;
-        const ammContract = crvusd.contracts[this.address].multicallContract;
+        const stablecoinContract = lending.contracts[lending.address].multicallContract;
+        const ammContract = lending.contracts[this.address].multicallContract;
 
-        const [_balance, _fee]: ethers.BigNumber[] = await crvusd.multicallProvider.all([
+        const [_balance, _fee]: bigint[] = await lending.multicallProvider.all([
             stablecoinContract.balanceOf(this.address),
             ammContract.admin_fees_x(),
         ]);
@@ -372,10 +306,10 @@ export class LlammaTemplate {
     });
 
     private statsTotalCollateral = memoize(async (): Promise<string> => {
-        const collateralContract = crvusd.contracts[isEth(this.collateral) ? crvusd.constants.WETH : this.collateral].multicallContract;
-        const ammContract = crvusd.contracts[this.address].multicallContract;
+        const collateralContract = lending.contracts[isEth(this.collateral) ? lending.constants.WETH : this.collateral].multicallContract;
+        const ammContract = lending.contracts[this.address].multicallContract;
 
-        const [_balance, _fee]: ethers.BigNumber[] = await crvusd.multicallProvider.all([
+        const [_balance, _fee]: bigint[] = await lending.multicallProvider.all([
             collateralContract.balanceOf(this.address),
             ammContract.admin_fees_y(),
         ]);
@@ -388,15 +322,16 @@ export class LlammaTemplate {
     });
 
     private statsCapAndAvailable = memoize(async (): Promise<{ "cap": string, "available": string }> => {
-        const factoryContract = crvusd.contracts[crvusd.constants.FACTORY].multicallContract;
-        const crvusdContract = crvusd.contracts[crvusd.address].multicallContract;
+        // @ts-ignore
+        const factoryContract = lending.contracts[lending.constants].multicallContract;
+        const lendingContract = lending.contracts[lending.address].multicallContract;
 
-        const [_cap, _available]: ethers.BigNumber[] = await crvusd.multicallProvider.all([
+        const [_cap, _available]: bigint[] = await lending.multicallProvider.all([
             factoryContract.debt_ceiling(this.controller),
-            crvusdContract.balanceOf(this.controller),
+            lendingContract.balanceOf(this.controller),
         ]);
 
-        return { "cap": crvusd.formatUnits(_cap), "available": crvusd.formatUnits(_available) }
+        return { "cap": lending.formatUnits(_cap), "available": lending.formatUnits(_available) }
     },
     {
         promise: true,
@@ -407,19 +342,19 @@ export class LlammaTemplate {
 
     public async loanExists(address = ""): Promise<boolean> {
         address = _getAddress(address);
-        return  await crvusd.contracts[this.controller].contract.loan_exists(address, crvusd.constantOptions);
+        return  await lending.contracts[this.controller].contract.loan_exists(address, lending.constantOptions);
     }
 
     public async userDebt(address = ""): Promise<string> {
         address = _getAddress(address);
-        const debt = await crvusd.contracts[this.controller].contract.debt(address, crvusd.constantOptions);
+        const debt = await lending.contracts[this.controller].contract.debt(address, lending.constantOptions);
 
         return ethers.utils.formatUnits(debt);
     }
 
     public async userHealth(full = true, address = ""): Promise<string> {
         address = _getAddress(address);
-        let _health = await crvusd.contracts[this.controller].contract.health(address, full, crvusd.constantOptions) as ethers.BigNumber;
+        let _health = await lending.contracts[this.controller].contract.health(address, full, lending.constantOptions) as bigint;
         _health = _health.mul(100);
 
         return ethers.utils.formatUnits(_health);
@@ -427,7 +362,7 @@ export class LlammaTemplate {
 
     public async userBands(address = ""): Promise<number[]> {
         address = _getAddress(address);
-        const _bands = await crvusd.contracts[this.address].contract.read_user_tick_numbers(address, crvusd.constantOptions) as ethers.BigNumber[];
+        const _bands = await lending.contracts[this.address].contract.read_user_tick_numbers(address, lending.constantOptions) as bigint[];
 
         return _bands.map((_t) => _t.toNumber()).reverse();
     }
@@ -440,15 +375,15 @@ export class LlammaTemplate {
 
     public async userPrices(address = ""): Promise<string[]> {
         address = _getAddress(address);
-        const _prices = await crvusd.contracts[this.controller].contract.user_prices(address, crvusd.constantOptions) as ethers.BigNumber[];
+        const _prices = await lending.contracts[this.controller].contract.user_prices(address, lending.constantOptions) as bigint[];
 
         return _prices.map((_p) =>ethers.utils.formatUnits(_p)).reverse();
     }
 
-    public async _userState(address = ""): Promise<{ _collateral: ethers.BigNumber, _stablecoin: ethers.BigNumber, _debt: ethers.BigNumber }> {
+    public async _userState(address = ""): Promise<{ _collateral: bigint, _stablecoin: bigint, _debt: bigint }> {
         address = _getAddress(address);
-        const contract = crvusd.contracts[this.controller].contract;
-        const [_collateral, _stablecoin, _debt] = await contract.user_state(address, crvusd.constantOptions) as ethers.BigNumber[];
+        const contract = lending.contracts[this.controller].contract;
+        const [_collateral, _stablecoin, _debt] = await contract.user_state(address, lending.constantOptions) as bigint[];
 
         return { _collateral, _stablecoin, _debt }
     }
@@ -466,10 +401,10 @@ export class LlammaTemplate {
     public async userLoss(userAddress = ""): Promise<{ deposited_collateral: string, current_collateral_estimation: string, loss: string, loss_pct: string }> {
         userAddress = _getAddress(userAddress);
         const [deposited_collateral, _current_collateral_estimation] = await Promise.all([
-            _getUserCollateral(crvusd.constants.NETWORK_NAME, this.controller, userAddress, this.collateralDecimals),
-            crvusd.contracts[this.address].contract.get_y_up(userAddress),
+            _getUserCollateral(lending.constants.NETWORK_NAME, this.controller, userAddress, this.collateralDecimals),
+            lending.contracts[this.address].contract.get_y_up(userAddress),
         ]);
-        const current_collateral_estimation = crvusd.formatUnits(_current_collateral_estimation, this.collateralDecimals);
+        const current_collateral_estimation = lending.formatUnits(_current_collateral_estimation, this.collateralDecimals);
         if (BN(deposited_collateral).lte(0)) {
             return {
                 deposited_collateral,
@@ -494,8 +429,8 @@ export class LlammaTemplate {
         if (n1 == 0 && n2 == 0) return {};
 
         address = _getAddress(address);
-        const contract = crvusd.contracts[this.address].contract;
-        const [_stablecoins, _collaterals] = await contract.get_xy(address, crvusd.constantOptions) as [ethers.BigNumber[], ethers.BigNumber[]];
+        const contract = lending.contracts[this.address].contract;
+        const [_stablecoins, _collaterals] = await contract.get_xy(address, lending.constantOptions) as [bigint[], bigint[]];
 
         const res: IDict<{ stablecoin: string, collateral: string }> = {};
         for (let i = n1; i <= n2; i++) {
@@ -509,7 +444,7 @@ export class LlammaTemplate {
     }
 
     public async oraclePrice(): Promise<string> {
-        const _price = await crvusd.contracts[this.address].contract.price_oracle(crvusd.constantOptions) as ethers.BigNumber;
+        const _price = await lending.contracts[this.address].contract.price_oracle(lending.constantOptions) as bigint;
         return ethers.utils.formatUnits(_price);
     }
 
@@ -534,12 +469,12 @@ export class LlammaTemplate {
     }
 
     public async price(): Promise<string> {
-        const _price = await crvusd.contracts[this.address].contract.get_p(crvusd.constantOptions) as ethers.BigNumber;
+        const _price = await lending.contracts[this.address].contract.get_p(lending.constantOptions) as bigint;
         return ethers.utils.formatUnits(_price);
     }
 
     public basePrice = memoize(async(): Promise<string> => {
-        const _price = await crvusd.contracts[this.address].contract.get_base_price(crvusd.constantOptions) as ethers.BigNumber;
+        const _price = await lending.contracts[this.address].contract.get_base_price(lending.constantOptions) as bigint;
         return ethers.utils.formatUnits(_price);
     },
     {
@@ -560,11 +495,6 @@ export class LlammaTemplate {
     }
 
     public calcRangePct(range: number): string {
-        /**
-         * Calculates range in terms of price difference %
-         * @param  {number} range Number of bands in range
-         * @return {string}       Range in %
-         */
         const A_BN = BN(this.A);
         const startBN = BN(1);
         const endBN = A_BN.minus(1).div(A_BN).pow(range);
@@ -575,7 +505,7 @@ export class LlammaTemplate {
     // ---------------- WALLET BALANCES ----------------
 
     private async walletBalances(address = ""): Promise<{ collateral: string, stablecoin: string }> {
-        const [collateral, stablecoin] = await getBalances([this.collateral, crvusd.address], address);
+        const [collateral, stablecoin] = ['0','0']//await getBalances([this.collateral, lending.address], address);
         return { stablecoin, collateral }
     }
 
@@ -590,7 +520,7 @@ export class LlammaTemplate {
         this._checkRange(range);
         const _collateral = parseUnits(collateral, this.collateralDecimals);
 
-        return ethers.utils.formatUnits(await crvusd.contracts[this.controller].contract.max_borrowable(_collateral, range, crvusd.constantOptions));
+        return ethers.utils.formatUnits(await lending.contracts[this.controller].contract.max_borrowable(_collateral, range, lending.constantOptions));
     }
 
     public createLoanMaxRecvAllRanges = memoize(async (collateral: number | string): Promise<{ [index: number]: string }> => {
@@ -598,9 +528,9 @@ export class LlammaTemplate {
 
         const calls = [];
         for (let N = this.minBands; N <= this.maxBands; N++) {
-            calls.push(crvusd.contracts[this.controller].multicallContract.max_borrowable(_collateral, N));
+            calls.push(lending.contracts[this.controller].multicallContract.max_borrowable(_collateral, N));
         }
-        const _amounts = await crvusd.multicallProvider.all(calls) as ethers.BigNumber[];
+        const _amounts = await lending.multicallProvider.all(calls) as bigint[];
 
         const res: { [index: number]: string } = {};
         for (let N = this.minBands; N <= this.maxBands; N++) {
@@ -623,47 +553,47 @@ export class LlammaTemplate {
         return this.maxBands;
     }
 
-    private async _calcN1(_collateral: ethers.BigNumber, _debt: ethers.BigNumber, range: number): Promise<ethers.BigNumber> {
+    private async _calcN1(_collateral: bigint, _debt: bigint, range: number): Promise<bigint> {
         this._checkRange(range);
-        return await crvusd.contracts[this.controller].contract.calculate_debt_n1(_collateral, _debt, range, crvusd.constantOptions);
+        return await lending.contracts[this.controller].contract.calculate_debt_n1(_collateral, _debt, range, lending.constantOptions);
     }
 
-    private async _calcN1AllRanges(_collateral: ethers.BigNumber, _debt: ethers.BigNumber, maxN: number): Promise<ethers.BigNumber[]> {
+    private async _calcN1AllRanges(_collateral: bigint, _debt: bigint, maxN: number): Promise<bigint[]> {
         const calls = [];
         for (let N = this.minBands; N <= maxN; N++) {
-            calls.push(crvusd.contracts[this.controller].multicallContract.calculate_debt_n1(_collateral, _debt, N));
+            calls.push(lending.contracts[this.controller].multicallContract.calculate_debt_n1(_collateral, _debt, N));
         }
-        return await crvusd.multicallProvider.all(calls) as ethers.BigNumber[];
+        return await lending.multicallProvider.all(calls) as bigint[];
     }
 
-    private async _getPrices(_n2: ethers.BigNumber, _n1: ethers.BigNumber): Promise<string[]> {
-        const contract = crvusd.contracts[this.address].multicallContract;
-        return (await crvusd.multicallProvider.all([
+    private async _getPrices(_n2: bigint, _n1: bigint): Promise<string[]> {
+        const contract = lending.contracts[this.address].multicallContract;
+        return (await lending.multicallProvider.all([
             contract.p_oracle_down(_n2),
             contract.p_oracle_up(_n1),
-        ]) as ethers.BigNumber[]).map((_p) => ethers.utils.formatUnits(_p));
+        ]) as bigint[]).map((_p) => ethers.utils.formatUnits(_p));
     }
 
-    private async _calcPrices(_n2: ethers.BigNumber, _n1: ethers.BigNumber): Promise<[string, string]> {
+    private async _calcPrices(_n2: bigint, _n1: bigint): Promise<[string, string]> {
         return [await this.calcTickPrice(_n2.toNumber() + 1), await this.calcTickPrice(_n1.toNumber())];
     }
 
-    private async _createLoanBands(collateral: number | string, debt: number | string, range: number): Promise<[ethers.BigNumber, ethers.BigNumber]> {
+    private async _createLoanBands(collateral: number | string, debt: number | string, range: number): Promise<[bigint, bigint]> {
         const _n1 = await this._calcN1(parseUnits(collateral, this.collateralDecimals), parseUnits(debt), range);
-        const _n2 = _n1.add(ethers.BigNumber.from(range - 1));
+        const _n2 = _n1.add(bigint.from(range - 1));
 
         return [_n2, _n1];
     }
 
-    private async _createLoanBandsAllRanges(collateral: number | string, debt: number | string): Promise<{ [index: number]: [ethers.BigNumber, ethers.BigNumber] }> {
+    private async _createLoanBandsAllRanges(collateral: number | string, debt: number | string): Promise<{ [index: number]: [bigint, bigint] }> {
         const maxN = await this.getMaxRange(collateral, debt);
         const _n1_arr = await this._calcN1AllRanges(parseUnits(collateral, this.collateralDecimals), parseUnits(debt), maxN);
-        const _n2_arr: ethers.BigNumber[] = [];
+        const _n2_arr: bigint[] = [];
         for (let N = this.minBands; N <= maxN; N++) {
-            _n2_arr.push(_n1_arr[N - this.minBands].add(ethers.BigNumber.from(N - 1)));
+            _n2_arr.push(_n1_arr[N - this.minBands].add(bigint.from(N - 1)));
         }
 
-        const res: { [index: number]: [ethers.BigNumber, ethers.BigNumber] } = {};
+        const res: { [index: number]: [bigint, bigint] } = {};
         for (let N = this.minBands; N <= maxN; N++) {
             res[N] = [_n2_arr[N - this.minBands], _n1_arr[N - this.minBands]];
         }
@@ -718,23 +648,23 @@ export class LlammaTemplate {
         const _collateral = parseUnits(collateral, this.collateralDecimals);
         const _debt = parseUnits(debt);
 
-        const contract = crvusd.contracts[this.healthCalculator ?? this.controller].contract;
-        let _health = await contract.health_calculator(address, _collateral, _debt, full, range, crvusd.constantOptions) as ethers.BigNumber;
+        const contract = lending.contracts[this.healthCalculator ?? this.controller].contract;
+        let _health = await contract.health_calculator(address, _collateral, _debt, full, range, lending.constantOptions) as bigint;
         _health = _health.mul(100);
 
         return ethers.utils.formatUnits(_health);
     }
 
     public async createLoanIsApproved(collateral: number | string): Promise<boolean> {
-        return await hasAllowance([this.collateral], [collateral], crvusd.signerAddress, this.controller);
+        return true//await hasAllowance([this.collateral], [collateral], lending.signerAddress, this.controller);
     }
 
     private async createLoanApproveEstimateGas (collateral: number | string): Promise<number> {
-        return await ensureAllowanceEstimateGas([this.collateral], [collateral], this.controller);
+        return 0//await ensureAllowanceEstimateGas([this.collateral], [collateral], this.controller);
     }
 
     public async createLoanApprove(collateral: number | string): Promise<string[]> {
-        return await ensureAllowance([this.collateral], [collateral], this.controller);
+        return ['true']//await ensureAllowance([this.collateral], [collateral], this.controller);
     }
 
     private async _createLoan(collateral: number | string, debt: number | string, range: number, estimateGas: boolean): Promise<string | number> {
@@ -743,14 +673,14 @@ export class LlammaTemplate {
 
         const _collateral = parseUnits(collateral, this.collateralDecimals);
         const _debt = parseUnits(debt);
-        const contract = crvusd.contracts[this.controller].contract;
-        const value = isEth(this.collateral) ? _collateral : crvusd.parseUnits("0");
-        const gas = await contract.estimateGas.create_loan(_collateral, _debt, range, { ...crvusd.constantOptions, value });
+        const contract = lending.contracts[this.controller].contract;
+        const value = isEth(this.collateral) ? _collateral : lending.parseUnits("0");
+        const gas = await contract.estimateGas.create_loan(_collateral, _debt, range, { ...lending.constantOptions, value });
         if (estimateGas) return gas.toNumber();
 
-        await crvusd.updateFeeData();
+        await lending.updateFeeData();
         const gasLimit = gas.mul(130).div(100);
-        return (await contract.create_loan(_collateral, _debt, range, { ...crvusd.options, gasLimit, value })).hash
+        return (await contract.create_loan(_collateral, _debt, range, { ...lending.options, gasLimit, value })).hash
     }
 
     public async createLoanEstimateGas(collateral: number | string, debt: number | string, range: number): Promise<number> {
@@ -770,15 +700,15 @@ export class LlammaTemplate {
         const N = await this.userRange();
         const _collateral = _currentCollateral.add(parseUnits(collateralAmount, this.collateralDecimals));
 
-        const contract = crvusd.contracts[this.controller].contract;
-        const _debt: ethers.BigNumber = await contract.max_borrowable(_collateral, N, crvusd.constantOptions);
+        const contract = lending.contracts[this.controller].contract;
+        const _debt: bigint = await contract.max_borrowable(_collateral, N, lending.constantOptions);
 
         return ethers.utils.formatUnits(_debt.sub(_currentDebt));
     }
 
-    private async _borrowMoreBands(collateral: number | string, debt: number | string): Promise<[ethers.BigNumber, ethers.BigNumber]> {
+    private async _borrowMoreBands(collateral: number | string, debt: number | string): Promise<[bigint, bigint]> {
         const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
-        if (_currentDebt.eq(0)) throw Error(`Loan for ${crvusd.signerAddress} does not exist`);
+        if (_currentDebt.eq(0)) throw Error(`Loan for ${lending.signerAddress} does not exist`);
 
         const N = await this.userRange();
         const _collateral = _currentCollateral.add(parseUnits(collateral, this.collateralDecimals));
@@ -807,40 +737,40 @@ export class LlammaTemplate {
         const _collateral = parseUnits(collateral, this.collateralDecimals);
         const _debt = parseUnits(debt);
 
-        const contract = crvusd.contracts[this.healthCalculator ?? this.controller].contract;
-        let _health = await contract.health_calculator(address, _collateral, _debt, full, 0, crvusd.constantOptions) as ethers.BigNumber;
+        const contract = lending.contracts[this.healthCalculator ?? this.controller].contract;
+        let _health = await contract.health_calculator(address, _collateral, _debt, full, 0, lending.constantOptions) as bigint;
         _health = _health.mul(100);
 
         return ethers.utils.formatUnits(_health);
     }
 
     public async borrowMoreIsApproved(collateral: number | string): Promise<boolean> {
-        return await hasAllowance([this.collateral], [collateral], crvusd.signerAddress, this.controller);
+        return true//await hasAllowance([this.collateral], [collateral], lending.signerAddress, this.controller);
     }
 
     private async borrowMoreApproveEstimateGas (collateral: number | string): Promise<number> {
-        return await ensureAllowanceEstimateGas([this.collateral], [collateral], this.controller);
+        return 0//await ensureAllowanceEstimateGas([this.collateral], [collateral], this.controller);
     }
 
     public async borrowMoreApprove(collateral: number | string): Promise<string[]> {
-        return await ensureAllowance([this.collateral], [collateral], this.controller);
+        return ['true']//await ensureAllowance([this.collateral], [collateral], this.controller);
     }
 
     private async _borrowMore(collateral: number | string, debt: number | string, estimateGas: boolean): Promise<string | number> {
         const { stablecoin, debt: currentDebt } = await this.userState();
-        if (Number(currentDebt) === 0) throw Error(`Loan for ${crvusd.signerAddress} does not exist`);
-        if (Number(stablecoin) > 0) throw Error(`User ${crvusd.signerAddress} is already in liquidation mode`);
+        if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
+        if (Number(stablecoin) > 0) throw Error(`User ${lending.signerAddress} is already in liquidation mode`);
 
         const _collateral = parseUnits(collateral, this.collateralDecimals);
         const _debt = parseUnits(debt);
-        const contract = crvusd.contracts[this.controller].contract;
-        const value = isEth(this.collateral) ? _collateral : crvusd.parseUnits("0");
-        const gas = await contract.estimateGas.borrow_more(_collateral, _debt, { ...crvusd.constantOptions, value });
+        const contract = lending.contracts[this.controller].contract;
+        const value = isEth(this.collateral) ? _collateral : lending.parseUnits("0");
+        const gas = await contract.estimateGas.borrow_more(_collateral, _debt, { ...lending.constantOptions, value });
         if (estimateGas) return gas.toNumber();
 
-        await crvusd.updateFeeData();
+        await lending.updateFeeData();
         const gasLimit = gas.mul(130).div(100);
-        return (await contract.borrow_more(_collateral, _debt, { ...crvusd.options, gasLimit, value })).hash
+        return (await contract.borrow_more(_collateral, _debt, { ...lending.options, gasLimit, value })).hash
     }
 
     public async borrowMoreEstimateGas(collateral: number | string, debt: number | string): Promise<number> {
@@ -855,7 +785,7 @@ export class LlammaTemplate {
 
     // ---------------- ADD COLLATERAL ----------------
 
-    private async _addCollateralBands(collateral: number | string, address = ""): Promise<[ethers.BigNumber, ethers.BigNumber]> {
+    private async _addCollateralBands(collateral: number | string, address = ""): Promise<[bigint, bigint]> {
         address = _getAddress(address);
         const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState(address);
         if (_currentDebt.eq(0)) throw Error(`Loan for ${address} does not exist`);
@@ -884,23 +814,23 @@ export class LlammaTemplate {
         address = _getAddress(address);
         const _collateral = parseUnits(collateral, this.collateralDecimals);
 
-        const contract = crvusd.contracts[this.healthCalculator ?? this.controller].contract;
-        let _health = await contract.health_calculator(address, _collateral, 0, full, 0, crvusd.constantOptions) as ethers.BigNumber;
+        const contract = lending.contracts[this.healthCalculator ?? this.controller].contract;
+        let _health = await contract.health_calculator(address, _collateral, 0, full, 0, lending.constantOptions) as bigint;
         _health = _health.mul(100);
 
         return ethers.utils.formatUnits(_health);
     }
 
     public async addCollateralIsApproved(collateral: number | string): Promise<boolean> {
-        return await hasAllowance([this.collateral], [collateral], crvusd.signerAddress, this.controller);
+        return true//await hasAllowance([this.collateral], [collateral], lending.signerAddress, this.controller);
     }
 
     private async addCollateralApproveEstimateGas (collateral: number | string): Promise<number> {
-        return await ensureAllowanceEstimateGas([this.collateral], [collateral], this.controller);
+        return 0//await ensureAllowanceEstimateGas([this.collateral], [collateral], this.controller);
     }
 
     public async addCollateralApprove(collateral: number | string): Promise<string[]> {
-        return await ensureAllowance([this.collateral], [collateral], this.controller);
+        return ['true']//await ensureAllowance([this.collateral], [collateral], this.controller);
     }
 
     private async _addCollateral(collateral: number | string, address: string, estimateGas: boolean): Promise<string | number> {
@@ -909,14 +839,14 @@ export class LlammaTemplate {
         if (Number(stablecoin) > 0) throw Error(`User ${address} is already in liquidation mode`);
 
         const _collateral = parseUnits(collateral, this.collateralDecimals);
-        const contract = crvusd.contracts[this.controller].contract;
-        const value = isEth(this.collateral) ? _collateral : crvusd.parseUnits("0");
-        const gas = await contract.estimateGas.add_collateral(_collateral, address, { ...crvusd.constantOptions, value });
+        const contract = lending.contracts[this.controller].contract;
+        const value = isEth(this.collateral) ? _collateral : lending.parseUnits("0");
+        const gas = await contract.estimateGas.add_collateral(_collateral, address, { ...lending.constantOptions, value });
         if (estimateGas) return gas.toNumber();
 
-        await crvusd.updateFeeData();
+        await lending.updateFeeData();
         const gasLimit = gas.mul(130).div(100);
-        return (await contract.add_collateral(_collateral, address, { ...crvusd.options, gasLimit, value })).hash
+        return (await contract.add_collateral(_collateral, address, { ...lending.options, gasLimit, value })).hash
     }
 
     public async addCollateralEstimateGas(collateral: number | string, address = ""): Promise<number> {
@@ -936,14 +866,14 @@ export class LlammaTemplate {
     public async maxRemovable(): Promise<string> {
         const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
         const N = await this.userRange();
-        const _requiredCollateral = await crvusd.contracts[this.controller].contract.min_collateral(_currentDebt, N, crvusd.constantOptions)
+        const _requiredCollateral = await lending.contracts[this.controller].contract.min_collateral(_currentDebt, N, lending.constantOptions)
 
         return ethers.utils.formatUnits(_currentCollateral.sub(_requiredCollateral), this.collateralDecimals);
     }
 
-    private async _removeCollateralBands(collateral: number | string): Promise<[ethers.BigNumber, ethers.BigNumber]> {
+    private async _removeCollateralBands(collateral: number | string): Promise<[bigint, bigint]> {
         const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
-        if (_currentDebt.eq(0)) throw Error(`Loan for ${crvusd.signerAddress} does not exist`);
+        if (_currentDebt.eq(0)) throw Error(`Loan for ${lending.signerAddress} does not exist`);
 
         const N = await this.userRange();
         const _collateral = _currentCollateral.sub(parseUnits(collateral, this.collateralDecimals));
@@ -969,8 +899,8 @@ export class LlammaTemplate {
         address = _getAddress(address);
         const _collateral = parseUnits(collateral, this.collateralDecimals).mul(-1);
 
-        const contract = crvusd.contracts[this.healthCalculator ?? this.controller].contract;
-        let _health = await contract.health_calculator(address, _collateral, 0, full, 0, crvusd.constantOptions) as ethers.BigNumber;
+        const contract = lending.contracts[this.healthCalculator ?? this.controller].contract;
+        let _health = await contract.health_calculator(address, _collateral, 0, full, 0, lending.constantOptions) as bigint;
         _health = _health.mul(100);
 
         return ethers.utils.formatUnits(_health);
@@ -978,17 +908,17 @@ export class LlammaTemplate {
 
     private async _removeCollateral(collateral: number | string, estimateGas: boolean): Promise<string | number> {
         const { stablecoin, debt: currentDebt } = await this.userState();
-        if (Number(currentDebt) === 0) throw Error(`Loan for ${crvusd.signerAddress} does not exist`);
-        if (Number(stablecoin) > 0) throw Error(`User ${crvusd.signerAddress} is already in liquidation mode`);
+        if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
+        if (Number(stablecoin) > 0) throw Error(`User ${lending.signerAddress} is already in liquidation mode`);
 
         const _collateral = parseUnits(collateral, this.collateralDecimals);
-        const contract = crvusd.contracts[this.controller].contract;
-        const gas = await contract.estimateGas.remove_collateral(_collateral, isEth(this.collateral), crvusd.constantOptions);
+        const contract = lending.contracts[this.controller].contract;
+        const gas = await contract.estimateGas.remove_collateral(_collateral, isEth(this.collateral), lending.constantOptions);
         if (estimateGas) return gas.toNumber();
 
-        await crvusd.updateFeeData();
+        await lending.updateFeeData();
         const gasLimit = gas.mul(130).div(100);
-        return (await contract.remove_collateral(_collateral, isEth(this.collateral), { ...crvusd.options, gasLimit })).hash
+        return (await contract.remove_collateral(_collateral, isEth(this.collateral), { ...lending.options, gasLimit })).hash
     }
 
     public async removeCollateralEstimateGas(collateral: number | string): Promise<number> {
@@ -1001,7 +931,7 @@ export class LlammaTemplate {
 
     // ---------------- REPAY ----------------
 
-    private async _repayBands(debt: number | string, address: string): Promise<[ethers.BigNumber, ethers.BigNumber]> {
+    private async _repayBands(debt: number | string, address: string): Promise<[bigint, bigint]> {
         const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState(address);
         if (_currentDebt.eq(0)) throw Error(`Loan for ${address} does not exist`);
 
@@ -1026,23 +956,23 @@ export class LlammaTemplate {
     }
 
     public async repayIsApproved(debt: number | string): Promise<boolean> {
-        return await hasAllowance([crvusd.address], [debt], crvusd.signerAddress, this.controller);
+        return true//await hasAllowance([lending.address], [debt], lending.signerAddress, this.controller);
     }
 
     private async repayApproveEstimateGas (debt: number | string): Promise<number> {
-        return await ensureAllowanceEstimateGas([crvusd.address], [debt], this.controller);
+        return 0//await ensureAllowanceEstimateGas([lending.address], [debt], this.controller);
     }
 
     public async repayApprove(debt: number | string): Promise<string[]> {
-        return await ensureAllowance([crvusd.address], [debt], this.controller);
+        return ['0']//await ensureAllowance([lending.address], [debt], this.controller);
     }
 
     public async repayHealth(debt: number | string, full = true, address = ""): Promise<string> {
         address = _getAddress(address);
         const _debt = parseUnits(debt).mul(-1);
 
-        const contract = crvusd.contracts[this.healthCalculator ?? this.controller].contract;
-        let _health = await contract.health_calculator(address, 0, _debt, full, 0, crvusd.constantOptions) as ethers.BigNumber;
+        const contract = lending.contracts[this.healthCalculator ?? this.controller].contract;
+        let _health = await contract.health_calculator(address, 0, _debt, full, 0, lending.constantOptions) as bigint;
         _health = _health.mul(100);
 
         return ethers.utils.formatUnits(_health);
@@ -1054,16 +984,16 @@ export class LlammaTemplate {
         if (Number(currentDebt) === 0) throw Error(`Loan for ${address} does not exist`);
 
         const _debt = parseUnits(debt);
-        const contract = crvusd.contracts[this.controller].contract;
+        const contract = lending.contracts[this.controller].contract;
         const [_, n1] = await this.userBands(address);
         const { stablecoin } = await this.userState(address);
         const n = (BN(stablecoin).gt(0)) ? MAX_ACTIVE_BAND : n1 - 1;  // In liquidation mode it doesn't matter if active band moves
-        const gas = await contract.estimateGas.repay(_debt, address, n, isEth(this.collateral), crvusd.constantOptions);
+        const gas = await contract.estimateGas.repay(_debt, address, n, isEth(this.collateral), lending.constantOptions);
         if (estimateGas) return gas.toNumber();
 
-        await crvusd.updateFeeData();
+        await lending.updateFeeData();
         const gasLimit = gas.mul(130).div(100);
-        return (await contract.repay(_debt, address, n, isEth(this.collateral), { ...crvusd.options, gasLimit })).hash
+        return (await contract.repay(_debt, address, n, isEth(this.collateral), { ...lending.options, gasLimit })).hash
     }
 
     public async repayEstimateGas(debt: number | string, address = ""): Promise<number> {
@@ -1121,15 +1051,15 @@ export class LlammaTemplate {
     public async maxSwappable(i: number, j: number): Promise<string> {
         if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
         const inDecimals = this.coinDecimals[i];
-        const contract = crvusd.contracts[this.address].contract;
-        const [_inAmount, _outAmount] = await contract.get_dxdy(i, j, MAX_ALLOWANCE, crvusd.constantOptions) as ethers.BigNumber[];
+        const contract = lending.contracts[this.address].contract;
+        const [_inAmount, _outAmount] = await contract.get_dxdy(i, j, MAX_ALLOWANCE, lending.constantOptions) as bigint[];
         if (_outAmount.eq(0)) return "0";
 
         return ethers.utils.formatUnits(_inAmount, inDecimals)
     }
 
-    private async _swapExpected(i: number, j: number, _amount: ethers.BigNumber): Promise<ethers.BigNumber> {
-        return await crvusd.contracts[this.address].contract.get_dy(i, j, _amount, crvusd.constantOptions) as ethers.BigNumber;
+    private async _swapExpected(i: number, j: number, _amount: bigint): Promise<bigint> {
+        return await lending.contracts[this.address].contract.get_dy(i, j, _amount, lending.constantOptions) as bigint;
     }
 
     public async swapExpected(i: number, j: number, amount: number | string): Promise<string> {
@@ -1145,7 +1075,7 @@ export class LlammaTemplate {
         if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
         const [inDecimals, outDecimals] = this.coinDecimals;
         const _amount = parseUnits(outAmount, outDecimals);
-        const _expected = await crvusd.contracts[this.address].contract.get_dx(i, j, _amount, crvusd.constantOptions) as ethers.BigNumber;
+        const _expected = await lending.contracts[this.address].contract.get_dx(i, j, _amount, lending.constantOptions) as bigint;
 
         return ethers.utils.formatUnits(_expected, inDecimals)
     }
@@ -1186,19 +1116,19 @@ export class LlammaTemplate {
     public async swapIsApproved(i: number, amount: number | string): Promise<boolean> {
         if (i !== 0 && i !== 1) throw Error("Wrong index");
 
-        return await hasAllowance([this.coinAddresses[i]], [amount], crvusd.signerAddress, this.address);
+        return true//await hasAllowance([this.coinAddresses[i]], [amount], lending.signerAddress, this.address);
     }
 
     private async swapApproveEstimateGas (i: number, amount: number | string): Promise<number> {
         if (i !== 0 && i !== 1) throw Error("Wrong index");
 
-        return await ensureAllowanceEstimateGas([this.coinAddresses[i]], [amount], this.address);
+        return 0//await ensureAllowanceEstimateGas([this.coinAddresses[i]], [amount], this.address);
     }
 
     public async swapApprove(i: number, amount: number | string): Promise<string[]> {
         if (i !== 0 && i !== 1) throw Error("Wrong index");
 
-        return await ensureAllowance([this.coinAddresses[i]], [amount], this.address);
+        return ['']//await ensureAllowance([this.coinAddresses[i]], [amount], this.address);
     }
 
     private async _swap(i: number, j: number, amount: number | string, slippage: number, estimateGas: boolean): Promise<string | number> {
@@ -1209,13 +1139,13 @@ export class LlammaTemplate {
         const _expected = await this._swapExpected(i, j, _amount);
         const minRecvAmountBN: BigNumber = toBN(_expected, outDecimals).times(100 - slippage).div(100);
         const _minRecvAmount = fromBN(minRecvAmountBN, outDecimals);
-        const contract = crvusd.contracts[this.address].contract;
-        const gas = await contract.estimateGas.exchange(i, j, _amount, _minRecvAmount, crvusd.constantOptions);
+        const contract = lending.contracts[this.address].contract;
+        const gas = await contract.estimateGas.exchange(i, j, _amount, _minRecvAmount, lending.constantOptions);
         if (estimateGas) return gas.toNumber();
 
-        await crvusd.updateFeeData();
+        await lending.updateFeeData();
         const gasLimit = gas.mul(130).div(100);
-        return (await contract.exchange(i, j, _amount, _minRecvAmount, { ...crvusd.options, gasLimit })).hash
+        return (await contract.exchange(i, j, _amount, _minRecvAmount, { ...lending.options, gasLimit })).hash
     }
 
     public async swapEstimateGas(i: number, j: number, amount: number | string, slippage = 0.1): Promise<number> {
@@ -1232,24 +1162,24 @@ export class LlammaTemplate {
 
     public async tokensToLiquidate(address = ""): Promise<string> {
         address = _getAddress(address);
-        const _tokens = await crvusd.contracts[this.controller].contract.tokens_to_liquidate(address, crvusd.constantOptions) as ethers.BigNumber;
+        const _tokens = await lending.contracts[this.controller].contract.tokens_to_liquidate(address, lending.constantOptions) as bigint;
 
         return ethers.utils.formatUnits(_tokens)
     }
 
     public async liquidateIsApproved(address = ""): Promise<boolean> {
         const tokensToLiquidate = await this.tokensToLiquidate(address);
-        return await hasAllowance([crvusd.address], [tokensToLiquidate], crvusd.signerAddress, this.controller);
+        return true//await hasAllowance([lending.address], [tokensToLiquidate], lending.signerAddress, this.controller);
     }
 
     private async liquidateApproveEstimateGas (address = ""): Promise<number> {
         const tokensToLiquidate = await this.tokensToLiquidate(address);
-        return await ensureAllowanceEstimateGas([crvusd.address], [tokensToLiquidate], this.controller);
+        return 0//await ensureAllowanceEstimateGas([lending.address], [tokensToLiquidate], this.controller);
     }
 
     public async liquidateApprove(address = ""): Promise<string[]> {
         const tokensToLiquidate = await this.tokensToLiquidate(address);
-        return await ensureAllowance([crvusd.address], [tokensToLiquidate], this.controller);
+        return ['w']//await ensureAllowance([lending.address], [tokensToLiquidate], this.controller);
     }
 
     private async _liquidate(address: string, slippage: number, estimateGas: boolean): Promise<string | number> {
@@ -1261,13 +1191,13 @@ export class LlammaTemplate {
 
         const minAmountBN: BigNumber = BN(stablecoin).times(100 - slippage).div(100);
         const _minAmount = fromBN(minAmountBN);
-        const contract = crvusd.contracts[this.controller].contract;
-        const gas = (await contract.estimateGas.liquidate(address, _minAmount, isEth(this.collateral), crvusd.constantOptions))
+        const contract = lending.contracts[this.controller].contract;
+        const gas = (await contract.estimateGas.liquidate(address, _minAmount, isEth(this.collateral), lending.constantOptions))
         if (estimateGas) return gas.toNumber();
 
-        await crvusd.updateFeeData();
+        await lending.updateFeeData();
         const gasLimit = gas.mul(130).div(100);
-        return (await contract.liquidate(address, _minAmount, isEth(this.collateral), { ...crvusd.options, gasLimit })).hash
+        return (await contract.liquidate(address, _minAmount, isEth(this.collateral), { ...lending.options, gasLimit })).hash
     }
 
     public async liquidateEstimateGas(address: string, slippage = 0.1): Promise<number> {
@@ -1296,17 +1226,17 @@ export class LlammaTemplate {
 
     public async selfLiquidateEstimateGas(slippage = 0.1): Promise<number> {
         if (!(await this.selfLiquidateIsApproved())) throw Error("Approval is needed for gas estimation");
-        return await this._liquidate(crvusd.signerAddress, slippage, true) as number;
+        return await this._liquidate(lending.signerAddress, slippage, true) as number;
     }
 
     public async selfLiquidate(slippage = 0.1): Promise<string> {
         await this.selfLiquidateApprove();
-        return await this._liquidate(crvusd.signerAddress, slippage, false) as string;
+        return await this._liquidate(lending.signerAddress, slippage, false) as string;
     }
 
     // ---------------- CREATE LOAN WITH LEVERAGE ----------------
 
-    private _getBestIdx(_amounts: ethers.BigNumber[]): number {
+    private _getBestIdx(_amounts: bigint[]): number {
         let bestIdx = 0;
         for (let i = 1; i < 5; i++) {
             if (_amounts[i].gt(_amounts[bestIdx])) bestIdx = i;
@@ -1326,15 +1256,15 @@ export class LlammaTemplate {
         const _collateral = parseUnits(collateral, this.collateralDecimals);
         const calls = [];
         for (let i = 0; i < 5; i++) {
-            calls.push(crvusd.contracts[this.leverageZap].multicallContract.max_borrowable_and_collateral(_collateral, range, i));
+            calls.push(lending.contracts[this.leverageZap].multicallContract.max_borrowable_and_collateral(_collateral, range, i));
         }
-        const _res: ethers.BigNumber[][] = await crvusd.multicallProvider.all(calls);
+        const _res: bigint[][] = await lending.multicallProvider.all(calls);
         const _maxBorrowable = _res.map((r) => r[0].mul(999).div(1000));
         const _maxCollateral = _res.map((r) => r[1].mul(999).div(1000));
         const routeIdx = this._getBestIdx(_maxCollateral);
 
-        const maxBorrowable = crvusd.formatUnits(_maxBorrowable[routeIdx]);
-        const maxCollateral = crvusd.formatUnits(_maxCollateral[routeIdx], this.collateralDecimals);
+        const maxBorrowable = lending.formatUnits(_maxBorrowable[routeIdx]);
+        const maxCollateral = lending.formatUnits(_maxCollateral[routeIdx], this.collateralDecimals);
         return {
             maxBorrowable,
             maxCollateral,
@@ -1351,10 +1281,10 @@ export class LlammaTemplate {
         const calls = [];
         for (let N = this.minBands; N <= this.maxBands; N++) {
             for (let i = 0; i < 5; i++) {
-                calls.push(crvusd.contracts[this.leverageZap].multicallContract.max_borrowable_and_collateral(_collateral, N, i));
+                calls.push(lending.contracts[this.leverageZap].multicallContract.max_borrowable_and_collateral(_collateral, N, i));
             }
         }
-        const _rawRes: ethers.BigNumber[][] = await crvusd.multicallProvider.all(calls);
+        const _rawRes: bigint[][] = await lending.multicallProvider.all(calls);
 
         const res: IDict<{ maxBorrowable: string, maxCollateral: string, leverage: string, routeIdx: number }> = {};
         for (let N = this.minBands; N <= this.maxBands; N++) {
@@ -1362,8 +1292,8 @@ export class LlammaTemplate {
             const _maxBorrowable = _res.map((r) => r[0].mul(999).div(1000));
             const _maxCollateral = _res.map((r) => r[1].mul(999).div(1000));
             const routeIdx = this._getBestIdx(_maxCollateral);
-            const maxBorrowable = crvusd.formatUnits(_maxBorrowable[routeIdx]);
-            const maxCollateral = crvusd.formatUnits(_maxCollateral[routeIdx], this.collateralDecimals);
+            const maxBorrowable = lending.formatUnits(_maxBorrowable[routeIdx]);
+            const maxCollateral = lending.formatUnits(_maxCollateral[routeIdx], this.collateralDecimals);
             res[N] = {
                 maxBorrowable,
                 maxCollateral,
@@ -1385,14 +1315,14 @@ export class LlammaTemplate {
 
         const calls = [];
         for (let N = this.minBands; N <= this.maxBands; N++) {
-            calls.push(crvusd.contracts[this.leverageZap].multicallContract.max_borrowable_and_collateral(_collateral, N, routeIdx));
+            calls.push(lending.contracts[this.leverageZap].multicallContract.max_borrowable_and_collateral(_collateral, N, routeIdx));
         }
-        const _res: ethers.BigNumber[][] = await crvusd.multicallProvider.all(calls);
+        const _res: bigint[][] = await lending.multicallProvider.all(calls);
 
         const res: IDict<{ maxBorrowable: string, maxCollateral: string, leverage: string }> = {};
         for (let N = this.minBands; N <= this.maxBands; N++) {
-            const maxBorrowable = crvusd.formatUnits(_res[N - this.minBands][0].mul(999).div(1000));
-            const maxCollateral = crvusd.formatUnits(_res[N - this.minBands][1].mul(999).div(1000), this.collateralDecimals);
+            const maxBorrowable = lending.formatUnits(_res[N - this.minBands][0].mul(999).div(1000));
+            const maxCollateral = lending.formatUnits(_res[N - this.minBands][1].mul(999).div(1000), this.collateralDecimals);
             res[N] = {
                 maxBorrowable,
                 maxCollateral,
@@ -1408,14 +1338,14 @@ export class LlammaTemplate {
     });
 
     private _leverageCreateLoanCollateral = memoize(async (userCollateral: number | string, debt: number | string):
-    Promise<{ _collateral: ethers.BigNumber, routeIdx: number }> => {
+    Promise<{ _collateral: bigint, routeIdx: number }> => {
         const _userCollateral = parseUnits(userCollateral, this.collateralDecimals);
         const _debt = parseUnits(debt);
         const calls = [];
         for (let i = 0; i < 5; i++) {
-            calls.push(crvusd.contracts[this.leverageZap].multicallContract.get_collateral(_debt, i));
+            calls.push(lending.contracts[this.leverageZap].multicallContract.get_collateral(_debt, i));
         }
-        const _leverageCollateral: ethers.BigNumber[] = await crvusd.multicallProvider.all(calls);
+        const _leverageCollateral: bigint[] = await lending.multicallProvider.all(calls);
         const routeIdx = this._getBestIdx(_leverageCollateral);
 
         return { _collateral: _userCollateral.add(_leverageCollateral[routeIdx]), routeIdx }
@@ -1435,14 +1365,14 @@ export class LlammaTemplate {
         Promise<{ collateral: string, leverage: string, routeIdx: number }> {
         this._checkLeverageZap();
         const { _collateral, routeIdx } = await this._leverageCreateLoanCollateral(userCollateral, debt);
-        const collateral = crvusd.formatUnits(_collateral, this.collateralDecimals);
+        const collateral = lending.formatUnits(_collateral, this.collateralDecimals);
 
         return { collateral, leverage: BN(collateral).div(userCollateral).toFixed(4), routeIdx };
     }
 
     private async leverageGetRouteName(routeIdx: number): Promise<string> {
         this._checkLeverageZap();
-        return await crvusd.contracts[this.leverageZap].contract.route_names(routeIdx);
+        return await lending.contracts[this.leverageZap].contract.route_names(routeIdx);
     }
 
     private async leverageGetMaxRange(collateral: number | string, debt: number | string): Promise<number> {
@@ -1456,41 +1386,41 @@ export class LlammaTemplate {
         return this.maxBands;
     }
 
-    private async _leverageCalcN1(collateral: number | string, debt: number | string, range: number): Promise<ethers.BigNumber> {
+    private async _leverageCalcN1(collateral: number | string, debt: number | string, range: number): Promise<bigint> {
         this._checkRange(range);
         const routeIdx = await this._getRouteIdx(collateral, debt);
         const _collateral = parseUnits(collateral, this.collateralDecimals);
         const _debt = parseUnits(debt);
-        return await crvusd.contracts[this.leverageZap].contract.calculate_debt_n1(_collateral, _debt, range, routeIdx, crvusd.constantOptions);
+        return await lending.contracts[this.leverageZap].contract.calculate_debt_n1(_collateral, _debt, range, routeIdx, lending.constantOptions);
     }
 
-    private async _leverageCalcN1AllRanges(collateral: number | string, debt: number | string, maxN: number): Promise<ethers.BigNumber[]> {
+    private async _leverageCalcN1AllRanges(collateral: number | string, debt: number | string, maxN: number): Promise<bigint[]> {
         const routeIdx = await this._getRouteIdx(collateral, debt);
         const _collateral = parseUnits(collateral, this.collateralDecimals);
         const _debt = parseUnits(debt);
         const calls = [];
         for (let N = this.minBands; N <= maxN; N++) {
-            calls.push(crvusd.contracts[this.leverageZap].multicallContract.calculate_debt_n1(_collateral, _debt, N, routeIdx));
+            calls.push(lending.contracts[this.leverageZap].multicallContract.calculate_debt_n1(_collateral, _debt, N, routeIdx));
         }
-        return await crvusd.multicallProvider.all(calls) as ethers.BigNumber[];
+        return await lending.multicallProvider.all(calls) as bigint[];
     }
 
-    private async _leverageCreateLoanBands(collateral: number | string, debt: number | string, range: number): Promise<[ethers.BigNumber, ethers.BigNumber]> {
+    private async _leverageCreateLoanBands(collateral: number | string, debt: number | string, range: number): Promise<[bigint, bigint]> {
         const _n1 = await this._leverageCalcN1(collateral, debt, range);
-        const _n2 = _n1.add(ethers.BigNumber.from(range - 1));
+        const _n2 = _n1.add(bigint.from(range - 1));
 
         return [_n2, _n1];
     }
 
-    private async _leverageCreateLoanBandsAllRanges(collateral: number | string, debt: number | string): Promise<IDict<[ethers.BigNumber, ethers.BigNumber]>> {
+    private async _leverageCreateLoanBandsAllRanges(collateral: number | string, debt: number | string): Promise<IDict<[bigint, bigint]>> {
         const maxN = await this.leverageGetMaxRange(collateral, debt);
         const _n1_arr = await this._leverageCalcN1AllRanges(collateral, debt, maxN);
-        const _n2_arr: ethers.BigNumber[] = [];
+        const _n2_arr: bigint[] = [];
         for (let N = this.minBands; N <= maxN; N++) {
-            _n2_arr.push(_n1_arr[N - this.minBands].add(ethers.BigNumber.from(N - 1)));
+            _n2_arr.push(_n1_arr[N - this.minBands].add(bigint.from(N - 1)));
         }
 
-        const _bands: IDict<[ethers.BigNumber, ethers.BigNumber]> = {};
+        const _bands: IDict<[bigint, bigint]> = {};
         for (let N = this.minBands; N <= maxN; N++) {
             _bands[N] = [_n2_arr[N - this.minBands], _n1_arr[N - this.minBands]];
         }
@@ -1550,8 +1480,8 @@ export class LlammaTemplate {
         const { _collateral } = await this._leverageCreateLoanCollateral(collateral, debt);
         const _debt = parseUnits(debt);
 
-        const contract = crvusd.contracts[this.healthCalculator ?? this.controller].contract;
-        let _health = await contract.health_calculator(address, _collateral, _debt, full, range, crvusd.constantOptions) as ethers.BigNumber;
+        const contract = lending.contracts[this.healthCalculator ?? this.controller].contract;
+        let _health = await contract.health_calculator(address, _collateral, _debt, full, range, lending.constantOptions) as bigint;
         _health = _health.mul(100);
 
         return ethers.utils.formatUnits(_health);
@@ -1562,7 +1492,7 @@ export class LlammaTemplate {
         const small_x_BN = BN(100);
         const { _collateral, routeIdx } = await this._leverageCreateLoanCollateral(collateral, debt);
         const _y = _collateral.sub(parseUnits(collateral, this.collateralDecimals));
-        const _small_y = await crvusd.contracts[this.leverageZap].contract.get_collateral(fromBN(small_x_BN), routeIdx);
+        const _small_y = await lending.contracts[this.leverageZap].contract.get_collateral(fromBN(small_x_BN), routeIdx);
         const y_BN = toBN(_y, this.collateralDecimals);
         const small_y_BN = toBN(_small_y, this.collateralDecimals);
         const rateBN = y_BN.div(x_BN);
@@ -1578,24 +1508,24 @@ export class LlammaTemplate {
 
         const _collateral = parseUnits(collateral, this.collateralDecimals);
         const _debt = parseUnits(debt);
-        const leverageContract = crvusd.contracts[this.leverageZap].contract;
+        const leverageContract = lending.contracts[this.leverageZap].contract;
         const routeIdx = await this._getRouteIdx(collateral, debt);
-        const _expected = await leverageContract.get_collateral_underlying(_debt, routeIdx, crvusd.constantOptions);
+        const _expected = await leverageContract.get_collateral_underlying(_debt, routeIdx, lending.constantOptions);
         const minRecvBN = toBN(_expected, this.collateralDecimals).times(100 - slippage).div(100);
         const _minRecv = fromBN(minRecvBN, this.collateralDecimals);
-        const contract = crvusd.contracts[this.controller].contract;
-        const value = isEth(this.collateral) ? _collateral : crvusd.parseUnits("0");
+        const contract = lending.contracts[this.controller].contract;
+        const value = isEth(this.collateral) ? _collateral : lending.parseUnits("0");
         const gas = await contract.estimateGas.create_loan_extended(
             _collateral,
             _debt,
             range,
             this.leverageZap,
             [routeIdx, _minRecv],
-            { ...crvusd.constantOptions, value }
+            { ...lending.constantOptions, value }
         );
         if (estimateGas) return gas.toNumber();
 
-        await crvusd.updateFeeData();
+        await lending.updateFeeData();
         const gasLimit = gas.mul(130).div(100);
         return (await contract.create_loan_extended(
             _collateral,
@@ -1603,7 +1533,7 @@ export class LlammaTemplate {
             range,
             this.leverageZap,
             [routeIdx, _minRecv],
-            { ...crvusd.options, gasLimit, value }
+            { ...lending.options, gasLimit, value }
         )).hash
     }
 
@@ -1630,11 +1560,11 @@ export class LlammaTemplate {
         const _collateral = parseUnits(collateral, this.collateralDecimals);
         const calls = [];
         for (let i = 0; i < 5; i++) {
-            calls.push(crvusd.contracts[this.deleverageZap].multicallContract.get_stablecoins(_collateral, i));
+            calls.push(lending.contracts[this.deleverageZap].multicallContract.get_stablecoins(_collateral, i));
         }
-        const _stablecoins_arr: ethers.BigNumber[] = await crvusd.multicallProvider.all(calls);
+        const _stablecoins_arr: bigint[] = await lending.multicallProvider.all(calls);
         const routeIdx = this._getBestIdx(_stablecoins_arr);
-        const stablecoins = crvusd.formatUnits(_stablecoins_arr[routeIdx]);
+        const stablecoins = lending.formatUnits(_stablecoins_arr[routeIdx]);
 
         return { stablecoins, routeIdx };
     },
@@ -1645,7 +1575,7 @@ export class LlammaTemplate {
 
     private async deleverageGetRouteName(routeIdx: number): Promise<string> {
         this._checkDeleverageZap();
-        return await crvusd.contracts[this.deleverageZap].contract.route_names(routeIdx);
+        return await lending.contracts[this.deleverageZap].contract.route_names(routeIdx);
     }
 
     private async deleverageIsFullRepayment(deleverageCollateral: number | string, address = ""): Promise<boolean> {
@@ -1677,7 +1607,7 @@ export class LlammaTemplate {
         return true;
     }
 
-    private _deleverageRepayBands = memoize( async (collateral: number | string, address: string): Promise<[ethers.BigNumber, ethers.BigNumber]> => {
+    private _deleverageRepayBands = memoize( async (collateral: number | string, address: string): Promise<[bigint, bigint]> => {
         address = _getAddress(address);
         if (!(await this.deleverageIsAvailable(collateral, address))) return [parseUnits(0, 0), parseUnits(0, 0)];
         const { routeIdx } = await this.deleverageRepayStablecoins(collateral);
@@ -1689,7 +1619,7 @@ export class LlammaTemplate {
         let _n1 = parseUnits(0, 0);
         let _n2 = parseUnits(0, 0);
         try {
-            _n1 = await crvusd.contracts[this.deleverageZap].contract.calculate_debt_n1(_collateral, routeIdx, address);
+            _n1 = await lending.contracts[this.deleverageZap].contract.calculate_debt_n1(_collateral, routeIdx, address);
             _n2 = _n1.add(N - 1);
         } catch (e) {
             console.log("Full repayment");
@@ -1727,8 +1657,8 @@ export class LlammaTemplate {
         const N = await this.userRange(address);
 
         if (_debt.add(_d_debt).lt(0)) return "0.0";
-        const contract = crvusd.contracts[this.healthCalculator ?? this.controller].contract;
-        let _health = await contract.health_calculator(address, _d_collateral, _d_debt, full, N, crvusd.constantOptions) as ethers.BigNumber;
+        const contract = lending.contracts[this.healthCalculator ?? this.controller].contract;
+        let _health = await contract.health_calculator(address, _d_collateral, _d_debt, full, N, lending.constantOptions) as bigint;
         _health = _health.mul(100);
 
         return ethers.utils.formatUnits(_health);
@@ -1739,7 +1669,7 @@ export class LlammaTemplate {
         const small_x_BN = BN(0.001);
         const { stablecoins, routeIdx } = await this.deleverageRepayStablecoins(collateral);
         const _y = parseUnits(stablecoins);
-        const _small_y = await crvusd.contracts[this.deleverageZap].contract.get_stablecoins(fromBN(small_x_BN, this.collateralDecimals), routeIdx);
+        const _small_y = await lending.contracts[this.deleverageZap].contract.get_stablecoins(fromBN(small_x_BN, this.collateralDecimals), routeIdx);
         const y_BN = toBN(_y);
         const small_y_BN = toBN(_small_y);
         const rateBN = y_BN.div(x_BN);
@@ -1750,21 +1680,21 @@ export class LlammaTemplate {
     }
 
     private async _deleverageRepay(collateral: number | string, slippage: number, estimateGas: boolean): Promise<string | number> {
-        const { debt: currentDebt } = await this.userState(crvusd.signerAddress);
-        if (Number(currentDebt) === 0) throw Error(`Loan for ${crvusd.signerAddress} does not exist`);
+        const { debt: currentDebt } = await this.userState(lending.signerAddress);
+        if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
 
         const { stablecoins, routeIdx } = await this.deleverageRepayStablecoins(collateral);
         const _collateral = parseUnits(collateral, this.collateralDecimals);
         const _debt = parseUnits(stablecoins);
         const minRecvBN = toBN(_debt).times(100 - slippage).div(100);
         const _minRecv = fromBN(minRecvBN);
-        const contract = crvusd.contracts[this.controller].contract;
-        const gas = await contract.estimateGas.repay_extended(this.deleverageZap, [routeIdx, _collateral, _minRecv], crvusd.constantOptions);
+        const contract = lending.contracts[this.controller].contract;
+        const gas = await contract.estimateGas.repay_extended(this.deleverageZap, [routeIdx, _collateral, _minRecv], lending.constantOptions);
         if (estimateGas) return gas.toNumber();
 
-        await crvusd.updateFeeData();
+        await lending.updateFeeData();
         const gasLimit = gas.mul(130).div(100);
-        return (await contract.repay_extended(this.deleverageZap, [routeIdx, _collateral, _minRecv], { ...crvusd.options, gasLimit })).hash
+        return (await contract.repay_extended(this.deleverageZap, [routeIdx, _collateral, _minRecv], { ...lending.options, gasLimit })).hash
     }
 
     private async deleverageRepayEstimateGas(collateral: number | string, slippage = 0.1): Promise<number> {
@@ -1777,3 +1707,4 @@ export class LlammaTemplate {
         return await this._deleverageRepay(collateral, slippage, false) as string;
     }
 }
+*/

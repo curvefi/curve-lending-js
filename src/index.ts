@@ -1,43 +1,44 @@
-import { ethers } from "ethers";
-import { Networkish } from "@ethersproject/networks";
-import { LlammaTemplate, getLlamma } from "./llammas";
-import { crvusd as _crvusd } from "./crvusd";
-import { getBalances, getAllowance, hasAllowance, ensureAllowanceEstimateGas, ensureAllowance, getUsdRate, totalSupply } from "./utils";
+import { ethers, Networkish } from "ethers";
+//import { MarketTemplate, getLlamma } from "./markets";
+import { lending as _lending } from "./lending.js";
+//import { getBalances, getAllowance, hasAllowance, ensureAllowanceEstimateGas, ensureAllowance, getUsdRate, totalSupply } from "./utils";
 
 
 async function init (
     providerType: 'JsonRpc' | 'Web3' | 'Infura' | 'Alchemy',
-    providerSettings: { url?: string, privateKey?: string } | { externalProvider: ethers.providers.ExternalProvider } | { network?: Networkish, apiKey?: string },
+    providerSettings: { url?: string, privateKey?: string, batchMaxCount? : number } | { externalProvider: ethers.Eip1193Provider } | { network?: Networkish, apiKey?: string },
     options: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number, chainId?: number } = {}
 ): Promise<void> {
-    await _crvusd.init(providerType, providerSettings, options);
+    await _lending.init(providerType, providerSettings, options);
     // @ts-ignore
-    this.signerAddress = _crvusd.signerAddress;
+    this.signerAddress = _lending.signerAddress;
     // @ts-ignore
-    this.chainId = _crvusd.chainId;
+    this.chainId = _lending.chainId;
 }
 
 function setCustomFeeData (customFeeData: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number }): void {
-    _crvusd.setCustomFeeData(customFeeData);
+    _lending.setCustomFeeData(customFeeData);
 }
 
-const crvusd = {
+const lending = {
     init,
     chainId: 0,
     signerAddress: '',
-    LlammaTemplate,
-    getLlamma,
+    //MarketTemplate,
+    //getLlamma,
     setCustomFeeData,
-    getBalances,
-    getAllowance,
-    hasAllowance,
-    ensureAllowance,
-    getUsdRate,
-    totalSupply,
-    getLlammaList: _crvusd.getLlammaList,
+    //getBalances,
+    //getAllowance,
+    //hasAllowance,
+    //ensureAllowance,
+    //getUsdRate,
+    //totalSupply,
+    factory: {
+        fetchMarkets:  _lending.fetchMarkets,
+    },
     estimateGas: {
-        ensureAllowance: ensureAllowanceEstimateGas,
+        //ensureAllowance: ensureAllowanceEstimateGas,
     },
 }
 
-export default crvusd;
+export default lending;

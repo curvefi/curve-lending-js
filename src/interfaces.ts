@@ -7,6 +7,12 @@ export interface IDict<T> {
 
 export type INetworkName = "ethereum" | "bsc" | "optimism" | "xdai" | "polygon" | "fantom" | "zksync" | "moonbeam" | "kava" | "base" | "arbitrum" | "celo" | "avalanche" | "aurora";
 export type IChainId = 1 | 10 | 56 | 100 | 137 | 250 | 324 | 1284 | 2222 | 8453 | 42161 | 42220 | 43114 | 1313161554;
+export interface ICurveContract {
+    contract: Contract,
+    multicallContract: MulticallContract,
+    abi: any,
+    address: string
+}
 
 export interface ILlamma {
     amm_address: string,
@@ -23,6 +29,32 @@ export interface ILlamma {
     default_bands: number,
     A: number,
     monetary_policy_abi: any
+}
+
+export interface ICoin {
+    address: string,
+    name: string,
+    symbol: string,
+    decimals: number,
+}
+
+export interface IMarket {
+    id: string,
+    address: string,
+    addresses: {
+        amm: string,
+        controller: string,
+        borrowed_token: string,
+        collateral_token: string,
+        price_oracle: string,
+        monetary_policy: string,
+        vault: string,
+        gauge: string,
+    },
+    borrowed_token: ICoin,
+    collateral_token: ICoin,
+    minBand: number;
+    maxBand: number;
 }
 
 export interface ILending {

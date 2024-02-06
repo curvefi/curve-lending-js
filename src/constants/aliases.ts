@@ -6,7 +6,7 @@ export const ALIASES_ETHEREUM = lowerCaseValues({
 });
 
 export const ALIASES_POLYGON = lowerCaseValues({
-    "one_way_factory": "0x0000000000000000000000000000000000000000",
+    "one_way_factory": "0xed4EA68c9164a2a51d646CFb25BaD15B483E510d",
 });
 
 export const ALIASES_FANTOM = lowerCaseValues({

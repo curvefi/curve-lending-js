@@ -1,7 +1,7 @@
-/*import { ethers } from "ethers";
 import memoize from "memoizee";
-import BigNumber from "bignumber.js";
 import { lending } from "../lending";
+/*import { ethers } from "ethers";
+import BigNumber from "bignumber.js";
 import {
     _getAddress,
     parseUnits,
@@ -21,6 +21,170 @@ import {
 import { IDict } from "../interfaces";
 import { _getUserCollateral } from "../external-api.js";
 */
+
+import { lending as _lending } from "../lending.js";
+import {formatUnits, isEth, toBN} from "../utils";
+
+export class MarketTemplate {
+    id: string;
+    address: string;
+    addresses: {
+        amm: string,
+        controller: string,
+        borrowed_token: string,
+        collateral_token: string,
+        price_oracle: string,
+        monetary_policy: string,
+        vault: string,
+        gauge: string,
+    };
+    borrowed_token: {
+        address: string;
+        name: string;
+        symbol: string;
+        decimals: number;
+    };
+    collateral_token: {
+        address: string;
+        name: string;
+        symbol: string;
+        decimals: number;
+    }
+
+    stats: {
+        /*parameters: () => Promise<{
+            fee: string, // %
+            admin_fee: string, // %
+            rate: string, // %
+            liquidation_discount: string, // %
+            loan_discount: string, // %
+        }>,*/
+        balances: () => Promise<[string, string]>,
+        maxMinBands: () => Promise<[number, number]>,
+        activeBand:() => Promise<number>,
+        liquidatingBand:() => Promise<number | null>,
+        bandBalances:(n: number) => Promise<{ borrowed: string, collateral: string }>,
+        bandsBalances: () => Promise<{ [index: number]: { borrowed: string, collateral: string } }>,
+        //totalSupply: () => Promise<string>,
+        //totalDebt: () => Promise<string>,
+        //totalStablecoin: () => Promise<string>,
+        //totalCollateral: () => Promise<string>,
+        //capAndAvailable: () => Promise<{ "cap": string, "available": string }>,
+    };
+
+    constructor(id: string) {
+        this.id = id;
+        const marketData = _lending.constants.MARKETS[id];
+        this.address = marketData.address;
+        this.addresses = marketData.addresses;
+        this.borrowed_token = marketData.borrowed_token;
+        this.collateral_token = marketData.collateral_token;
+
+        this.stats = {
+            //parameters: this.statsParameters.bind(this),
+            balances: this.statsBalances.bind(this),
+            maxMinBands: this.statsMaxMinBands.bind(this),
+            activeBand: this.statsActiveBand.bind(this),
+            liquidatingBand: this.statsLiquidatingBand.bind(this),
+            bandBalances: this.statsBandBalances.bind(this),
+            bandsBalances: this.statsBandsBalances.bind(this),
+            //totalSupply: this.statsTotalSupply.bind(this),
+            //totalDebt: this.statsTotalDebt.bind(this),
+            //totalStablecoin: this.statsTotalStablecoin.bind(this),
+            //totalCollateral: this.statsTotalCollateral.bind(this),
+            //capAndAvailable: this.statsCapAndAvailable.bind(this),
+        }
+
+    }
+
+    private async statsBalances(): Promise<[string, string]> {
+        const borrowedContract = lending.contracts[this.borrowed_token.address].multicallContract;
+        const collateralContract = lending.contracts[this.collateral_token.address].multicallContract;
+        const ammContract = lending.contracts[this.addresses.amm].multicallContract;
+        const calls = [
+            borrowedContract.balanceOf(this.addresses.amm),
+            collateralContract.balanceOf(this.addresses.amm),
+            ammContract.admin_fees_x(),
+            ammContract.admin_fees_y(),
+        ]
+        const [_borrowedBalance, _collateralBalance, _borrowedAdminFees, _collateralAdminFees]: bigint[] = await lending.multicallProvider.all(calls);
+
+        return [
+            formatUnits(_borrowedBalance - _borrowedAdminFees, this.borrowed_token.decimals),
+            formatUnits(_collateralBalance - _collateralAdminFees, this.collateral_token.decimals),
+        ];
+    }
+
+    private statsActiveBand = memoize(async (): Promise<number> => {
+        return (await lending.contracts[this.address].contract.active_band()).toNumber()
+    },
+    {
+        promise: true,
+        maxAge: 60 * 1000, // 1m
+    });
+
+    private async statsBandBalances(n: number): Promise<{ borrowed: string, collateral: string }> {
+        const ammContract = lending.contracts[this.addresses.amm].multicallContract;
+        const calls = [];
+        calls.push(ammContract.bands_x(n), ammContract.bands_y(n));
+
+        const _balances: bigint[] = await lending.multicallProvider.all(calls);
+
+        return {
+            borrowed: formatUnits(_balances[0], this.borrowed_token.decimals),
+            collateral: formatUnits(_balances[1], this.collateral_token.decimals),
+        }
+    }
+
+    private statsMaxMinBands = memoize(async (): Promise<[number, number]> => {
+        const ammContract = lending.contracts[this.addresses.amm].multicallContract;
+
+        const calls = [
+            ammContract.max_band(),
+            ammContract.min_band(),
+        ]
+
+        return (await lending.multicallProvider.all(calls) as bigint[]).map((_b) => Number(_b)) as [number, number];
+    },
+    {
+        promise: true,
+        maxAge: 60 * 1000, // 1m
+    });
+
+    private async statsLiquidatingBand(): Promise<number | null> {
+        const activeBand = await this.statsActiveBand();
+        const { borrowed, collateral } = await this.statsBandBalances(activeBand);
+        if (Number(borrowed) > 0 && Number(collateral) > 0) return activeBand;
+        return null
+    }
+
+    private async statsBandsBalances(): Promise<{ [index: number]: { borrowed: string, collateral: string } }> {
+        const [max_band, min_band]: number[] = await this.statsMaxMinBands();
+
+        const ammContract = lending.contracts[this.addresses.amm].multicallContract;
+        const calls = [];
+        for (let i = min_band; i <= max_band; i++) {
+            calls.push(ammContract.bands_x(i), ammContract.bands_y(i));
+        }
+
+        const _bands: bigint[] = await lending.multicallProvider.all(calls);
+
+        const bands: { [index: number]: { borrowed: string, collateral: string } } = {};
+        for (let i = min_band; i <= max_band; i++) {
+            const _i = i - min_band
+            let collateral = formatUnits(_bands[(2 * _i) + 1]);
+            collateral = collateral.split(".")[0] + "." +
+                (collateral.split(".")[1] || "0").slice(0, this.collateral_token.decimals);
+            bands[i] = {
+                borrowed: formatUnits(_bands[2 * _i]),
+                collateral,
+            }
+        }
+
+        return bands
+    }
+
+}
 
 /*export class MarketTemplate {
     id: string;
@@ -69,7 +233,7 @@ import { _getUserCollateral } from "../external-api.js";
         }>,
         balances: () => Promise<[string, string]>,
         maxMinBands: () => Promise<[number, number]>,
-        activeBand:() => Promise<number>,
+        #activeBand:() => Promise<number>,
         liquidatingBand:() => Promise<number | null>,
         bandBalances:(n: number) => Promise<{ stablecoin: string, collateral: string }>,
         bandsBalances: () => Promise<{ [index: number]: { stablecoin: string, collateral: string } }>,
@@ -127,7 +291,7 @@ import { _getUserCollateral } from "../external-api.js";
             parameters: this.statsParameters.bind(this),
             balances: this.statsBalances.bind(this),
             maxMinBands: this.statsMaxMinBands.bind(this),
-            activeBand: this.statsActiveBand.bind(this),
+            #activeBand: this.statsActiveBand.bind(this),
             liquidatingBand: this.statsLiquidatingBand.bind(this),
             bandBalances: this.statsBandBalances.bind(this),
             bandsBalances: this.statsBandsBalances.bind(this),
@@ -179,93 +343,6 @@ import { _getUserCollateral } from "../external-api.js";
         promise: true,
         maxAge: 5 * 60 * 1000, // 5m
     });
-
-    private async statsBalances(): Promise<[string, string]> {
-        const lendingContract = lending.contracts[lending.address].multicallContract;
-        const collateralContract = lending.contracts[isEth(this.collateral) ? lending.constants.WETH : this.collateral].multicallContract;
-        const contract = lending.contracts[this.address].multicallContract;
-        const calls = [
-            lendingContract.balanceOf(this.address),
-            collateralContract.balanceOf(this.address),
-            contract.admin_fees_x(),
-            contract.admin_fees_y(),
-        ]
-        const [_lendingBalance, _collateralBalance, _lendingAdminFees, _collateralAdminFees]: bigint[] = await lending.multicallProvider.all(calls);
-
-        return [
-            formatUnits(_lendingBalance.sub(_lendingAdminFees)),
-            formatUnits(_collateralBalance.sub(_collateralAdminFees), this.collateralDecimals),
-        ];
-    }
-
-    private statsMaxMinBands = memoize(async (): Promise<[number, number]> => {
-        const llammaContract = lending.contracts[this.address].multicallContract;
-
-        const calls1 = [
-            llammaContract.max_band(),
-            llammaContract.min_band(),
-        ]
-
-        return (await lending.multicallProvider.all(calls1) as bigint[]).map((_b) => _b.toNumber()) as [number, number];
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
-
-    private statsActiveBand = memoize(async (): Promise<number> => {
-        return (await lending.contracts[this.address].contract.active_band()).toNumber()
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
-
-    private async statsLiquidatingBand(): Promise<number | null> {
-        const activeBand = await this.statsActiveBand();
-        const { stablecoin, collateral } = await this.statsBandBalances(activeBand);
-        if (Number(stablecoin) > 0 && Number(collateral) > 0) return activeBand;
-        return null
-    }
-
-    private async statsBandBalances(n: number): Promise<{ stablecoin: string, collateral: string }> {
-        const llammaContract = lending.contracts[this.address].multicallContract;
-        const calls = [];
-        calls.push(llammaContract.bands_x(n), llammaContract.bands_y(n));
-
-        const _balances: bigint[] = await lending.multicallProvider.all(calls);
-
-        return {
-            stablecoin: ethers.utils.formatUnits(_balances[0]),
-            collateral: ethers.utils.formatUnits(_balances[1], this.collateralDecimals),
-        }
-    }
-
-    private async statsBandsBalances(): Promise<{ [index: number]: { stablecoin: string, collateral: string } }> {
-        const [max_band, min_band]: number[] = await this.statsMaxMinBands();
-
-        const llammaContract = lending.contracts[this.address].multicallContract;
-        const calls = [];
-        for (let i = min_band; i <= max_band; i++) {
-            calls.push(llammaContract.bands_x(i), llammaContract.bands_y(i));
-        }
-
-        const _bands: bigint[] = await lending.multicallProvider.all(calls);
-
-        const bands: { [index: number]: { stablecoin: string, collateral: string } } = {};
-        for (let i = min_band; i <= max_band; i++) {
-            const _i = i - min_band
-            let collateral = ethers.utils.formatUnits(_bands[(2 * _i) + 1]);
-            collateral = collateral.split(".")[0] + "." +
-                (collateral.split(".")[1] || "0").slice(0, this.collateralDecimals);
-            bands[i] = {
-                stablecoin: ethers.utils.formatUnits(_bands[2 * _i]),
-                collateral,
-            }
-        }
-
-        return bands
-    }
 
     private statsTotalSupply = memoize(async (): Promise<string> => {
         const controllerContract = lending.contracts[this.controller].multicallContract;

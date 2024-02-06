@@ -1,14 +1,35 @@
 import axios from "axios";
 import { ethers,  BigNumberish, Numeric } from "ethers";
 import BigNumber from 'bignumber.js';
-import { IDict } from "./interfaces";
+import {ICurveContract, IDict} from "./interfaces";
 import { _getPoolsFromApi } from "./external-api";
 import { lending } from "./lending";
+import {Call} from "ethcall";
+import {JsonFragment} from "ethers/lib.esm";
 
 //export const MAX_ALLOWANCE = ethers.BigNumber.from(2).pow(ethers.BigNumber.from(256)).sub(ethers.BigNumber.from(1));
 //export const MAX_ACTIVE_BAND = ethers.BigNumber.from(2).pow(ethers.BigNumber.from(255)).sub(ethers.BigNumber.from(1));
 export const MAX_ALLOWANCE = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");  // 2**256 - 1
 export const MAX_ACTIVE_BAND = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");  // 2**256 - 1
+
+// Common
+
+export const createCall = (contract: ICurveContract, name: string, params: any[]): Call => {
+    const _abi = contract.abi;
+    const func = _abi.find((f: JsonFragment) => f.name === name)
+    const inputs = func?.inputs || [];
+    const outputs = func?.outputs || [];
+
+    return {
+        contract: {
+            address: contract.address,
+        },
+        name,
+        inputs,
+        outputs,
+        params,
+    }
+}
 
 // Formatting numbers
 
@@ -65,4 +86,13 @@ export const _getAddress = (address: string): string => {
     if (!address) throw Error("Need to connect wallet or pass address into args");
 
     return address
+}
+
+export const handleMultiCallResponse = (callsMap: string[], response: any[]) => {
+    const result: Record<string, any> = {};
+    const responseLength = callsMap.length;
+    for(let i = 0; i < responseLength; i++) {
+        result[callsMap[i]] = response.filter((a, j) => j % responseLength === i) as string[];
+    }
+    return result;
 }

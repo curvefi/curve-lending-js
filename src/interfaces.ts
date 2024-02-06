@@ -5,6 +5,15 @@ export interface IDict<T> {
     [index: string]: T,
 }
 
+export type INetworkName = "ethereum" | "bsc" | "optimism" | "xdai" | "polygon" | "fantom" | "zksync" | "moonbeam" | "kava" | "base" | "arbitrum" | "celo" | "avalanche" | "aurora";
+export type IChainId = 1 | 10 | 56 | 100 | 137 | 250 | 324 | 1284 | 2222 | 8453 | 42161 | 42220 | 43114 | 1313161554;
+export interface ICurveContract {
+    contract: Contract,
+    multicallContract: MulticallContract,
+    abi: any,
+    address: string
+}
+
 export interface ILlamma {
     amm_address: string,
     controller_address: string,
@@ -22,21 +31,46 @@ export interface ILlamma {
     monetary_policy_abi: any
 }
 
-export interface Icrvusd {
-    provider: ethers.providers.Web3Provider | ethers.providers.JsonRpcProvider,
+export interface ICoin {
+    address: string,
+    name: string,
+    symbol: string,
+    decimals: number,
+}
+
+export interface IMarket {
+    id: string,
+    address: string,
+    addresses: {
+        amm: string,
+        controller: string,
+        borrowed_token: string,
+        collateral_token: string,
+        price_oracle: string,
+        monetary_policy: string,
+        vault: string,
+        gauge: string,
+    },
+    borrowed_token: ICoin,
+    collateral_token: ICoin,
+    minBand: number;
+    maxBand: number;
+}
+
+export interface ILending {
+    provider: ethers.BrowserProvider | ethers.JsonRpcProvider,
     multicallProvider: MulticallProvider,
     signer: ethers.Signer | null,
     signerAddress: string,
     contracts: { [index: string]: { contract: Contract, multicallContract: MulticallContract } },
     feeData: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number },
     constantOptions: { gasLimit: number },
-    options: { gasPrice?: number | ethers.BigNumber, maxFeePerGas?: number | ethers.BigNumber, maxPriorityFeePerGas?: number | ethers.BigNumber },
+    options: { gasPrice?: number | bigint, maxFeePerGas?: number | bigint, maxPriorityFeePerGas?: number | bigint },
     constants: {
-        LLAMMAS: IDict<ILlamma>,
+        ALIASES: IDict<string>,
+        NETWORK_NAME: INetworkName,
     };
 }
-
-export type INetworkName = "ethereum";
 
 export interface ICoinFromPoolDataApi {
     address: string,
@@ -77,3 +111,4 @@ export interface IExtendedPoolDataFromApi {
     tvl?: number,
     tvlAll: number,
 }
+

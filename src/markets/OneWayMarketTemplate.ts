@@ -160,12 +160,12 @@ export class OneWayMarketTemplate {
         const ammContract = lending.contracts[this.addresses.amm].multicallContract;
         const calls = [];
         calls.push(ammContract.bands_x(n), ammContract.bands_y(n));
-
         const _balances: bigint[] = await lending.multicallProvider.all(calls);
 
+        // bands_x and bands_y always return amounts with 18 decimals
         return {
-            borrowed: formatUnits(_balances[0], this.borrowed_token.decimals),
-            collateral: formatUnits(_balances[1], this.collateral_token.decimals),
+            borrowed: formatNumber(formatUnits(_balances[0]), this.borrowed_token.decimals),
+            collateral: formatNumber(formatUnits(_balances[1]), this.collateral_token.decimals),
         }
     }
 
@@ -205,12 +205,10 @@ export class OneWayMarketTemplate {
         const bands: { [index: number]: { borrowed: string, collateral: string } } = {};
         for (let i = min_band; i <= max_band; i++) {
             const _i = i - min_band
-            // The problem is that bands_x/y always returns the number with 18 decimals
-            const borrowed = formatUnits(_bands[2 * _i]);
-            const collateral = formatUnits(_bands[(2 * _i) + 1]);
+            // bands_x and bands_y always return amounts with 18 decimals
             bands[i] = {
-                borrowed: formatNumber(borrowed, this.borrowed_token.decimals),
-                collateral: formatNumber(collateral, this.collateral_token.decimals),
+                borrowed: formatNumber(formatUnits(_bands[2 * _i]), this.borrowed_token.decimals),
+                collateral: formatNumber(formatUnits(_bands[(2 * _i) + 1]), this.collateral_token.decimals),
             }
         }
 
@@ -222,13 +220,12 @@ export class OneWayMarketTemplate {
         const calls = [controllerContract.minted(), controllerContract.redeemed()]
         const [_minted, _redeemed]: bigint[] = await lending.multicallProvider.all(calls);
 
-        return toBN(_minted).minus(toBN(_redeemed)).toString();
+        return toBN(_minted, this.borrowed_token.decimals).minus(toBN(_redeemed, this.borrowed_token.decimals)).toString();
     },
     {
         promise: true,
         maxAge: 60 * 1000, // 1m
     });
-
 }
 
 /*export class OneWayMarketTemplate {
@@ -352,28 +349,6 @@ export class OneWayMarketTemplate {
     }
 
     // ---------------- STATS ----------------
-
-    private statsTotalSupply = memoize(async (): Promise<string> => {
-        const controllerContract = lending.contracts[this.controller].multicallContract;
-        const calls = [controllerContract.minted(), controllerContract.redeemed()]
-        const [_minted, _redeemed]: bigint[] = await lending.multicallProvider.all(calls);
-
-        return toBN(_minted).minus(toBN(_redeemed)).toString();
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
-
-    private statsTotalDebt = memoize(async (): Promise<string> => {
-        const debt = await lending.contracts[this.controller].contract.total_debt(lending.constantOptions);
-
-        return ethers.utils.formatUnits(debt);
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
 
     private statsTotalStablecoin = memoize(async (): Promise<string> => {
         const stablecoinContract = lending.contracts[lending.address].multicallContract;

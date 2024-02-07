@@ -65,9 +65,8 @@ export class OneWayMarketTemplate {
         bandsBalances: () => Promise<{ [index: number]: { borrowed: string, collateral: string } }>,
         totalBorrowed: () => Promise<string>,
         totalDebt: () => Promise<string>,
-        //totalStablecoin: () => Promise<string>,
-        //totalCollateral: () => Promise<string>,
-        //capAndAvailable: () => Promise<{ "cap": string, "available": string }>,
+        ammBalances: () => Promise<{ borrowed: string, collateral: string }>,
+        capAndAvailable: () => Promise<{ cap: string, available: string }>,
     };
 
     constructor(id: string) {
@@ -87,9 +86,8 @@ export class OneWayMarketTemplate {
             bandsBalances: this.statsBandsBalances.bind(this),
             totalBorrowed: this.statsTotalBorrowed.bind(this),
             totalDebt: this.statsTotalDebt.bind(this),
-            //totalStablecoin: this.statsTotalStablecoin.bind(this),
-            //totalCollateral: this.statsTotalCollateral.bind(this),
-            //capAndAvailable: this.statsCapAndAvailable.bind(this),
+            ammBalances: this.statsAmmBalances.bind(this),
+            capAndAvailable: this.statsCapAndAvailable.bind(this),
         }
 
     }
@@ -235,6 +233,47 @@ export class OneWayMarketTemplate {
         promise: true,
         maxAge: 60 * 1000, // 1m
     });
+
+    private statsAmmBalances = memoize(async (): Promise<{ borrowed: string, collateral: string }> => {
+        const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
+        const collateralContract = lending.contracts[this.addresses.collateral_token].multicallContract;
+        const ammContract = lending.contracts[this.addresses.amm].multicallContract;
+
+        const [_balance_x, _fee_x, _balance_y, _fee_y]: bigint[] = await lending.multicallProvider.all([
+            borrowedContract.balanceOf(this.addresses.amm),
+            ammContract.admin_fees_x(),
+            collateralContract.balanceOf(this.addresses.amm),
+            ammContract.admin_fees_y(),
+        ]);
+
+        return {
+            borrowed: toBN(_balance_x, this.borrowed_token.decimals).minus(toBN(_fee_x, this.borrowed_token.decimals)).toString(),
+            collateral: toBN(_balance_y, this.collateral_token.decimals).minus(toBN(_fee_y, this.collateral_token.decimals)).toString(),
+        }
+    },
+    {
+        promise: true,
+        maxAge: 60 * 1000, // 1m
+    });
+
+    private statsCapAndAvailable = memoize(async (): Promise<{ cap: string, available: string }> => {
+        const vaultContract = lending.contracts[this.addresses.vault].multicallContract;
+        const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
+
+        const [_cap, _available]: bigint[] = await lending.multicallProvider.all([
+            vaultContract.totalAssets(this.addresses.controller),
+            borrowedContract.balanceOf(this.addresses.controller),
+        ]);
+
+        return {
+            cap: lending.formatUnits(_cap, this.borrowed_token.decimals),
+            available: lending.formatUnits(_available, this.borrowed_token.decimals),
+        }
+    },
+    {
+        promise: true,
+        maxAge: 60 * 1000, // 1m
+    });
 }
 
 /*export class OneWayMarketTemplate {
@@ -356,57 +395,6 @@ export class OneWayMarketTemplate {
             balances: this.walletBalances.bind(this),
         }
     }
-
-    // ---------------- STATS ----------------
-
-    private statsTotalStablecoin = memoize(async (): Promise<string> => {
-        const stablecoinContract = lending.contracts[lending.address].multicallContract;
-        const ammContract = lending.contracts[this.address].multicallContract;
-
-        const [_balance, _fee]: bigint[] = await lending.multicallProvider.all([
-            stablecoinContract.balanceOf(this.address),
-            ammContract.admin_fees_x(),
-        ]);
-
-        return toBN(_balance).minus(toBN(_fee)).toString()
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
-
-    private statsTotalCollateral = memoize(async (): Promise<string> => {
-        const collateralContract = lending.contracts[isEth(this.collateral) ? lending.constants.WETH : this.collateral].multicallContract;
-        const ammContract = lending.contracts[this.address].multicallContract;
-
-        const [_balance, _fee]: bigint[] = await lending.multicallProvider.all([
-            collateralContract.balanceOf(this.address),
-            ammContract.admin_fees_y(),
-        ]);
-
-        return toBN(_balance, this.collateralDecimals).minus(toBN(_fee, this.collateralDecimals)).toString()
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
-
-    private statsCapAndAvailable = memoize(async (): Promise<{ "cap": string, "available": string }> => {
-        // @ts-ignore
-        const factoryContract = lending.contracts[lending.constants].multicallContract;
-        const lendingContract = lending.contracts[lending.address].multicallContract;
-
-        const [_cap, _available]: bigint[] = await lending.multicallProvider.all([
-            factoryContract.debt_ceiling(this.controller),
-            lendingContract.balanceOf(this.controller),
-        ]);
-
-        return { "cap": lending.formatUnits(_cap), "available": lending.formatUnits(_available) }
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
 
     // ---------------------------------------
 

@@ -146,7 +146,12 @@
     "stateMutability": "view",
     "type": "function",
     "name": "rate",
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "_for",
+        "type": "address"
+      }
+    ],
     "outputs": [
       {
         "name": "",

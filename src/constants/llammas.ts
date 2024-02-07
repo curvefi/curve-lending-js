@@ -1,6 +1,6 @@
 import { IDict, ILlamma } from "../interfaces";
 import MonetaryPolicyABI from "../constants/abis/MonetaryPolicy.json";
-import MonetaryPolicy2ABI from "../constants/abis/MonetaryPolicy2.json";
+import MonetaryPolicy2ABI from "./abis/MonetaryPolicy.json";
 import { lowerCaseLlammasAddresses } from "./utils";
 
 

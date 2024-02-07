@@ -32,7 +32,6 @@ export class MarketTemplate {
         controller: string,
         borrowed_token: string,
         collateral_token: string,
-        price_oracle: string,
         monetary_policy: string,
         vault: string,
         gauge: string,

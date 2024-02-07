@@ -46,15 +46,14 @@ export interface IMarket {
         controller: string,
         borrowed_token: string,
         collateral_token: string,
-        price_oracle: string,
         monetary_policy: string,
         vault: string,
         gauge: string,
     },
     borrowed_token: ICoin,
     collateral_token: ICoin,
-    minBand: number;
-    maxBand: number;
+    min_bands: number;
+    max_bands: number;
 }
 
 export interface ILending {

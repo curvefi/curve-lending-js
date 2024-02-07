@@ -1,10 +1,10 @@
 import axios from "axios";
 import { ethers,  BigNumberish, Numeric } from "ethers";
+import { Call } from "ethcall";
 import BigNumber from 'bignumber.js';
-import {ICurveContract, IDict} from "./interfaces";
+import {ICurveContract, IDict} from "./interfaces.js";
 import { _getPoolsFromApi } from "./external-api";
-import { lending } from "./lending";
-import {Call} from "ethcall";
+import { lending } from "./lending.js";
 import {JsonFragment} from "ethers/lib.esm";
 
 //export const MAX_ALLOWANCE = ethers.BigNumber.from(2).pow(ethers.BigNumber.from(256)).sub(ethers.BigNumber.from(1));

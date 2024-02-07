@@ -1,9 +1,12 @@
-import {ethers, Contract, Networkish, BigNumberish, Numeric, JsonFragmentType, JsonFragment} from "ethers";
-import {Provider as MulticallProvider, Contract as MulticallContract, Call} from 'ethcall';
-import {IChainId, ILending, IDict, INetworkName, ICurveContract, IMarket, ICoin} from "./interfaces";
-import oneWayLendingFactoryABI from "./constants/abis/oneWayLendingFactoryABI.json"
-import ammABI from "./constants/abis/ammABI.json"
-import ERC20 from './constants/abis/ERC20.json'
+import { ethers, Contract, Networkish, BigNumberish, Numeric } from "ethers";
+import { Provider as MulticallProvider, Contract as MulticallContract, Call } from 'ethcall';
+import { IChainId, ILending, IDict, INetworkName, ICurveContract, IMarket, ICoin } from "./interfaces";
+import OneWayLendingFactoryABI from "./constants/abis/OneWayLendingFactoryABI.json" assert { type: 'json' };
+import ERC20ABI from './constants/abis/ERC20.json' assert { type: 'json' };
+import LlammaABI from './constants/abis/Llamma.json' assert { type: 'json' };
+import ControllerABI from './constants/abis/Controller.json' assert { type: 'json' };
+import MonetaryPolicyABI from './constants/abis/MonetaryPolicy.json' assert { type: 'json' };
+import VaultABI from './constants/abis/Vault.json' assert { type: 'json' };
 
 import {
     ALIASES_ETHEREUM,
@@ -21,7 +24,7 @@ import {
     ALIASES_BASE,
     ALIASES_BSC,
 } from "./constants/aliases.js";
-import {createCall, handleMultiCallResponse} from "./utils";
+import { createCall, handleMultiCallResponse} from "./utils.js";
 
 export const NETWORK_CONSTANTS: { [index: number]: any } = {
     1: {
@@ -215,7 +218,7 @@ class Lending implements ILending {
         this.feeData = { gasPrice: options.gasPrice, maxFeePerGas: options.maxFeePerGas, maxPriorityFeePerGas: options.maxPriorityFeePerGas };
         await this.updateFeeData();
 
-        this.setContract(this.constants.ALIASES['one_way_factory'], oneWayLendingFactoryABI);
+        this.setContract(this.constants.ALIASES['one_way_factory'], OneWayLendingFactoryABI);
     }
 
     setContract(address: string, abi: any): void {
@@ -237,7 +240,7 @@ class Lending implements ILending {
         const factory = this.contracts[this.constants.ALIASES['one_way_factory']];
         const factoryContract = this.contracts[this.constants.ALIASES['one_way_factory']].contract;
         const markets_count = await factoryContract.market_count();
-        const callsMap = ['amms', 'controllers', 'borrowed_tokens', 'collateral_tokens', 'price_oracles', 'monetary_policies', 'vaults', 'gauges']
+        const callsMap = ['amms', 'controllers', 'borrowed_tokens', 'collateral_tokens', 'monetary_policies', 'vaults', 'gauges']
 
         const calls: Call[] = [];
         for (let i = 0; i < markets_count; i++) {
@@ -245,7 +248,7 @@ class Lending implements ILending {
                 calls.push(createCall(factory,item, [i]))
             })
         }
-        const res = await this.multicallProvider.all(calls);
+        const res = (await this.multicallProvider.all(calls) as string[]).map((addr) => addr.toLowerCase());
 
         return handleMultiCallResponse(callsMap, res)
     }
@@ -256,7 +259,7 @@ class Lending implements ILending {
         const callsMap = ['name', 'decimals', 'symbol']
 
         coins.forEach((coin:string) => {
-            this.setContract(coin, ERC20);
+            this.setContract(coin, ERC20ABI);
             callsMap.forEach((item) => {
                 calls.push(createCall(this.contracts[coin],item, []))
             })
@@ -281,23 +284,13 @@ class Lending implements ILending {
     }
 
     fetchMarkets = async () => {
-        const {amms, controllers, borrowed_tokens, collateral_tokens, price_oracles, monetary_policies, vaults, gauges} = await this.getFactoryMarketData()
-        console.log(amms, controllers, borrowed_tokens, collateral_tokens, price_oracles, monetary_policies, vaults, gauges);
-        const multicallProvider = this.multicallProvider;
-        const calls: Call[] = [];
+        const {amms, controllers, borrowed_tokens, collateral_tokens, monetary_policies, vaults, gauges} = await this.getFactoryMarketData()
         this.constants.COINS = await this.getCoins(collateral_tokens, borrowed_tokens);
 
-
-        //TODO
-        amms.forEach((amm: string) => {
-            this.setContract(amm, ammABI)
-            calls.push(this.contracts[amm].multicallContract.min_band())
-            calls.push(this.contracts[amm].multicallContract.max_band())
-        })
-
-        console.log(await multicallProvider.all(calls))
-
         amms.forEach((amm: string, index: number) => {
+            this.setContract(amms[index], LlammaABI);
+            this.setContract(controllers[index], ControllerABI);
+            this.setContract(monetary_policies[index], MonetaryPolicyABI);
             this.constants.MARKETS[`market-${index}`] = {
                 id: `market-${index}`,
                 addresses: {
@@ -305,15 +298,14 @@ class Lending implements ILending {
                     controller: controllers[index],
                     borrowed_token: borrowed_tokens[index],
                     collateral_token: collateral_tokens[index],
-                    price_oracle: price_oracles[index],
                     monetary_policy: monetary_policies[index],
                     vault: vaults[index],
                     gauge: gauges[index],
                 },
                 borrowed_token: this.constants.COINS[borrowed_tokens[index]],
                 collateral_token: this.constants.COINS[collateral_tokens[index]],
-                maxBand: 0, //TODO
-                minBand: 0, //TODO
+                min_bands: 4,
+                max_bands: 50,
             }
         })
     }

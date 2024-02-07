@@ -7,6 +7,7 @@ export interface IDict<T> {
 
 export type INetworkName = "ethereum" | "bsc" | "optimism" | "xdai" | "polygon" | "fantom" | "zksync" | "moonbeam" | "kava" | "base" | "arbitrum" | "celo" | "avalanche" | "aurora";
 export type IChainId = 1 | 10 | 56 | 100 | 137 | 250 | 324 | 1284 | 2222 | 8453 | 42161 | 42220 | 43114 | 1313161554;
+export type IPoolFactory = "main" | "crypto" | "factory" | "factory-crvusd" | "factory-crypto" | "factory-tricrypto" | "factory-stable-ng";
 export interface ICurveContract {
     contract: Contract,
     multicallContract: MulticallContract,

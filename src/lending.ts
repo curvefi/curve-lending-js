@@ -1,6 +1,6 @@
 import { ethers, Contract, Networkish, BigNumberish, Numeric } from "ethers";
 import { Provider as MulticallProvider, Contract as MulticallContract, Call } from 'ethcall';
-import { IChainId, ILending, IDict, INetworkName, ICurveContract, IMarket, ICoin } from "./interfaces";
+import { IChainId, ILending, IDict, INetworkName, ICurveContract, IOneWayMarket, ICoin } from "./interfaces";
 import OneWayLendingFactoryABI from "./constants/abis/OneWayLendingFactoryABI.json" assert { type: 'json' };
 import ERC20ABI from './constants/abis/ERC20.json' assert { type: 'json' };
 import LlammaABI from './constants/abis/Llamma.json' assert { type: 'json' };
@@ -100,8 +100,7 @@ class Lending implements ILending {
     constants: {
         DECIMALS: string;
         WETH: number;
-        LLAMMAS: any;
-        MARKETS: IDict<IMarket>,
+        ONE_WAY_MARKETS: IDict<IOneWayMarket>,
         ALIASES: Record<string, string>;
         NETWORK_NAME: INetworkName;
         COINS: IDict<ICoin>
@@ -123,8 +122,7 @@ class Lending implements ILending {
         this.constants = {
             DECIMALS: '',
             WETH: 0,
-            LLAMMAS: '',
-            MARKETS: {},
+            ONE_WAY_MARKETS: {},
             ALIASES: {},
             NETWORK_NAME: 'ethereum',
             COINS: {},
@@ -234,7 +232,7 @@ class Lending implements ILending {
         this.feeData = { ...this.feeData, ...customFeeData };
     }
 
-    //getLlammaList = () => Object.keys(this.constants.LLAMMAS);
+    getOneWayMarketList = () => Object.keys(this.constants.ONE_WAY_MARKETS);
 
     getFactoryMarketData = async () => {
         const factory = this.contracts[this.constants.ALIASES['one_way_factory']];
@@ -291,7 +289,7 @@ class Lending implements ILending {
             this.setContract(amms[index], LlammaABI);
             this.setContract(controllers[index], ControllerABI);
             this.setContract(monetary_policies[index], MonetaryPolicyABI);
-            this.constants.MARKETS[`market-${index}`] = {
+            this.constants.ONE_WAY_MARKETS[`market-${index}`] = {
                 id: `market-${index}`,
                 addresses: {
                     amm: amms[index],

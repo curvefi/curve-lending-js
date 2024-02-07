@@ -1,5 +1,5 @@
 import { ethers, Networkish } from "ethers";
-//import { MarketTemplate, getLlamma } from "./markets";
+import { OneWayMarketTemplate, getOneWayMarket } from "./markets/index.js";
 import { lending as _lending } from "./lending.js";
 //import { getBalances, getAllowance, hasAllowance, ensureAllowanceEstimateGas, ensureAllowance, getUsdRate, totalSupply } from "./utils";
 
@@ -24,8 +24,8 @@ const lending = {
     init,
     chainId: 0,
     signerAddress: '',
-    //MarketTemplate,
-    //getLlamma,
+    OneWayMarketTemplate,
+    getOneWayMarket,
     setCustomFeeData,
     //getBalances,
     //getAllowance,

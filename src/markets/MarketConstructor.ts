@@ -1,5 +1,5 @@
-/*import { MarketTemplate} from "./MarketTemplate";
+import { OneWayMarketTemplate} from "./OneWayMarketTemplate.js";
 
-export const getLlamma = (llammaId: string): MarketTemplate => {
-    return new MarketTemplate(llammaId)
-}*/
+export const getOneWayMarket = (oneWayMarketId: string): OneWayMarketTemplate => {
+    return new OneWayMarketTemplate(oneWayMarketId)
+}

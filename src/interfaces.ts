@@ -39,7 +39,7 @@ export interface ICoin {
     decimals: number,
 }
 
-export interface IMarket {
+export interface IOneWayMarket {
     id: string,
     addresses: {
         amm: string,
@@ -66,8 +66,12 @@ export interface ILending {
     constantOptions: { gasLimit: number },
     options: { gasPrice?: number | bigint, maxFeePerGas?: number | bigint, maxPriorityFeePerGas?: number | bigint },
     constants: {
-        ALIASES: IDict<string>,
-        NETWORK_NAME: INetworkName,
+        DECIMALS: string;
+        WETH: number;
+        ONE_WAY_MARKETS: IDict<IOneWayMarket>,
+        ALIASES: Record<string, string>;
+        NETWORK_NAME: INetworkName;
+        COINS: IDict<ICoin>
     };
 }
 

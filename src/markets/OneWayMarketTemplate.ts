@@ -1,5 +1,5 @@
 import memoize from "memoizee";
-import { lending } from "../lending";
+import { lending } from "../lending.js";
 /*import { ethers } from "ethers";
 import BigNumber from "bignumber.js";
 import {
@@ -23,9 +23,9 @@ import { _getUserCollateral } from "../external-api.js";
 */
 
 import { lending as _lending } from "../lending.js";
-import {formatUnits, isEth, toBN} from "../utils";
+import {formatUnits, isEth, toBN} from "../utils.js";
 
-export class MarketTemplate {
+export class OneWayMarketTemplate {
     id: string;
     addresses: {
         amm: string,
@@ -72,7 +72,7 @@ export class MarketTemplate {
 
     constructor(id: string) {
         this.id = id;
-        const marketData = _lending.constants.MARKETS[id];
+        const marketData = _lending.constants.ONE_WAY_MARKETS[id];
         this.addresses = marketData.addresses;
         this.borrowed_token = marketData.borrowed_token;
         this.collateral_token = marketData.collateral_token;
@@ -183,7 +183,7 @@ export class MarketTemplate {
 
 }
 
-/*export class MarketTemplate {
+/*export class OneWayMarketTemplate {
     id: string;
     address: string;
     controller: string;

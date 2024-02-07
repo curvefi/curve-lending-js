@@ -41,7 +41,6 @@ export interface ICoin {
 
 export interface IMarket {
     id: string,
-    address: string,
     addresses: {
         amm: string,
         controller: string,

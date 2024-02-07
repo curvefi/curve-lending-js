@@ -300,7 +300,6 @@ class Lending implements ILending {
         amms.forEach((amm: string, index: number) => {
             this.constants.MARKETS[`market-${index}`] = {
                 id: `market-${index}`,
-                address: amm,
                 addresses: {
                     amm: amms[index],
                     controller: controllers[index],

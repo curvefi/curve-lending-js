@@ -27,7 +27,6 @@ import {formatUnits, isEth, toBN} from "../utils";
 
 export class MarketTemplate {
     id: string;
-    address: string;
     addresses: {
         amm: string,
         controller: string,
@@ -75,7 +74,6 @@ export class MarketTemplate {
     constructor(id: string) {
         this.id = id;
         const marketData = _lending.constants.MARKETS[id];
-        this.address = marketData.address;
         this.addresses = marketData.addresses;
         this.borrowed_token = marketData.borrowed_token;
         this.collateral_token = marketData.collateral_token;
@@ -116,7 +114,7 @@ export class MarketTemplate {
     }
 
     private statsActiveBand = memoize(async (): Promise<number> => {
-        return (await lending.contracts[this.address].contract.active_band()).toNumber()
+        return (await lending.contracts[this.addresses.amm].contract.active_band()).toNumber()
     },
     {
         promise: true,

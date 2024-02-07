@@ -271,7 +271,7 @@ class Lending implements ILending {
         Array.from(coins).forEach((coin: string, index: number) => {
             COINS_DATA[coin] = {
                 address: coin,
-                decimals: decimals[index],
+                decimals: Number(decimals[index]),
                 name: name[index],
                 symbol: symbol[index],
             }
@@ -289,6 +289,7 @@ class Lending implements ILending {
             this.setContract(amms[index], LlammaABI);
             this.setContract(controllers[index], ControllerABI);
             this.setContract(monetary_policies[index], MonetaryPolicyABI);
+            this.setContract(vaults[index], VaultABI);
             this.constants.ONE_WAY_MARKETS[`one-way-market-${index}`] = {
                 id: `market-${index}`,
                 addresses: {

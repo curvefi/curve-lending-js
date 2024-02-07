@@ -23,7 +23,7 @@ import { _getUserCollateral } from "../external-api.js";
 */
 
 import { lending as _lending } from "../lending.js";
-import { formatUnits, isEth, toBN } from "../utils.js";
+import { formatUnits, formatNumber, isEth, toBN } from "../utils.js";
 
 export class OneWayMarketTemplate {
     id: string;
@@ -149,7 +149,7 @@ export class OneWayMarketTemplate {
     }
 
     private statsActiveBand = memoize(async (): Promise<number> => {
-        return (await lending.contracts[this.addresses.amm].contract.active_band()).toNumber()
+        return Number(await lending.contracts[this.addresses.amm].contract.active_band())
     },
     {
         promise: true,
@@ -205,12 +205,12 @@ export class OneWayMarketTemplate {
         const bands: { [index: number]: { borrowed: string, collateral: string } } = {};
         for (let i = min_band; i <= max_band; i++) {
             const _i = i - min_band
-            let collateral = formatUnits(_bands[(2 * _i) + 1]);
-            collateral = collateral.split(".")[0] + "." +
-                (collateral.split(".")[1] || "0").slice(0, this.collateral_token.decimals);
+            // The problem is that bands_x/y always returns the number with 18 decimals
+            const borrowed = formatUnits(_bands[2 * _i]);
+            const collateral = formatUnits(_bands[(2 * _i) + 1]);
             bands[i] = {
-                borrowed: formatUnits(_bands[2 * _i]),
-                collateral,
+                borrowed: formatNumber(borrowed, this.borrowed_token.decimals),
+                collateral: formatNumber(collateral, this.collateral_token.decimals),
             }
         }
 

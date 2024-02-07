@@ -289,7 +289,7 @@ class Lending implements ILending {
             this.setContract(amms[index], LlammaABI);
             this.setContract(controllers[index], ControllerABI);
             this.setContract(monetary_policies[index], MonetaryPolicyABI);
-            this.constants.ONE_WAY_MARKETS[`market-${index}`] = {
+            this.constants.ONE_WAY_MARKETS[`one-way-market-${index}`] = {
                 id: `market-${index}`,
                 addresses: {
                     amm: amms[index],

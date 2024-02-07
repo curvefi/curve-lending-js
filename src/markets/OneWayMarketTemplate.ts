@@ -23,7 +23,7 @@ import { _getUserCollateral } from "../external-api.js";
 */
 
 import { lending as _lending } from "../lending.js";
-import {formatUnits, isEth, toBN} from "../utils.js";
+import { formatUnits, isEth, toBN } from "../utils.js";
 
 export class OneWayMarketTemplate {
     id: string;
@@ -50,13 +50,13 @@ export class OneWayMarketTemplate {
     }
 
     stats: {
-        /*parameters: () => Promise<{
+        parameters: () => Promise<{
             fee: string, // %
             admin_fee: string, // %
             rate: string, // %
             liquidation_discount: string, // %
             loan_discount: string, // %
-        }>,*/
+        }>,
         balances: () => Promise<[string, string]>,
         maxMinBands: () => Promise<[number, number]>,
         activeBand:() => Promise<number>,
@@ -78,7 +78,7 @@ export class OneWayMarketTemplate {
         this.collateral_token = marketData.collateral_token;
 
         this.stats = {
-            //parameters: this.statsParameters.bind(this),
+            parameters: this.statsParameters.bind(this),
             balances: this.statsBalances.bind(this),
             maxMinBands: this.statsMaxMinBands.bind(this),
             activeBand: this.statsActiveBand.bind(this),
@@ -93,6 +93,42 @@ export class OneWayMarketTemplate {
         }
 
     }
+
+    private statsParameters = memoize(async (): Promise<{
+            fee: string, // %
+            admin_fee: string, // %
+            rate: string, // %
+            future_rate: string, // %
+            liquidation_discount: string, // %
+            loan_discount: string, // %
+        }> => {
+        const llammaContract = lending.contracts[this.addresses.amm].multicallContract;
+        const controllerContract = lending.contracts[this.addresses.controller].multicallContract;
+        const monetaryPolicyContract = lending.contracts[this.addresses.monetary_policy].multicallContract;
+
+        const calls = [
+            llammaContract.fee(),
+            llammaContract.admin_fee(),
+            llammaContract.rate(),
+            monetaryPolicyContract.rate(this.addresses.controller),
+            controllerContract.liquidation_discount(),
+            controllerContract.loan_discount(),
+        ]
+
+        const [_fee, _admin_fee, _rate, _mp_rate, _liquidation_discount, _loan_discount]: bigint[] = await lending.multicallProvider.all(calls) as bigint[];
+        const [fee, admin_fee, liquidation_discount, loan_discount] = [_fee, _admin_fee, _liquidation_discount, _loan_discount]
+            .map((_x) => formatUnits(_x * BigInt(100)));
+
+        // (1+rate)**(365*86400)-1 ~= (e**(rate*365*86400))-1
+        const rate = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
+        const future_rate = String(((2.718281828459 ** (toBN(_mp_rate).times(365).times(86400)).toNumber()) - 1) * 100);
+
+        return { fee, admin_fee, rate, future_rate, liquidation_discount, loan_discount }
+    },
+    {
+        promise: true,
+        maxAge: 5 * 60 * 1000, // 5m
+    });
 
     private async statsBalances(): Promise<[string, string]> {
         const borrowedContract = lending.contracts[this.borrowed_token.address].multicallContract;
@@ -304,42 +340,6 @@ export class OneWayMarketTemplate {
     }
 
     // ---------------- STATS ----------------
-
-    private statsParameters = memoize(async (): Promise<{
-        fee: string, // %
-        admin_fee: string, // %
-        rate: string, // %
-        future_rate: string, // %
-        liquidation_discount: string, // %
-        loan_discount: string, // %
-    }> => {
-        const llammaContract = lending.contracts[this.address].multicallContract;
-        const controllerContract = lending.contracts[this.controller].multicallContract;
-        const monetaryPolicyContract = lending.contracts[this.monetaryPolicy].multicallContract;
-
-        const calls = [
-            llammaContract.fee(),
-            llammaContract.admin_fee(),
-            llammaContract.rate(),
-            "rate(address)" in lending.contracts[this.monetaryPolicy].contract ? monetaryPolicyContract.rate(this.controller) : monetaryPolicyContract.rate(),
-            controllerContract.liquidation_discount(),
-            controllerContract.loan_discount(),
-        ]
-
-        const [_fee, _admin_fee, _rate, _mp_rate, _liquidation_discount, _loan_discount]: bigint[] = await lending.multicallProvider.all(calls) as bigint[];
-        const [fee, admin_fee, liquidation_discount, loan_discount] = [_fee, _admin_fee, _liquidation_discount, _loan_discount]
-            .map((x) => formatUnits(x.mul(100)));
-
-        // (1+rate)**(365*86400)-1 ~= (e**(rate*365*86400))-1
-        const rate = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
-        const future_rate = String(((2.718281828459 ** (toBN(_mp_rate).times(365).times(86400)).toNumber()) - 1) * 100);
-
-        return { fee, admin_fee, rate, future_rate, liquidation_discount, loan_discount }
-    },
-    {
-        promise: true,
-        maxAge: 5 * 60 * 1000, // 5m
-    });
 
     private statsTotalSupply = memoize(async (): Promise<string> => {
         const controllerContract = lending.contracts[this.controller].multicallContract;

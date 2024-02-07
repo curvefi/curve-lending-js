@@ -64,7 +64,7 @@ export class OneWayMarketTemplate {
         bandBalances:(n: number) => Promise<{ borrowed: string, collateral: string }>,
         bandsBalances: () => Promise<{ [index: number]: { borrowed: string, collateral: string } }>,
         totalBorrowed: () => Promise<string>,
-        //totalDebt: () => Promise<string>,
+        totalDebt: () => Promise<string>,
         //totalStablecoin: () => Promise<string>,
         //totalCollateral: () => Promise<string>,
         //capAndAvailable: () => Promise<{ "cap": string, "available": string }>,
@@ -86,7 +86,7 @@ export class OneWayMarketTemplate {
             bandBalances: this.statsBandBalances.bind(this),
             bandsBalances: this.statsBandsBalances.bind(this),
             totalBorrowed: this.statsTotalBorrowed.bind(this),
-            //totalDebt: this.statsTotalDebt.bind(this),
+            totalDebt: this.statsTotalDebt.bind(this),
             //totalStablecoin: this.statsTotalStablecoin.bind(this),
             //totalCollateral: this.statsTotalCollateral.bind(this),
             //capAndAvailable: this.statsCapAndAvailable.bind(this),
@@ -221,6 +221,15 @@ export class OneWayMarketTemplate {
         const [_minted, _redeemed]: bigint[] = await lending.multicallProvider.all(calls);
 
         return toBN(_minted, this.borrowed_token.decimals).minus(toBN(_redeemed, this.borrowed_token.decimals)).toString();
+    },
+    {
+        promise: true,
+        maxAge: 60 * 1000, // 1m
+    });
+
+    private statsTotalDebt = memoize(async (): Promise<string> => {
+        const debt = await lending.contracts[this.addresses.controller].contract.total_debt(lending.constantOptions);
+        return formatUnits(debt, this.borrowed_token.decimals);
     },
     {
         promise: true,

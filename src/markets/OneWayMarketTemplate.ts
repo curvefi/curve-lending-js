@@ -58,8 +58,8 @@ export class OneWayMarketTemplate {
         createLoan: (collateral: number | string, debt: number | string, range: number) => Promise<number | number[]>,
         // addCollateralApprove: (collateral: number | string) => Promise<number>,
         // addCollateral: (collateral: number | string, address?: string) => Promise<number>,
-        // borrowMoreApprove: (collateral: number | string) => Promise<number>,
-        // borrowMore: (collateral: number | string, debt: number | string) => Promise<number>,
+        borrowMoreApprove: (collateral: number | string) => Promise<number | number[]>,
+        borrowMore: (collateral: number | string, debt: number | string) => Promise<number | number[]>,
         // repayApprove: (debt: number | string) => Promise<number>,
         // repay: (debt: number | string, address?: string) => Promise<number>,
         // fullRepayApprove: (address?: string) => Promise<number>,
@@ -106,10 +106,10 @@ export class OneWayMarketTemplate {
         this.estimateGas = {
             createLoanApprove: this.createLoanApproveEstimateGas.bind(this),
             createLoan: this.createLoanEstimateGas.bind(this),
+            borrowMoreApprove: this.borrowMoreApproveEstimateGas.bind(this),
+            borrowMore: this.borrowMoreEstimateGas.bind(this),
             // addCollateralApprove: this.addCollateralApproveEstimateGas.bind(this),
             // addCollateral: this.addCollateralEstimateGas.bind(this),
-            // borrowMoreApprove: this.borrowMoreApproveEstimateGas.bind(this),
-            // borrowMore: this.borrowMoreEstimateGas.bind(this),
             // repayApprove: this.repayApproveEstimateGas.bind(this),
             // repay: this.repayEstimateGas.bind(this),
             // fullRepayApprove: this.fullRepayApproveEstimateGas.bind(this),
@@ -664,6 +664,96 @@ export class OneWayMarketTemplate {
         await this.createLoanApprove(collateral);
         return await this._createLoan(collateral, debt, range, false) as string;
     }
+
+    // ---------------- BORROW MORE ----------------
+
+    public async borrowMoreMaxRecv(collateralAmount: number | string): Promise<string> {
+        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
+        const N = await this.userRange();
+        const _collateral = _currentCollateral + parseUnits(collateralAmount, this.collateral_token.decimals);
+
+        const contract = lending.contracts[this.addresses.controller].contract;
+        const _debt: bigint = await contract.max_borrowable(_collateral, N, lending.constantOptions);
+
+        return formatUnits(_debt - _currentDebt, this.borrowed_token.decimals);
+    }
+
+    private async _borrowMoreBands(collateral: number | string, debt: number | string): Promise<[bigint, bigint]> {
+        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
+        if (_currentDebt === BigInt(0)) throw Error(`Loan for ${lending.signerAddress} does not exist`);
+
+        const N = await this.userRange();
+        const _collateral = _currentCollateral + parseUnits(collateral, this.collateral_token.decimals);
+        const _debt = _currentDebt + parseUnits(debt, this.borrowed_token.decimals);
+
+        const _n1 = await this._calcN1(_collateral, _debt, N);
+        const _n2 = _n1 + BigInt(N - 1);
+
+        return [_n2, _n1];
+    }
+
+    public async borrowMoreBands(collateral: number | string, debt: number | string): Promise<[number, number]> {
+        const [_n2, _n1] = await this._borrowMoreBands(collateral, debt);
+
+        return [Number(_n2), Number(_n1)];
+    }
+
+    public async borrowMorePrices(collateral: number | string, debt: number | string): Promise<string[]> {
+        const [_n2, _n1] = await this._borrowMoreBands(collateral, debt);
+
+        return await this._getPrices(_n2, _n1);
+    }
+
+    public async borrowMoreHealth(collateral: number | string, debt: number | string, full = true, address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _collateral = parseUnits(collateral, this.collateral_token.decimals);
+        const _debt = parseUnits(debt, this.borrowed_token.decimals);
+
+        const contract = lending.contracts[this.addresses.controller].contract;
+        let _health = await contract.health_calculator(address, _collateral, _debt, full, 0, lending.constantOptions) as bigint;
+        _health = _health * BigInt(100);
+
+        return formatUnits(_health);
+    }
+
+    public async borrowMoreIsApproved(collateral: number | string): Promise<boolean> {
+        return await hasAllowance([this.addresses.collateral_token], [collateral], lending.signerAddress, this.addresses.controller);
+    }
+
+    private async borrowMoreApproveEstimateGas (collateral: number | string): Promise<number | number[]> {
+        return await ensureAllowanceEstimateGas([this.addresses.collateral_token], [collateral], this.addresses.controller);
+    }
+
+    public async borrowMoreApprove(collateral: number | string): Promise<string[]> {
+        return await ensureAllowance([this.addresses.collateral_token], [collateral], this.addresses.controller);
+    }
+
+    private async _borrowMore(collateral: number | string, debt: number | string, estimateGas: boolean): Promise<string | number | number[]> {
+        const { borrowed, debt: currentDebt } = await this.userState();
+        if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
+        if (Number(borrowed) > 0) throw Error(`User ${lending.signerAddress} is already in liquidation mode`);
+
+        const _collateral = parseUnits(collateral, this.collateral_token.decimals);
+        const _debt = parseUnits(debt, this.borrowed_token.decimals);
+        const contract = lending.contracts[this.addresses.controller].contract;
+        const gas = await contract.borrow_more.estimateGas(_collateral, _debt, { ...lending.constantOptions });
+        if (estimateGas) return smartNumber(gas);
+
+        await lending.updateFeeData();
+        const gasLimit = _mulBy1_3(DIGas(gas));
+        return (await contract.borrow_more(_collateral, _debt, { ...lending.options, gasLimit })).hash
+    }
+
+    public async borrowMoreEstimateGas(collateral: number | string, debt: number | string): Promise<number | number[]> {
+        if (!(await this.borrowMoreIsApproved(collateral))) throw Error("Approval is needed for gas estimation");
+        return await this._borrowMore(collateral, debt, true) as number | number[];
+    }
+
+    public async borrowMore(collateral: number | string, debt: number | string): Promise<string> {
+        await this.borrowMoreApprove(collateral);
+        return await this._borrowMore(collateral, debt, false) as string;
+    }
+
 }
 
 /*export class OneWayMarketTemplate {
@@ -784,96 +874,6 @@ export class OneWayMarketTemplate {
         this.wallet = {
             balances: this.walletBalances.bind(this),
         }
-    }
-
-    // ---------------- BORROW MORE ----------------
-
-    public async borrowMoreMaxRecv(collateralAmount: number | string): Promise<string> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
-        const N = await this.userRange();
-        const _collateral = _currentCollateral.add(parseUnits(collateralAmount, this.collateralDecimals));
-
-        const contract = lending.contracts[this.controller].contract;
-        const _debt: bigint = await contract.max_borrowable(_collateral, N, lending.constantOptions);
-
-        return ethers.utils.formatUnits(_debt.sub(_currentDebt));
-    }
-
-    private async _borrowMoreBands(collateral: number | string, debt: number | string): Promise<[bigint, bigint]> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
-        if (_currentDebt.eq(0)) throw Error(`Loan for ${lending.signerAddress} does not exist`);
-
-        const N = await this.userRange();
-        const _collateral = _currentCollateral.add(parseUnits(collateral, this.collateralDecimals));
-        const _debt = _currentDebt.add(parseUnits(debt));
-
-        const _n1 = await this._calcN1(_collateral, _debt, N);
-        const _n2 = _n1.add(N - 1);
-
-        return [_n2, _n1];
-    }
-
-    public async borrowMoreBands(collateral: number | string, debt: number | string): Promise<[number, number]> {
-        const [_n2, _n1] = await this._borrowMoreBands(collateral, debt);
-
-        return [_n2.toNumber(), _n1.toNumber()];
-    }
-
-    public async borrowMorePrices(collateral: number | string, debt: number | string): Promise<string[]> {
-        const [_n2, _n1] = await this._borrowMoreBands(collateral, debt);
-
-        return await this._getPrices(_n2, _n1);
-    }
-
-    public async borrowMoreHealth(collateral: number | string, debt: number | string, full = true, address = ""): Promise<string> {
-        address = _getAddress(address);
-        const _collateral = parseUnits(collateral, this.collateralDecimals);
-        const _debt = parseUnits(debt);
-
-        const contract = lending.contracts[this.healthCalculator ?? this.controller].contract;
-        let _health = await contract.health_calculator(address, _collateral, _debt, full, 0, lending.constantOptions) as bigint;
-        _health = _health.mul(100);
-
-        return ethers.utils.formatUnits(_health);
-    }
-
-    public async borrowMoreIsApproved(collateral: number | string): Promise<boolean> {
-        return true//await hasAllowance([this.collateral], [collateral], lending.signerAddress, this.controller);
-    }
-
-    private async borrowMoreApproveEstimateGas (collateral: number | string): Promise<number> {
-        return 0//await ensureAllowanceEstimateGas([this.collateral], [collateral], this.controller);
-    }
-
-    public async borrowMoreApprove(collateral: number | string): Promise<string[]> {
-        return ['true']//await ensureAllowance([this.collateral], [collateral], this.controller);
-    }
-
-    private async _borrowMore(collateral: number | string, debt: number | string, estimateGas: boolean): Promise<string | number> {
-        const { stablecoin, debt: currentDebt } = await this.userState();
-        if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
-        if (Number(stablecoin) > 0) throw Error(`User ${lending.signerAddress} is already in liquidation mode`);
-
-        const _collateral = parseUnits(collateral, this.collateralDecimals);
-        const _debt = parseUnits(debt);
-        const contract = lending.contracts[this.controller].contract;
-        const value = isEth(this.collateral) ? _collateral : lending.parseUnits("0");
-        const gas = await contract.estimateGas.borrow_more(_collateral, _debt, { ...lending.constantOptions, value });
-        if (estimateGas) return gas.toNumber();
-
-        await lending.updateFeeData();
-        const gasLimit = gas.mul(130).div(100);
-        return (await contract.borrow_more(_collateral, _debt, { ...lending.options, gasLimit, value })).hash
-    }
-
-    public async borrowMoreEstimateGas(collateral: number | string, debt: number | string): Promise<number> {
-        if (!(await this.borrowMoreIsApproved(collateral))) throw Error("Approval is needed for gas estimation");
-        return await this._borrowMore(collateral, debt, true) as number;
-    }
-
-    public async borrowMore(collateral: number | string, debt: number | string): Promise<string> {
-        await this.borrowMoreApprove(collateral);
-        return await this._borrowMore(collateral, debt, false) as string;
     }
 
     // ---------------- ADD COLLATERAL ----------------

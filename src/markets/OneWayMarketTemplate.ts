@@ -1,6 +1,6 @@
+import { ethers } from "ethers";
 import memoize from "memoizee";
 import { lending } from "../lending.js";
-/*import { ethers } from "ethers";
 import BigNumber from "bignumber.js";
 import {
     _getAddress,
@@ -15,15 +15,13 @@ import {
     isEth,
     _cutZeros,
     formatUnits,
+    formatNumber,
     MAX_ALLOWANCE,
     MAX_ACTIVE_BAND,
-} from "../utils";
-import { IDict } from "../interfaces";
+} from "../utils.js";
+import { IDict } from "../interfaces.js";
 import { _getUserCollateral } from "../external-api.js";
-*/
 
-import { lending as _lending } from "../lending.js";
-import { formatUnits, formatNumber, isEth, toBN } from "../utils.js";
 
 export class OneWayMarketTemplate {
     id: string;
@@ -48,6 +46,8 @@ export class OneWayMarketTemplate {
         symbol: string;
         decimals: number;
     }
+    A: number
+    defaultBands: number
 
     stats: {
         parameters: () => Promise<{
@@ -71,10 +71,12 @@ export class OneWayMarketTemplate {
 
     constructor(id: string) {
         this.id = id;
-        const marketData = _lending.constants.ONE_WAY_MARKETS[id];
+        const marketData = lending.constants.ONE_WAY_MARKETS[id];
         this.addresses = marketData.addresses;
         this.borrowed_token = marketData.borrowed_token;
         this.collateral_token = marketData.collateral_token;
+        this.A = 100
+        this.defaultBands = 10
 
         this.stats = {
             parameters: this.statsParameters.bind(this),
@@ -92,6 +94,8 @@ export class OneWayMarketTemplate {
 
     }
 
+    // ---------------- STATS ----------------
+
     private statsParameters = memoize(async (): Promise<{
             fee: string, // %
             admin_fee: string, // %
@@ -99,6 +103,7 @@ export class OneWayMarketTemplate {
             future_rate: string, // %
             liquidation_discount: string, // %
             loan_discount: string, // %
+            base_price: string,
         }> => {
         const llammaContract = lending.contracts[this.addresses.amm].multicallContract;
         const controllerContract = lending.contracts[this.addresses.controller].multicallContract;
@@ -111,9 +116,11 @@ export class OneWayMarketTemplate {
             monetaryPolicyContract.rate(this.addresses.controller),
             controllerContract.liquidation_discount(),
             controllerContract.loan_discount(),
+            llammaContract.get_base_price(),
         ]
 
-        const [_fee, _admin_fee, _rate, _mp_rate, _liquidation_discount, _loan_discount]: bigint[] = await lending.multicallProvider.all(calls) as bigint[];
+        const [_fee, _admin_fee, _rate, _mp_rate, _liquidation_discount, _loan_discount, _base_price]: bigint[] = await lending.multicallProvider.all(calls) as bigint[];
+        const base_price = formatUnits(_base_price)
         const [fee, admin_fee, liquidation_discount, loan_discount] = [_fee, _admin_fee, _liquidation_discount, _loan_discount]
             .map((_x) => formatUnits(_x * BigInt(100)));
 
@@ -121,7 +128,7 @@ export class OneWayMarketTemplate {
         const rate = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
         const future_rate = String(((2.718281828459 ** (toBN(_mp_rate).times(365).times(86400)).toNumber()) - 1) * 100);
 
-        return { fee, admin_fee, rate, future_rate, liquidation_discount, loan_discount }
+        return { fee, admin_fee, rate, future_rate, liquidation_discount, loan_discount, base_price }
     },
     {
         promise: true,
@@ -274,6 +281,68 @@ export class OneWayMarketTemplate {
         promise: true,
         maxAge: 60 * 1000, // 1m
     });
+
+    // ---------------- PRICES ----------------
+
+
+    public basePrice = memoize(async(): Promise<string> => {
+        const _price = await lending.contracts[this.addresses.amm].contract.get_base_price(lending.constantOptions) as bigint;
+        return formatUnits(_price);
+    },
+    {
+        promise: true,
+        maxAge: 86400 * 1000, // 1d
+    });
+
+    public async oraclePrice(): Promise<string> {
+        const _price = await lending.contracts[this.addresses.amm].contract.price_oracle(lending.constantOptions) as bigint;
+        return formatUnits(_price);
+    }
+
+    public async oraclePriceBand(): Promise<number> {
+        const oraclePriceBN = BN(await this.oraclePrice());
+        const basePriceBN = BN(await this.basePrice());
+        const A_BN = BN(this.A);
+        const multiplier = oraclePriceBN.lte(basePriceBN) ? A_BN.minus(1).div(A_BN) : A_BN.div(A_BN.minus(1));
+        const term = oraclePriceBN.lte(basePriceBN) ? 1 : -1;
+        const compareFunc = oraclePriceBN.lte(basePriceBN) ?
+            (oraclePriceBN: BigNumber, currentTickPriceBN: BigNumber) => oraclePriceBN.lte(currentTickPriceBN) :
+            (oraclePriceBN: BigNumber, currentTickPriceBN: BigNumber) => oraclePriceBN.gt(currentTickPriceBN);
+
+        let band = 0;
+        let currentTickPriceBN = oraclePriceBN.lte(basePriceBN) ? basePriceBN.times(multiplier) : basePriceBN;
+        while (compareFunc(oraclePriceBN, currentTickPriceBN)) {
+            currentTickPriceBN = currentTickPriceBN.times(multiplier);
+            band += term;
+        }
+
+        return band;
+    }
+
+    public async price(): Promise<string> {
+        const _price = await lending.contracts[this.addresses.amm].contract.get_p(lending.constantOptions) as bigint;
+        return formatUnits(_price);
+    }
+
+    public async calcTickPrice(n: number): Promise<string> {
+        const basePrice = await this.basePrice();
+        const basePriceBN = BN(basePrice);
+        const A_BN = BN(this.A);
+
+        return _cutZeros(basePriceBN.times(A_BN.minus(1).div(A_BN).pow(n)).toFixed(18))
+    }
+
+    public async calcBandPrices(n: number): Promise<[string, string]> {
+        return [await this.calcTickPrice(n + 1), await this.calcTickPrice(n)]
+    }
+
+    public calcRangePct(range: number): string {
+        const A_BN = BN(this.A);
+        const startBN = BN(1);
+        const endBN = A_BN.minus(1).div(A_BN).pow(range);
+
+        return startBN.minus(endBN).times(100).toFixed(6)
+    }
 }
 
 /*export class OneWayMarketTemplate {
@@ -499,65 +568,6 @@ export class OneWayMarketTemplate {
         }
 
         return res
-    }
-
-    public async oraclePrice(): Promise<string> {
-        const _price = await lending.contracts[this.address].contract.price_oracle(lending.constantOptions) as bigint;
-        return ethers.utils.formatUnits(_price);
-    }
-
-    public async oraclePriceBand(): Promise<number> {
-        const oraclePriceBN = BN(await this.oraclePrice());
-        const basePriceBN = BN(await this.basePrice());
-        const A_BN = BN(this.A);
-        const multiplier = oraclePriceBN.lte(basePriceBN) ? A_BN.minus(1).div(A_BN) : A_BN.div(A_BN.minus(1));
-        const term = oraclePriceBN.lte(basePriceBN) ? 1 : -1;
-        const compareFunc = oraclePriceBN.lte(basePriceBN) ?
-            (oraclePriceBN: BigNumber, currentTickPriceBN: BigNumber) => oraclePriceBN.lte(currentTickPriceBN) :
-            (oraclePriceBN: BigNumber, currentTickPriceBN: BigNumber) => oraclePriceBN.gt(currentTickPriceBN);
-
-        let band = 0;
-        let currentTickPriceBN = oraclePriceBN.lte(basePriceBN) ? basePriceBN.times(multiplier) : basePriceBN;
-        while (compareFunc(oraclePriceBN, currentTickPriceBN)) {
-            currentTickPriceBN = currentTickPriceBN.times(multiplier);
-            band += term;
-        }
-
-        return band;
-    }
-
-    public async price(): Promise<string> {
-        const _price = await lending.contracts[this.address].contract.get_p(lending.constantOptions) as bigint;
-        return ethers.utils.formatUnits(_price);
-    }
-
-    public basePrice = memoize(async(): Promise<string> => {
-        const _price = await lending.contracts[this.address].contract.get_base_price(lending.constantOptions) as bigint;
-        return ethers.utils.formatUnits(_price);
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
-
-    public async calcTickPrice(n: number): Promise<string> {
-        const basePrice = await this.basePrice();
-        const basePriceBN = BN(basePrice);
-        const A_BN = BN(this.A);
-
-        return _cutZeros(basePriceBN.times(A_BN.minus(1).div(A_BN).pow(n)).toFixed(18))
-    }
-
-    public async calcBandPrices(n: number): Promise<[string, string]> {
-        return [await this.calcTickPrice(n + 1), await this.calcTickPrice(n)]
-    }
-
-    public calcRangePct(range: number): string {
-        const A_BN = BN(this.A);
-        const startBN = BN(1);
-        const endBN = A_BN.minus(1).div(A_BN).pow(range);
-
-        return startBN.minus(endBN).times(100).toString()
     }
 
     // ---------------- WALLET BALANCES ----------------

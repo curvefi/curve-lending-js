@@ -98,12 +98,11 @@ class Lending implements ILending {
     constantOptions: { gasLimit: number };
     options: { gasPrice?: number | bigint, maxFeePerGas?: number | bigint, maxPriorityFeePerGas?: number | bigint };
     constants: {
-        DECIMALS: string;
-        WETH: number;
         ONE_WAY_MARKETS: IDict<IOneWayMarket>,
-        ALIASES: Record<string, string>;
-        NETWORK_NAME: INetworkName;
         COINS: IDict<ICoin>
+        DECIMALS: IDict<number>;
+        NETWORK_NAME: INetworkName;
+        ALIASES: Record<string, string>;
     };
 
     constructor() {
@@ -120,12 +119,11 @@ class Lending implements ILending {
         this.constantOptions = { gasLimit: 12000000 }
         this.options = {};
         this.constants = {
-            DECIMALS: '',
-            WETH: 0,
             ONE_WAY_MARKETS: {},
-            ALIASES: {},
-            NETWORK_NAME: 'ethereum',
             COINS: {},
+            DECIMALS: {},
+            NETWORK_NAME: 'ethereum',
+            ALIASES: {},
         };
     }
 
@@ -284,6 +282,9 @@ class Lending implements ILending {
     fetchMarkets = async () => {
         const {amms, controllers, borrowed_tokens, collateral_tokens, monetary_policies, vaults, gauges} = await this.getFactoryMarketData()
         this.constants.COINS = await this.getCoins(collateral_tokens, borrowed_tokens);
+        for (const c in this.constants.COINS) {
+            this.constants.DECIMALS[c] = this.constants.COINS[c].decimals;
+        }
 
         amms.forEach((amm: string, index: number) => {
             this.setContract(amms[index], LlammaABI);

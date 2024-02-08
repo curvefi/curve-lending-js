@@ -8,7 +8,7 @@ import {
     BN,
     toBN,
     fromBN,
-    //getBalances,
+    getBalances,
     //ensureAllowance,
     //hasAllowance,
     //ensureAllowanceEstimateGas,
@@ -67,6 +67,9 @@ export class OneWayMarketTemplate {
         ammBalances: () => Promise<{ borrowed: string, collateral: string }>,
         capAndAvailable: () => Promise<{ cap: string, available: string }>,
     };
+    wallet: {
+        balances: (address?: string) => Promise<{ collateral: string, borrowed: string }>,
+    };
 
     constructor(id: string) {
         this.id = id;
@@ -75,7 +78,6 @@ export class OneWayMarketTemplate {
         this.borrowed_token = marketData.borrowed_token;
         this.collateral_token = marketData.collateral_token;
         this.defaultBands = 10
-
         this.stats = {
             parameters: this.statsParameters.bind(this),
             balances: this.statsBalances.bind(this),
@@ -88,6 +90,9 @@ export class OneWayMarketTemplate {
             totalDebt: this.statsTotalDebt.bind(this),
             ammBalances: this.statsAmmBalances.bind(this),
             capAndAvailable: this.statsCapAndAvailable.bind(this),
+        }
+        this.wallet = {
+            balances: this.walletBalances.bind(this),
         }
 
     }
@@ -352,6 +357,13 @@ export class OneWayMarketTemplate {
 
         return startBN.minus(endBN).times(100).toFixed(6)
     }
+
+    // ---------------- WALLET BALANCES ----------------
+
+    private async walletBalances(address = ""): Promise<{ collateral: string, borrowed: string }> {
+        const [collateral, borrowed] = await getBalances([this.collateral_token.address, this.borrowed_token.address], address);
+        return { collateral, borrowed }
+    }
 }
 
 /*export class OneWayMarketTemplate {
@@ -577,13 +589,6 @@ export class OneWayMarketTemplate {
         }
 
         return res
-    }
-
-    // ---------------- WALLET BALANCES ----------------
-
-    private async walletBalances(address = ""): Promise<{ collateral: string, stablecoin: string }> {
-        const [collateral, stablecoin] = ['0','0']//await getBalances([this.collateral, lending.address], address);
-        return { stablecoin, collateral }
     }
 
     // ---------------- CREATE LOAN ----------------

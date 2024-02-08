@@ -96,3 +96,55 @@ export const handleMultiCallResponse = (callsMap: string[], response: any[]) => 
     }
     return result;
 }
+
+// coins can be either addresses or symbols
+export const _getCoinAddressesNoCheck = (coins: string[]): string[] => {
+    return coins.map((c) => c.toLowerCase()).map((c) => lending.constants.COINS[c].address || c);
+}
+
+export const _getCoinAddresses = (coins: string[]): string[] => {
+    const coinAddresses = _getCoinAddressesNoCheck(coins);
+    const availableAddresses = Object.keys(lending.constants.DECIMALS);
+    for (const coinAddr of coinAddresses) {
+        if (!availableAddresses.includes(coinAddr)) throw Error(`Coin with address '${coinAddr}' is not available`);
+    }
+
+    return coinAddresses
+}
+
+export const _getCoinDecimals = (coinAddresses: string[]): number[] => {
+    return coinAddresses.map((coinAddr) => lending.constants.DECIMALS[coinAddr.toLowerCase()] ?? 18);
+}
+
+
+// --- BALANCES ---
+
+export const _getBalances = async (coinAddresses: string[], address = ""): Promise<bigint[]> => {
+    address = _getAddress(address);
+    const _coinAddresses = [...coinAddresses];
+    const ethIndex = getEthIndex(_coinAddresses);
+    if (ethIndex !== -1) {
+        _coinAddresses.splice(ethIndex, 1);
+    }
+
+    const contractCalls = [];
+    for (const coinAddr of _coinAddresses) {
+        contractCalls.push(lending.contracts[coinAddr].multicallContract.balanceOf(address));
+    }
+    const _balances: bigint[] = await lending.multicallProvider.all(contractCalls);
+
+    if (ethIndex !== -1) {
+        const ethBalance: bigint = await lending.provider.getBalance(address);
+        _balances.splice(ethIndex, 0, ethBalance);
+    }
+
+    return _balances
+}
+
+export const getBalances = async (coins: string[], address = ""): Promise<string[]> => {
+    const coinAddresses = _getCoinAddresses(coins);
+    const decimals = _getCoinDecimals(coinAddresses);
+    const _balances = await _getBalances(coinAddresses, address);
+
+    return _balances.map((_b, i: number ) => formatUnits(_b, decimals[i]));
+}

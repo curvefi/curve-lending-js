@@ -46,7 +46,6 @@ export class OneWayMarketTemplate {
         symbol: string;
         decimals: number;
     }
-    A: number
     defaultBands: number
 
     stats: {
@@ -75,7 +74,6 @@ export class OneWayMarketTemplate {
         this.addresses = marketData.addresses;
         this.borrowed_token = marketData.borrowed_token;
         this.collateral_token = marketData.collateral_token;
-        this.A = 100
         this.defaultBands = 10
 
         this.stats = {
@@ -104,6 +102,7 @@ export class OneWayMarketTemplate {
             liquidation_discount: string, // %
             loan_discount: string, // %
             base_price: string,
+            A: string,
         }> => {
         const llammaContract = lending.contracts[this.addresses.amm].multicallContract;
         const controllerContract = lending.contracts[this.addresses.controller].multicallContract;
@@ -117,9 +116,11 @@ export class OneWayMarketTemplate {
             controllerContract.liquidation_discount(),
             controllerContract.loan_discount(),
             llammaContract.get_base_price(),
+            llammaContract.A(),
         ]
 
-        const [_fee, _admin_fee, _rate, _mp_rate, _liquidation_discount, _loan_discount, _base_price]: bigint[] = await lending.multicallProvider.all(calls) as bigint[];
+        const [_fee, _admin_fee, _rate, _mp_rate, _liquidation_discount, _loan_discount, _base_price, _A]: bigint[] = await lending.multicallProvider.all(calls) as bigint[];
+        const A = formatUnits(_A, 0)
         const base_price = formatUnits(_base_price)
         const [fee, admin_fee, liquidation_discount, loan_discount] = [_fee, _admin_fee, _liquidation_discount, _loan_discount]
             .map((_x) => formatUnits(_x * BigInt(100)));
@@ -128,7 +129,7 @@ export class OneWayMarketTemplate {
         const rate = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
         const future_rate = String(((2.718281828459 ** (toBN(_mp_rate).times(365).times(86400)).toNumber()) - 1) * 100);
 
-        return { fee, admin_fee, rate, future_rate, liquidation_discount, loan_discount, base_price }
+        return { fee, admin_fee, rate, future_rate, liquidation_discount, loan_discount, base_price, A }
     },
     {
         promise: true,
@@ -284,6 +285,14 @@ export class OneWayMarketTemplate {
 
     // ---------------- PRICES ----------------
 
+    public A = memoize(async(): Promise<string> => {
+        const _A = await lending.contracts[this.addresses.amm].contract.A(lending.constantOptions) as bigint;
+        return formatUnits(_A, 0);
+    },
+    {
+        promise: true,
+        maxAge: 86400 * 1000, // 1d
+    });
 
     public basePrice = memoize(async(): Promise<string> => {
         const _price = await lending.contracts[this.addresses.amm].contract.get_base_price(lending.constantOptions) as bigint;
@@ -302,7 +311,7 @@ export class OneWayMarketTemplate {
     public async oraclePriceBand(): Promise<number> {
         const oraclePriceBN = BN(await this.oraclePrice());
         const basePriceBN = BN(await this.basePrice());
-        const A_BN = BN(this.A);
+        const A_BN = BN(await this.A());
         const multiplier = oraclePriceBN.lte(basePriceBN) ? A_BN.minus(1).div(A_BN) : A_BN.div(A_BN.minus(1));
         const term = oraclePriceBN.lte(basePriceBN) ? 1 : -1;
         const compareFunc = oraclePriceBN.lte(basePriceBN) ?
@@ -327,7 +336,7 @@ export class OneWayMarketTemplate {
     public async calcTickPrice(n: number): Promise<string> {
         const basePrice = await this.basePrice();
         const basePriceBN = BN(basePrice);
-        const A_BN = BN(this.A);
+        const A_BN = BN(await this.A());
 
         return _cutZeros(basePriceBN.times(A_BN.minus(1).div(A_BN).pow(n)).toFixed(18))
     }
@@ -336,8 +345,8 @@ export class OneWayMarketTemplate {
         return [await this.calcTickPrice(n + 1), await this.calcTickPrice(n)]
     }
 
-    public calcRangePct(range: number): string {
-        const A_BN = BN(this.A);
+    public async calcRangePct(range: number): Promise<string> {
+        const A_BN = BN(await this.A());
         const startBN = BN(1);
         const endBN = A_BN.minus(1).div(A_BN).pow(range);
 

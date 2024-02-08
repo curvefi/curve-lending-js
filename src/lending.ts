@@ -85,6 +85,7 @@ export const NETWORK_CONSTANTS: { [index: number]: any } = {
     },
 }
 
+export const test = '';
 
 class Lending implements ILending {
     address: string;

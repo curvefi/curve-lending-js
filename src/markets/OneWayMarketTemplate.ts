@@ -364,6 +364,79 @@ export class OneWayMarketTemplate {
         const [collateral, borrowed] = await getBalances([this.collateral_token.address, this.borrowed_token.address], address);
         return { collateral, borrowed }
     }
+
+    // ---------------- USER POSITION ----------------
+
+    public async userLoanExists(address = ""): Promise<boolean> {
+        address = _getAddress(address);
+        return  await lending.contracts[this.addresses.controller].contract.loan_exists(address, lending.constantOptions);
+    }
+
+    public async _userState(address = ""): Promise<{ _collateral: bigint, _borrowed: bigint, _debt: bigint, _N: bigint }> {
+        address = _getAddress(address);
+        const contract = lending.contracts[this.addresses.controller].contract;
+        const [_collateral, _borrowed, _debt, _N] = await contract.user_state(address, lending.constantOptions) as bigint[];
+
+        return { _collateral, _borrowed, _debt, _N }
+    }
+
+    public async userState(address = ""): Promise<{ collateral: string, borrowed: string, debt: string, N: string }> {
+        const { _collateral, _borrowed, _debt, _N } = await this._userState(address);
+
+        return {
+            collateral: formatUnits(_collateral, this.collateral_token.decimals),
+            borrowed: formatUnits(_borrowed, this.borrowed_token.decimals),
+            debt: formatUnits(_debt, this.borrowed_token.decimals),
+            N: formatUnits(_N, 0),
+        };
+    }
+
+    public async userHealth(full = true, address = ""): Promise<string> {
+        address = _getAddress(address);
+        let _health = await lending.contracts[this.addresses.controller].contract.health(address, full, lending.constantOptions) as bigint;
+        _health = _health * BigInt(100);
+
+        return formatUnits(_health);
+    }
+
+    public async userBands(address = ""): Promise<number[]> {
+        address = _getAddress(address);
+        const _bands = await lending.contracts[this.addresses.amm].contract.read_user_tick_numbers(address, lending.constantOptions) as bigint[];
+
+        return _bands.map((_t) => Number(_t)).reverse();
+    }
+
+    public async userRange(address = ""): Promise<number> {
+        const [n2, n1] = await this.userBands(address);
+        if (n1 == n2) return 0;
+        return n2 - n1 + 1;
+    }
+
+    public async userPrices(address = ""): Promise<string[]> {
+        address = _getAddress(address);
+        const _prices = await lending.contracts[this.addresses.controller].contract.user_prices(address, lending.constantOptions) as bigint[];
+
+        return _prices.map((_p) => formatUnits(_p)).reverse();
+    }
+
+    public async userBandsBalances(address = ""): Promise<IDict<{ collateral: string, borrowed: string }>> {
+        const [n2, n1] = await this.userBands(address);
+        if (n1 == 0 && n2 == 0) return {};
+
+        address = _getAddress(address);
+        const contract = lending.contracts[this.addresses.amm].contract;
+        const [_borrowed, _collateral] = await contract.get_xy(address, lending.constantOptions) as [bigint[], bigint[]];
+
+        const res: IDict<{ borrowed: string, collateral: string }> = {};
+        for (let i = n1; i <= n2; i++) {
+            res[i] = {
+                collateral: formatUnits(_collateral[i - n1], this.collateral_token.decimals),
+                borrowed: formatUnits(_borrowed[i - n1], this.borrowed_token.decimals),
+            };
+        }
+
+        return res
+    }
 }
 
 /*export class OneWayMarketTemplate {
@@ -484,111 +557,6 @@ export class OneWayMarketTemplate {
         this.wallet = {
             balances: this.walletBalances.bind(this),
         }
-    }
-
-    // ---------------------------------------
-
-    public async loanExists(address = ""): Promise<boolean> {
-        address = _getAddress(address);
-        return  await lending.contracts[this.controller].contract.loan_exists(address, lending.constantOptions);
-    }
-
-    public async userDebt(address = ""): Promise<string> {
-        address = _getAddress(address);
-        const debt = await lending.contracts[this.controller].contract.debt(address, lending.constantOptions);
-
-        return ethers.utils.formatUnits(debt);
-    }
-
-    public async userHealth(full = true, address = ""): Promise<string> {
-        address = _getAddress(address);
-        let _health = await lending.contracts[this.controller].contract.health(address, full, lending.constantOptions) as bigint;
-        _health = _health.mul(100);
-
-        return ethers.utils.formatUnits(_health);
-    }
-
-    public async userBands(address = ""): Promise<number[]> {
-        address = _getAddress(address);
-        const _bands = await lending.contracts[this.address].contract.read_user_tick_numbers(address, lending.constantOptions) as bigint[];
-
-        return _bands.map((_t) => _t.toNumber()).reverse();
-    }
-
-    public async userRange(address = ""): Promise<number> {
-        const [n2, n1] = await this.userBands(address);
-        if (n1 == n2) return 0;
-        return n2 - n1 + 1;
-    }
-
-    public async userPrices(address = ""): Promise<string[]> {
-        address = _getAddress(address);
-        const _prices = await lending.contracts[this.controller].contract.user_prices(address, lending.constantOptions) as bigint[];
-
-        return _prices.map((_p) =>ethers.utils.formatUnits(_p)).reverse();
-    }
-
-    public async _userState(address = ""): Promise<{ _collateral: bigint, _stablecoin: bigint, _debt: bigint }> {
-        address = _getAddress(address);
-        const contract = lending.contracts[this.controller].contract;
-        const [_collateral, _stablecoin, _debt] = await contract.user_state(address, lending.constantOptions) as bigint[];
-
-        return { _collateral, _stablecoin, _debt }
-    }
-
-    public async userState(address = ""): Promise<{ collateral: string, stablecoin: string, debt: string }> {
-        const { _collateral, _stablecoin, _debt } = await this._userState(address);
-
-        return {
-            collateral: ethers.utils.formatUnits(_collateral, this.collateralDecimals),
-            stablecoin: ethers.utils.formatUnits(_stablecoin),
-            debt: ethers.utils.formatUnits(_debt),
-        };
-    }
-
-    public async userLoss(userAddress = ""): Promise<{ deposited_collateral: string, current_collateral_estimation: string, loss: string, loss_pct: string }> {
-        userAddress = _getAddress(userAddress);
-        const [deposited_collateral, _current_collateral_estimation] = await Promise.all([
-            _getUserCollateral(lending.constants.NETWORK_NAME, this.controller, userAddress, this.collateralDecimals),
-            lending.contracts[this.address].contract.get_y_up(userAddress),
-        ]);
-        const current_collateral_estimation = lending.formatUnits(_current_collateral_estimation, this.collateralDecimals);
-        if (BN(deposited_collateral).lte(0)) {
-            return {
-                deposited_collateral,
-                current_collateral_estimation,
-                loss: "0.0",
-                loss_pct: "0.0",
-            };
-        }
-        const loss = BN(deposited_collateral).minus(current_collateral_estimation).toString()
-        const loss_pct = BN(loss).div(deposited_collateral).times(100).toString();
-
-        return {
-            deposited_collateral,
-            current_collateral_estimation,
-            loss,
-            loss_pct,
-        };
-    }
-
-    public async userBandsBalances(address = ""): Promise<IDict<{ stablecoin: string, collateral: string }>> {
-        const [n2, n1] = await this.userBands(address);
-        if (n1 == 0 && n2 == 0) return {};
-
-        address = _getAddress(address);
-        const contract = lending.contracts[this.address].contract;
-        const [_stablecoins, _collaterals] = await contract.get_xy(address, lending.constantOptions) as [bigint[], bigint[]];
-
-        const res: IDict<{ stablecoin: string, collateral: string }> = {};
-        for (let i = n1; i <= n2; i++) {
-            res[i] = {
-                stablecoin: ethers.utils.formatUnits(_stablecoins[i - n1], 18),
-                collateral: ethers.utils.formatUnits(_collaterals[i - n1], this.collateralDecimals),
-            };
-        }
-
-        return res
     }
 
     // ---------------- CREATE LOAN ----------------

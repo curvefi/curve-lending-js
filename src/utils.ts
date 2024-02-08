@@ -53,8 +53,8 @@ export const formatUnits = (value: BigNumberish, unit?: string | Numeric): strin
     return ethers.formatUnits(value, unit);
 }
 
-export const parseUnits = (value: string, unit?: string | Numeric): bigint => {
-    return ethers.parseUnits(value, unit);
+export const parseUnits = (n: number | string, decimals = 18): bigint => {
+    return ethers.parseUnits(formatNumber(n, decimals), decimals);
 }
 
 // bignumber.js
@@ -79,7 +79,42 @@ export const fromBN = (bn: BigNumber, decimals = 18): bigint => {
 export const ETH_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 export const isEth = (address: string): boolean => address.toLowerCase() === ETH_ADDRESS.toLowerCase();
 export const getEthIndex = (addresses: string[]): number => addresses.map((address: string) => address.toLowerCase()).indexOf(ETH_ADDRESS.toLowerCase());
+export const _mulBy1_3 = (n: bigint): bigint => n * parseUnits("130", 0) / parseUnits("100", 0);
 
+
+export const smartNumber = (abstractNumber: bigint | bigint[]): number | number[] => {
+    if(Array.isArray(abstractNumber)) {
+        return [Number(abstractNumber[0]), Number(abstractNumber[1])];
+    } else {
+        return Number(abstractNumber);
+    }
+}
+
+export const DIGas = (gas: bigint | Array<bigint>): bigint => {
+    if(Array.isArray(gas)) {
+        return gas[0];
+    } else {
+        return gas;
+    }
+}
+
+export const getGasFromArray = (gas: number[]): number | number[] => {
+    if(gas[1] === 0) {
+        return gas[0];
+    } else {
+        return gas;
+    }
+}
+
+export const gasSum = (gas: number[], currentGas: number | number[]): number[] => {
+    if(Array.isArray(currentGas)) {
+        gas[0] = gas[0] + currentGas[0];
+        gas[1] = gas[1] + currentGas[1];
+    } else {
+        gas[0] = gas[0] + currentGas;
+    }
+    return gas;
+}
 
 export const _getAddress = (address: string): string => {
     address = address || lending.signerAddress;
@@ -147,4 +182,110 @@ export const getBalances = async (coins: string[], address = ""): Promise<string
     const _balances = await _getBalances(coinAddresses, address);
 
     return _balances.map((_b, i: number ) => formatUnits(_b, decimals[i]));
+}
+
+export const _getAllowance = async (coins: string[], address: string, spender: string): Promise<bigint[]> => {
+    const _coins = [...coins]
+    const ethIndex = getEthIndex(_coins);
+    if (ethIndex !== -1) {
+        _coins.splice(ethIndex, 1);
+
+    }
+
+    let allowance: bigint[];
+    if (_coins.length === 1) {
+        allowance = [await lending.contracts[_coins[0]].contract.allowance(address, spender, lending.constantOptions)];
+    } else {
+        const contractCalls = _coins.map((coinAddr) => lending.contracts[coinAddr].multicallContract.allowance(address, spender));
+        allowance = await lending.multicallProvider.all(contractCalls);
+    }
+
+
+    if (ethIndex !== -1) {
+        allowance.splice(ethIndex, 0, MAX_ALLOWANCE);
+    }
+
+    return allowance;
+}
+
+// coins can be either addresses or symbols
+export const getAllowance = async (coins: string[], address: string, spender: string): Promise<string[]> => {
+    const coinAddresses = _getCoinAddresses(coins);
+    const decimals = _getCoinDecimals(coinAddresses);
+    const _allowance = await _getAllowance(coinAddresses, address, spender);
+
+    return _allowance.map((a, i) => lending.formatUnits(a, decimals[i]))
+}
+
+// coins can be either addresses or symbols
+export const hasAllowance = async (coins: string[], amounts: (number | string)[], address: string, spender: string): Promise<boolean> => {
+    const coinAddresses = _getCoinAddresses(coins);
+    const decimals = _getCoinDecimals(coinAddresses);
+    const _allowance = await _getAllowance(coinAddresses, address, spender);
+    const _amounts = amounts.map((a, i) => parseUnits(a, decimals[i]));
+
+    return _allowance.map((a, i) => a >= _amounts[i]).reduce((a, b) => a && b);
+}
+
+export const _ensureAllowance = async (coins: string[], amounts: bigint[], spender: string, isMax = true): Promise<string[]> => {
+    const address = lending.signerAddress;
+    const allowance: bigint[] = await _getAllowance(coins, address, spender);
+
+    const txHashes: string[] = []
+    for (let i = 0; i < allowance.length; i++) {
+        if (allowance[i] < amounts[i]) {
+            const contract = lending.contracts[coins[i]].contract;
+            const _approveAmount = isMax ? MAX_ALLOWANCE : amounts[i];
+            await lending.updateFeeData();
+            if (allowance[i] > lending.parseUnits("0")) {
+                const gasLimit = _mulBy1_3(DIGas(await contract.approve.estimateGas(spender, lending.parseUnits("0"), lending.constantOptions)));
+                txHashes.push((await contract.approve(spender, lending.parseUnits("0"), { ...lending.options, gasLimit })).hash);
+            }
+            const gasLimit = _mulBy1_3(DIGas(await contract.approve.estimateGas(spender, _approveAmount, lending.constantOptions)));
+            txHashes.push((await contract.approve(spender, _approveAmount, { ...lending.options, gasLimit })).hash);
+        }
+    }
+
+    return txHashes;
+}
+
+// coins can be either addresses or symbols
+export const ensureAllowanceEstimateGas = async (coins: string[], amounts: (number | string)[], spender: string, isMax = true): Promise<number | number[]> => {
+    const coinAddresses = _getCoinAddresses(coins);
+    const decimals = _getCoinDecimals(coinAddresses);
+    const _amounts = amounts.map((a, i) => parseUnits(a, decimals[i]));
+    const address = lending.signerAddress;
+    const _allowance: bigint[] = await _getAllowance(coinAddresses, address, spender);
+
+    let gas = [0,0];
+    for (let i = 0; i < _allowance.length; i++) {
+        if (_allowance[i] < _amounts[i]) {
+            const contract = lending.contracts[coinAddresses[i]].contract;
+            const _approveAmount = isMax ? MAX_ALLOWANCE : _amounts[i];
+            if (_allowance[i] > lending.parseUnits("0")) {
+                let currentGas = smartNumber(await contract.approve.estimateGas(spender, lending.parseUnits("0"), lending.constantOptions));
+                // For some coins (crv for example ) we can't estimate the second tx gas (approve: 0 --> amount), so we assume it will cost the same amount of gas
+                if (typeof currentGas === "number") {
+                    currentGas = currentGas * 2;
+                } else {
+                    currentGas = currentGas.map((g) => g * 2)
+                }
+                gas = gasSum(gas, currentGas);
+            } else {
+                const currentGas = smartNumber(await contract.approve.estimateGas(spender, _approveAmount, lending.constantOptions));
+                gas = gasSum(gas, currentGas);
+            }
+        }
+    }
+
+    return getGasFromArray(gas);
+}
+
+// coins can be either addresses or symbols
+export const ensureAllowance = async (coins: string[], amounts: (number | string)[], spender: string, isMax = true): Promise<string[]> => {
+    const coinAddresses = _getCoinAddresses(coins);
+    const decimals = _getCoinDecimals(coinAddresses);
+    const _amounts = amounts.map((a, i) => parseUnits(a, decimals[i]));
+
+    return await _ensureAllowance(coinAddresses, _amounts, spender, isMax)
 }

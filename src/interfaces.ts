@@ -52,8 +52,6 @@ export interface IOneWayMarket {
     },
     borrowed_token: ICoin,
     collateral_token: ICoin,
-    min_bands: number;
-    max_bands: number;
 }
 
 export interface ILending {

@@ -304,8 +304,6 @@ class Lending implements ILending {
                 },
                 borrowed_token: this.constants.COINS[borrowed_tokens[index]],
                 collateral_token: this.constants.COINS[collateral_tokens[index]],
-                min_bands: 4,
-                max_bands: 50,
             }
         })
     }

@@ -1,7 +1,6 @@
-import { ethers } from "ethers";
 import memoize from "memoizee";
-import { lending } from "../lending.js";
 import BigNumber from "bignumber.js";
+import { lending } from "../lending.js";
 import {
     _getAddress,
     parseUnits,
@@ -12,7 +11,6 @@ import {
     ensureAllowance,
     hasAllowance,
     ensureAllowanceEstimateGas,
-    isEth,
     _cutZeros,
     formatUnits,
     formatNumber,
@@ -23,7 +21,6 @@ import {
     smartNumber,
 } from "../utils.js";
 import { IDict } from "../interfaces.js";
-import { _getUserCollateral } from "../external-api.js";
 
 
 export class OneWayMarketTemplate {
@@ -49,6 +46,8 @@ export class OneWayMarketTemplate {
         symbol: string;
         decimals: number;
     }
+    coinDecimals: [number, number]
+    coinAddresses: [string, string]
     defaultBands: number
     minBands: number
     maxBands: number
@@ -65,8 +64,8 @@ export class OneWayMarketTemplate {
         repay: (debt: number | string, address?: string) => Promise<number | number[]>,
         fullRepayApprove: (address?: string) => Promise<number | number[]>,
         fullRepay: (address?: string) => Promise<number | number[]>,
-        // swapApprove: (i: number, amount: number | string) => Promise<number | number[]>,
-        // swap: (i: number, j: number, amount: number | string, slippage?: number) => Promise<number | number[]>,
+        swapApprove: (i: number, amount: number | string) => Promise<number | number[]>,
+        swap: (i: number, j: number, amount: number | string, slippage?: number) => Promise<number | number[]>,
         // liquidateApprove: (address: string) => Promise<number | number[]>,
         // liquidate: (address: string, slippage?: number) => Promise<number | number[]>,
         // selfLiquidateApprove: () => Promise<number | number[]>,
@@ -101,6 +100,8 @@ export class OneWayMarketTemplate {
         this.addresses = marketData.addresses;
         this.borrowed_token = marketData.borrowed_token;
         this.collateral_token = marketData.collateral_token;
+        this.coinDecimals = [this.borrowed_token.decimals, this.collateral_token.decimals]
+        this.coinAddresses = [this.borrowed_token.address, this.collateral_token.address]
         this.defaultBands = 10
         this.minBands = 4
         this.maxBands = 50
@@ -116,8 +117,8 @@ export class OneWayMarketTemplate {
             repay: this.repayEstimateGas.bind(this),
             fullRepayApprove: this.fullRepayApproveEstimateGas.bind(this),
             fullRepay: this.fullRepayEstimateGas.bind(this),
-            // swapApprove: this.swapApproveEstimateGas.bind(this),
-            // swap: this.swapEstimateGas.bind(this),
+            swapApprove: this.swapApproveEstimateGas.bind(this),
+            swap: this.swapEstimateGas.bind(this),
             // liquidateApprove: this.liquidateApproveEstimateGas.bind(this),
             // liquidate: this.liquidateEstimateGas.bind(this),
             // selfLiquidateApprove: this.selfLiquidateApproveEstimateGas.bind(this),
@@ -1017,6 +1018,118 @@ export class OneWayMarketTemplate {
         await this.repayApprove(fullRepayAmount);
         return await this._repay(fullRepayAmount, address, false) as string;
     }
+
+    // ---------------- SWAP ----------------
+
+    public async maxSwappable(i: number, j: number): Promise<string> {
+        if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
+        const inDecimals = this.coinDecimals[i];
+        const contract = lending.contracts[this.addresses.amm].contract;
+        const [_inAmount, _outAmount] = await contract.get_dxdy(i, j, MAX_ALLOWANCE, lending.constantOptions) as bigint[];
+        if (_outAmount === BigInt(0)) return "0";
+
+        return formatUnits(_inAmount, inDecimals)
+    }
+
+    private async _swapExpected(i: number, j: number, _amount: bigint): Promise<bigint> {
+        return await lending.contracts[this.addresses.amm].contract.get_dy(i, j, _amount, lending.constantOptions) as bigint;
+    }
+
+    public async swapExpected(i: number, j: number, amount: number | string): Promise<string> {
+        if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
+        const [inDecimals, outDecimals] = this.coinDecimals;
+        const _amount = parseUnits(amount, inDecimals);
+        const _expected = await this._swapExpected(i, j, _amount);
+
+        return formatUnits(_expected, outDecimals)
+    }
+
+    public async swapRequired(i: number, j: number, outAmount: number | string): Promise<string> {
+        if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
+        const [inDecimals, outDecimals] = this.coinDecimals;
+        const _amount = parseUnits(outAmount, outDecimals);
+        const _expected = await lending.contracts[this.addresses.amm].contract.get_dx(i, j, _amount, lending.constantOptions) as bigint;
+
+        return formatUnits(_expected, inDecimals)
+    }
+
+    public async swapPriceImpact(i: number, j: number, amount: number | string): Promise<string> {
+        if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
+        const [inDecimals, outDecimals] = this.coinDecimals;
+        const _amount = parseUnits(amount, inDecimals);
+        const _output = await this._swapExpected(i, j, _amount);
+
+        // Find k for which x * k = 10^15 or y * k = 10^15: k = max(10^15 / x, 10^15 / y)
+        // For coins with d (decimals) <= 15: k = min(k, 0.2), and x0 = min(x * k, 10^d)
+        // x0 = min(x * min(max(10^15 / x, 10^15 / y), 0.2), 10^d), if x0 == 0 then priceImpact = 0
+        const target = BN(10 ** 15);
+        const amountIntBN = BN(amount).times(10 ** inDecimals);
+        const outputIntBN = toBN(_output, 0);
+        const k = BigNumber.min(BigNumber.max(target.div(amountIntBN), target.div(outputIntBN)), 0.2);
+        const smallAmountIntBN = BigNumber.min(amountIntBN.times(k), BN(10 ** inDecimals));
+        if (smallAmountIntBN.toFixed(0) === '0') return '0';
+
+        const _smallAmount = fromBN(smallAmountIntBN.div(10 ** inDecimals), inDecimals);
+        const _smallOutput = await this._swapExpected(i, j, _smallAmount);
+
+        const amountBN = BN(amount);
+        const outputBN = toBN(_output, outDecimals);
+        const smallAmountBN = toBN(_smallAmount, inDecimals);
+        const smallOutputBN = toBN(_smallOutput, outDecimals);
+
+        const rateBN = outputBN.div(amountBN);
+        const smallRateBN = smallOutputBN.div(smallAmountBN);
+        if (rateBN.gt(smallRateBN)) return "0";
+
+        const slippageBN = BN(1).minus(rateBN.div(smallRateBN)).times(100);
+
+        return _cutZeros(slippageBN.toFixed(6));
+    }
+
+    public async swapIsApproved(i: number, amount: number | string): Promise<boolean> {
+        if (i !== 0 && i !== 1) throw Error("Wrong index");
+
+        return await hasAllowance([this.coinAddresses[i]], [amount], lending.signerAddress, this.addresses.amm);
+    }
+
+    private async swapApproveEstimateGas (i: number, amount: number | string): Promise<number | number[]> {
+        if (i !== 0 && i !== 1) throw Error("Wrong index");
+
+        return await ensureAllowanceEstimateGas([this.coinAddresses[i]], [amount], this.addresses.amm);
+    }
+
+    public async swapApprove(i: number, amount: number | string): Promise<string[]> {
+        if (i !== 0 && i !== 1) throw Error("Wrong index");
+
+        return await ensureAllowance([this.coinAddresses[i]], [amount], this.addresses.amm);
+    }
+
+    private async _swap(i: number, j: number, amount: number | string, slippage: number, estimateGas: boolean): Promise<string | number | number[]> {
+        if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
+
+        const [inDecimals, outDecimals] = [this.coinDecimals[i], this.coinDecimals[j]];
+        const _amount = parseUnits(amount, inDecimals);
+        const _expected = await this._swapExpected(i, j, _amount);
+        const minRecvAmountBN: BigNumber = toBN(_expected, outDecimals).times(100 - slippage).div(100);
+        const _minRecvAmount = fromBN(minRecvAmountBN, outDecimals);
+        const contract = lending.contracts[this.addresses.amm].contract;
+        const gas = await contract.exchange.estimateGas(i, j, _amount, _minRecvAmount, lending.constantOptions);
+        if (estimateGas) return smartNumber(gas);
+
+        await lending.updateFeeData();
+        const gasLimit = _mulBy1_3(DIGas(gas));
+        return (await contract.exchange(i, j, _amount, _minRecvAmount, { ...lending.options, gasLimit })).hash
+    }
+
+    public async swapEstimateGas(i: number, j: number, amount: number | string, slippage = 0.1): Promise<number | number[]> {
+        if (!(await this.swapIsApproved(i, amount))) throw Error("Approval is needed for gas estimation");
+        return await this._swap(i, j, amount, slippage, true) as number | number[];
+    }
+
+    public async swap(i: number, j: number, amount: number | string, slippage = 0.1): Promise<string> {
+        await this.swapApprove(i, amount);
+        return await this._swap(i, j, amount, slippage, false) as string;
+    }
 }
 
 /*export class OneWayMarketTemplate {
@@ -1139,117 +1252,6 @@ export class OneWayMarketTemplate {
         }
     }
 
-    // ---------------- SWAP ----------------
-
-    public async maxSwappable(i: number, j: number): Promise<string> {
-        if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
-        const inDecimals = this.coinDecimals[i];
-        const contract = lending.contracts[this.address].contract;
-        const [_inAmount, _outAmount] = await contract.get_dxdy(i, j, MAX_ALLOWANCE, lending.constantOptions) as bigint[];
-        if (_outAmount.eq(0)) return "0";
-
-        return ethers.utils.formatUnits(_inAmount, inDecimals)
-    }
-
-    private async _swapExpected(i: number, j: number, _amount: bigint): Promise<bigint> {
-        return await lending.contracts[this.address].contract.get_dy(i, j, _amount, lending.constantOptions) as bigint;
-    }
-
-    public async swapExpected(i: number, j: number, amount: number | string): Promise<string> {
-        if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
-        const [inDecimals, outDecimals] = this.coinDecimals;
-        const _amount = parseUnits(amount, inDecimals);
-        const _expected = await this._swapExpected(i, j, _amount);
-
-        return ethers.utils.formatUnits(_expected, outDecimals)
-    }
-
-    public async swapRequired(i: number, j: number, outAmount: number | string): Promise<string> {
-        if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
-        const [inDecimals, outDecimals] = this.coinDecimals;
-        const _amount = parseUnits(outAmount, outDecimals);
-        const _expected = await lending.contracts[this.address].contract.get_dx(i, j, _amount, lending.constantOptions) as bigint;
-
-        return ethers.utils.formatUnits(_expected, inDecimals)
-    }
-
-    public async swapPriceImpact(i: number, j: number, amount: number | string): Promise<string> {
-        if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
-        const [inDecimals, outDecimals] = this.coinDecimals;
-        const _amount = parseUnits(amount, inDecimals);
-        const _output = await this._swapExpected(i, j, _amount);
-
-        // Find k for which x * k = 10^15 or y * k = 10^15: k = max(10^15 / x, 10^15 / y)
-        // For coins with d (decimals) <= 15: k = min(k, 0.2), and x0 = min(x * k, 10^d)
-        // x0 = min(x * min(max(10^15 / x, 10^15 / y), 0.2), 10^d), if x0 == 0 then priceImpact = 0
-        const target = BN(10 ** 15);
-        const amountIntBN = BN(amount).times(10 ** inDecimals);
-        const outputIntBN = toBN(_output, 0);
-        const k = BigNumber.min(BigNumber.max(target.div(amountIntBN), target.div(outputIntBN)), 0.2);
-        const smallAmountIntBN = BigNumber.min(amountIntBN.times(k), BN(10 ** inDecimals));
-        if (smallAmountIntBN.toFixed(0) === '0') return '0';
-
-        const _smallAmount = fromBN(smallAmountIntBN.div(10 ** inDecimals), inDecimals);
-        const _smallOutput = await this._swapExpected(i, j, _smallAmount);
-
-        const amountBN = BN(amount);
-        const outputBN = toBN(_output, outDecimals);
-        const smallAmountBN = toBN(_smallAmount, inDecimals);
-        const smallOutputBN = toBN(_smallOutput, outDecimals);
-
-        const rateBN = outputBN.div(amountBN);
-        const smallRateBN = smallOutputBN.div(smallAmountBN);
-        if (rateBN.gt(smallRateBN)) return "0";
-
-        const slippageBN = BN(1).minus(rateBN.div(smallRateBN)).times(100);
-
-        return _cutZeros(slippageBN.toFixed(6));
-    }
-
-    public async swapIsApproved(i: number, amount: number | string): Promise<boolean> {
-        if (i !== 0 && i !== 1) throw Error("Wrong index");
-
-        return true//await hasAllowance([this.coinAddresses[i]], [amount], lending.signerAddress, this.address);
-    }
-
-    private async swapApproveEstimateGas (i: number, amount: number | string): Promise<number> {
-        if (i !== 0 && i !== 1) throw Error("Wrong index");
-
-        return 0//await ensureAllowanceEstimateGas([this.coinAddresses[i]], [amount], this.address);
-    }
-
-    public async swapApprove(i: number, amount: number | string): Promise<string[]> {
-        if (i !== 0 && i !== 1) throw Error("Wrong index");
-
-        return ['']//await ensureAllowance([this.coinAddresses[i]], [amount], this.address);
-    }
-
-    private async _swap(i: number, j: number, amount: number | string, slippage: number, estimateGas: boolean): Promise<string | number> {
-        if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
-
-        const [inDecimals, outDecimals] = [this.coinDecimals[i], this.coinDecimals[j]];
-        const _amount = parseUnits(amount, inDecimals);
-        const _expected = await this._swapExpected(i, j, _amount);
-        const minRecvAmountBN: BigNumber = toBN(_expected, outDecimals).times(100 - slippage).div(100);
-        const _minRecvAmount = fromBN(minRecvAmountBN, outDecimals);
-        const contract = lending.contracts[this.address].contract;
-        const gas = await contract.estimateGas.exchange(i, j, _amount, _minRecvAmount, lending.constantOptions);
-        if (estimateGas) return gas.toNumber();
-
-        await lending.updateFeeData();
-        const gasLimit = gas.mul(130).div(100);
-        return (await contract.exchange(i, j, _amount, _minRecvAmount, { ...lending.options, gasLimit })).hash
-    }
-
-    public async swapEstimateGas(i: number, j: number, amount: number | string, slippage = 0.1): Promise<number> {
-        if (!(await this.swapIsApproved(i, amount))) throw Error("Approval is needed for gas estimation");
-        return await this._swap(i, j, amount, slippage, true) as number;
-    }
-
-    public async swap(i: number, j: number, amount: number | string, slippage = 0.1): Promise<string> {
-        await this.swapApprove(i, amount);
-        return await this._swap(i, j, amount, slippage, false) as string;
-    }
 
     // ---------------- LIQUIDATE ----------------
 

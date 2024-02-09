@@ -15,6 +15,8 @@ export interface ICurveContract {
     address: string
 }
 
+export type TAmount = number | string
+
 export interface ILlamma {
     amm_address: string,
     controller_address: string,

@@ -21,7 +21,7 @@ import {
     smartNumber,
 } from "../utils.js";
 import { IDict } from "../interfaces.js";
-
+import {TAmount} from "../interfaces";
 
 export class OneWayMarketTemplate {
     id: string;
@@ -94,6 +94,21 @@ export class OneWayMarketTemplate {
         balances: (address?: string) => Promise<{ collateral: string, borrowed: string }>,
     };
 
+    vault: {
+        deposit: (amount: TAmount) => Promise<string>,
+        previewDeposit: (amount: TAmount) => Promise<string>,
+        maxDeposit: () => Promise<string>,
+        mint: (amount: TAmount) => Promise<string>,
+        previewMint: (amount: TAmount) => Promise<string>,
+        maxMint: () => Promise<string>,
+        withdraw: (amount: TAmount) => Promise<string>,
+        previewWithdraw: (amount: TAmount) => Promise<string>,
+        maxWithdraw: () => Promise<string>,
+        redeem: (amount: TAmount) => Promise<string>,
+        previewRedeem: (amount: TAmount) => Promise<string>,
+        maxRedeem: () => Promise<string>,
+    };
+
     constructor(id: string) {
         this.id = id;
         const marketData = lending.constants.ONE_WAY_MARKETS[id];
@@ -141,6 +156,101 @@ export class OneWayMarketTemplate {
             balances: this.walletBalances.bind(this),
         }
 
+        this.vault = {
+            deposit: this.vaultDeposit.bind(this),
+            previewDeposit: this.vaultPreviewDeposit.bind(this),
+            maxDeposit: this.vaultMaxDeposit.bind(this),
+            mint: this.vaultMint.bind(this),
+            previewMint: this.vaultPreviewMint.bind(this),
+            maxMint: this.vaultMaxMint.bind(this),
+            withdraw: this.vaultWithdraw.bind(this),
+            previewWithdraw: this.vaultPreviewWithdraw.bind(this),
+            maxWithdraw: this.vaultMaxWithdraw.bind(this),
+            redeem: this.vaultRedeem.bind(this),
+            previewRedeem: this.vaultPreviewRedeem.bind(this),
+            maxRedeem: this.vaultMaxRedeem.bind(this),
+        }
+
+    }
+
+    private async vaultDeposit(amount: TAmount): Promise<string> {
+        const _amount = parseUnits(amount, this.borrowed_token.decimals);
+        const _shares = await lending.contracts[this.addresses.vault].contract.deposit(_amount);
+
+        return formatUnits(_shares, 18);
+    }
+
+    private async vaultPreviewDeposit(amount: TAmount): Promise<string> {
+        const _amount = parseUnits(amount, this.borrowed_token.decimals);
+        const _shares = await lending.contracts[this.addresses.vault].contract.previewDeposit(_amount);
+
+        return formatUnits(_shares, 18);
+    }
+
+    private async vaultMaxDeposit(): Promise<string> {
+        const _amount = await lending.contracts[this.addresses.vault].contract.maxDeposit();
+
+        return formatUnits(_amount,  this.borrowed_token.decimals);
+    }
+
+    private async vaultMint(amount: TAmount): Promise<string> {
+        const _amount = parseUnits(amount, 18);
+        const _assets = await lending.contracts[this.addresses.vault].contract.mint(_amount);
+
+        return formatUnits(_assets, this.borrowed_token.decimals);
+    }
+
+    private async vaultPreviewMint(amount: TAmount): Promise<string> {
+        const _amount = parseUnits(amount, 18);
+        const _assets = await lending.contracts[this.addresses.vault].contract.previewMint(_amount);
+
+        return formatUnits(_assets, this.borrowed_token.decimals);
+    }
+
+    private async vaultMaxMint(): Promise<string> {
+        const _shares = await lending.contracts[this.addresses.vault].contract.maxMint()
+
+        return formatUnits(_shares, 18);
+    }
+
+    private async vaultWithdraw(amount: TAmount): Promise<string> {
+        const _amount = parseUnits(amount, this.borrowed_token.decimals);
+        const _shares = await lending.contracts[this.addresses.vault].contract.withdraw(_amount);
+
+        return formatUnits(_shares, 18);
+    }
+
+    private async vaultPreviewWithdraw(amount: TAmount): Promise<string> {
+        const _amount = parseUnits(amount, this.borrowed_token.decimals);
+        const _shares = await lending.contracts[this.addresses.vault].contract.previewWithdraw(_amount);
+
+        return formatUnits(_shares, 18);
+    }
+
+    private async vaultMaxWithdraw(): Promise<string> {
+        const _assets = await lending.contracts[this.addresses.vault].contract.maxWithdraw();
+
+        return formatUnits(_assets, this.borrowed_token.decimals);
+    }
+
+    private async vaultRedeem(amount: TAmount): Promise<string> {
+        const _amount = parseUnits(amount, 18);
+        const _assets = await lending.contracts[this.addresses.vault].contract.redeem(_amount);
+
+        return formatUnits(_assets, this.borrowed_token.decimals);
+    }
+
+    private async vaultPreviewRedeem(amount: TAmount): Promise<string> {
+        const _amount = parseUnits(amount, 18);
+        const _assets = await lending.contracts[this.addresses.vault].contract.previewRedeem(_amount);
+
+        return formatUnits(_assets, this.borrowed_token.decimals);
+    }
+
+    private async vaultMaxRedeem(): Promise<string> {
+        const _shares = await lending.contracts[this.addresses.vault].contract.maxRedeem()
+
+        return formatUnits(_shares, 18);
     }
 
     // ---------------- STATS ----------------

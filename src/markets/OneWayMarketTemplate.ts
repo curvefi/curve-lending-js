@@ -60,6 +60,7 @@ export class OneWayMarketTemplate {
         borrowMore: (collateral: number | string, debt: number | string) => Promise<number | number[]>,
         addCollateralApprove: (collateral: number | string) => Promise<number | number[]>,
         addCollateral: (collateral: number | string, address?: string) => Promise<number | number[]>,
+        removeCollateral: (collateral: number | string) => Promise<number | number[]>,
         // repayApprove: (debt: number | string) => Promise<number | number[]>,
         // repay: (debt: number | string, address?: string) => Promise<number | number[]>,
         // fullRepayApprove: (address?: string) => Promise<number | number[]>,
@@ -110,6 +111,7 @@ export class OneWayMarketTemplate {
             borrowMore: this.borrowMoreEstimateGas.bind(this),
             addCollateralApprove: this.addCollateralApproveEstimateGas.bind(this),
             addCollateral: this.addCollateralEstimateGas.bind(this),
+            removeCollateral: this.removeCollateralEstimateGas.bind(this),
             // repayApprove: this.repayApproveEstimateGas.bind(this),
             // repay: this.repayEstimateGas.bind(this),
             // fullRepayApprove: this.fullRepayApproveEstimateGas.bind(this),
@@ -830,6 +832,74 @@ export class OneWayMarketTemplate {
         await this.addCollateralApprove(collateral);
         return await this._addCollateral(collateral, address, false) as string;
     }
+
+    // ---------------- REMOVE COLLATERAL ----------------
+
+    public async maxRemovable(): Promise<string> {
+        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
+        const N = await this.userRange();
+        const _requiredCollateral = await lending.contracts[this.addresses.controller].contract.min_collateral(_currentDebt, N, lending.constantOptions)
+
+        return formatUnits(_currentCollateral - _requiredCollateral, this.collateral_token.decimals);
+    }
+
+    private async _removeCollateralBands(collateral: number | string): Promise<[bigint, bigint]> {
+        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
+        if (_currentDebt === BigInt(0)) throw Error(`Loan for ${lending.signerAddress} does not exist`);
+
+        const N = await this.userRange();
+        const _collateral = _currentCollateral - parseUnits(collateral, this.collateral_token.decimals);
+        const _n1 = await this._calcN1(_collateral, _currentDebt, N);
+        const _n2 = _n1 + BigInt(N - 1);
+
+        return [_n2, _n1];
+    }
+
+    public async removeCollateralBands(collateral: number | string): Promise<[number, number]> {
+        const [_n2, _n1] = await this._removeCollateralBands(collateral);
+
+        return [Number(_n2), Number(_n1)];
+    }
+
+    public async removeCollateralPrices(collateral: number | string): Promise<string[]> {
+        const [_n2, _n1] = await this._removeCollateralBands(collateral);
+
+        return await this._getPrices(_n2, _n1);
+    }
+
+    public async removeCollateralHealth(collateral: number | string, full = true, address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _collateral = parseUnits(collateral, this.collateral_token.decimals) * BigInt(-1);
+
+        const contract = lending.contracts[this.addresses.controller].contract;
+        let _health = await contract.health_calculator(address, _collateral, 0, full, 0, lending.constantOptions) as bigint;
+        _health = _health * BigInt(100);
+
+        return formatUnits(_health);
+    }
+
+    private async _removeCollateral(collateral: number | string, estimateGas: boolean): Promise<string | number | number[]> {
+        const { borrowed, debt: currentDebt } = await this.userState();
+        if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
+        if (Number(borrowed) > 0) throw Error(`User ${lending.signerAddress} is already in liquidation mode`);
+
+        const _collateral = parseUnits(collateral, this.collateral_token.decimals);
+        const contract = lending.contracts[this.addresses.controller].contract;
+        const gas = await contract.remove_collateral.estimateGas(_collateral, lending.constantOptions);
+        if (estimateGas) return smartNumber(gas);
+
+        await lending.updateFeeData();
+        const gasLimit = _mulBy1_3(DIGas(gas));
+        return (await contract.remove_collateral(_collateral, { ...lending.options, gasLimit })).hash
+    }
+
+    public async removeCollateralEstimateGas(collateral: number | string): Promise<number | number[]> {
+        return await this._removeCollateral(collateral, true) as number | number[];
+    }
+
+    public async removeCollateral(collateral: number | string): Promise<string> {
+        return await this._removeCollateral(collateral, false) as string;
+    }
 }
 
 /*export class OneWayMarketTemplate {
@@ -950,74 +1020,6 @@ export class OneWayMarketTemplate {
         this.wallet = {
             balances: this.walletBalances.bind(this),
         }
-    }
-
-    // ---------------- REMOVE COLLATERAL ----------------
-
-    public async maxRemovable(): Promise<string> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
-        const N = await this.userRange();
-        const _requiredCollateral = await lending.contracts[this.controller].contract.min_collateral(_currentDebt, N, lending.constantOptions)
-
-        return ethers.utils.formatUnits(_currentCollateral.sub(_requiredCollateral), this.collateralDecimals);
-    }
-
-    private async _removeCollateralBands(collateral: number | string): Promise<[bigint, bigint]> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
-        if (_currentDebt.eq(0)) throw Error(`Loan for ${lending.signerAddress} does not exist`);
-
-        const N = await this.userRange();
-        const _collateral = _currentCollateral.sub(parseUnits(collateral, this.collateralDecimals));
-        const _n1 = await this._calcN1(_collateral, _currentDebt, N);
-        const _n2 = _n1.add(N - 1);
-
-        return [_n2, _n1];
-    }
-
-    public async removeCollateralBands(collateral: number | string): Promise<[number, number]> {
-        const [_n2, _n1] = await this._removeCollateralBands(collateral);
-
-        return [_n2.toNumber(), _n1.toNumber()];
-    }
-
-    public async removeCollateralPrices(collateral: number | string): Promise<string[]> {
-        const [_n2, _n1] = await this._removeCollateralBands(collateral);
-
-        return await this._getPrices(_n2, _n1);
-    }
-
-    public async removeCollateralHealth(collateral: number | string, full = true, address = ""): Promise<string> {
-        address = _getAddress(address);
-        const _collateral = parseUnits(collateral, this.collateralDecimals).mul(-1);
-
-        const contract = lending.contracts[this.healthCalculator ?? this.controller].contract;
-        let _health = await contract.health_calculator(address, _collateral, 0, full, 0, lending.constantOptions) as bigint;
-        _health = _health.mul(100);
-
-        return ethers.utils.formatUnits(_health);
-    }
-
-    private async _removeCollateral(collateral: number | string, estimateGas: boolean): Promise<string | number> {
-        const { stablecoin, debt: currentDebt } = await this.userState();
-        if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
-        if (Number(stablecoin) > 0) throw Error(`User ${lending.signerAddress} is already in liquidation mode`);
-
-        const _collateral = parseUnits(collateral, this.collateralDecimals);
-        const contract = lending.contracts[this.controller].contract;
-        const gas = await contract.estimateGas.remove_collateral(_collateral, isEth(this.collateral), lending.constantOptions);
-        if (estimateGas) return gas.toNumber();
-
-        await lending.updateFeeData();
-        const gasLimit = gas.mul(130).div(100);
-        return (await contract.remove_collateral(_collateral, isEth(this.collateral), { ...lending.options, gasLimit })).hash
-    }
-
-    public async removeCollateralEstimateGas(collateral: number | string): Promise<number> {
-        return await this._removeCollateral(collateral, true) as number;
-    }
-
-    public async removeCollateral(collateral: number | string): Promise<string> {
-        return await this._removeCollateral(collateral, false) as string;
     }
 
     // ---------------- REPAY ----------------

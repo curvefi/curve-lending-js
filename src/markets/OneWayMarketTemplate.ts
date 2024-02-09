@@ -175,9 +175,7 @@ export class OneWayMarketTemplate {
 
     private async vaultDeposit(amount: TAmount): Promise<string> {
         const _amount = parseUnits(amount, this.borrowed_token.decimals);
-        const _shares = await lending.contracts[this.addresses.vault].contract.deposit(_amount);
-
-        return formatUnits(_shares, 18);
+        return (await lending.contracts[this.addresses.vault].contract.deposit(_amount)).hash;
     }
 
     private async vaultPreviewDeposit(amount: TAmount): Promise<string> {

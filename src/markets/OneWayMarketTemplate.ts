@@ -66,8 +66,8 @@ export class OneWayMarketTemplate {
         fullRepay: (address?: string) => Promise<number | number[]>,
         swapApprove: (i: number, amount: number | string) => Promise<number | number[]>,
         swap: (i: number, j: number, amount: number | string, slippage?: number) => Promise<number | number[]>,
-        // liquidateApprove: (address: string) => Promise<number | number[]>,
-        // liquidate: (address: string, slippage?: number) => Promise<number | number[]>,
+        liquidateApprove: (address: string) => Promise<number | number[]>,
+        liquidate: (address: string, slippage?: number) => Promise<number | number[]>,
         // selfLiquidateApprove: () => Promise<number | number[]>,
         // selfLiquidate: (slippage?: number) => Promise<number | number[]>,
     };
@@ -119,8 +119,8 @@ export class OneWayMarketTemplate {
             fullRepay: this.fullRepayEstimateGas.bind(this),
             swapApprove: this.swapApproveEstimateGas.bind(this),
             swap: this.swapEstimateGas.bind(this),
-            // liquidateApprove: this.liquidateApproveEstimateGas.bind(this),
-            // liquidate: this.liquidateEstimateGas.bind(this),
+            liquidateApprove: this.liquidateApproveEstimateGas.bind(this),
+            liquidate: this.liquidateEstimateGas.bind(this),
             // selfLiquidateApprove: this.selfLiquidateApproveEstimateGas.bind(this),
             // selfLiquidate: this.selfLiquidateEstimateGas.bind(this),
         }
@@ -1130,6 +1130,58 @@ export class OneWayMarketTemplate {
         await this.swapApprove(i, amount);
         return await this._swap(i, j, amount, slippage, false) as string;
     }
+
+    // ---------------- LIQUIDATE ----------------
+
+    public async tokensToLiquidate(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _tokens = await lending.contracts[this.addresses.controller].contract.tokens_to_liquidate(address, lending.constantOptions) as bigint;
+
+        return formatUnits(_tokens, this.borrowed_token.decimals)
+    }
+
+    public async liquidateIsApproved(address = ""): Promise<boolean> {
+        const tokensToLiquidate = await this.tokensToLiquidate(address);
+        return await hasAllowance([this.addresses.borrowed_token], [tokensToLiquidate], lending.signerAddress, this.addresses.controller);
+    }
+
+    private async liquidateApproveEstimateGas (address = ""): Promise<number | number[]> {
+        const tokensToLiquidate = await this.tokensToLiquidate(address);
+        return await ensureAllowanceEstimateGas([this.addresses.borrowed_token], [tokensToLiquidate], this.addresses.controller);
+    }
+
+    public async liquidateApprove(address = ""): Promise<string[]> {
+        const tokensToLiquidate = await this.tokensToLiquidate(address);
+        return await ensureAllowance([this.addresses.borrowed_token], [tokensToLiquidate], this.addresses.controller);
+    }
+
+    private async _liquidate(address: string, slippage: number, estimateGas: boolean): Promise<string | number | number[]> {
+        const { borrowed, debt: currentDebt } = await this.userState(address);
+        if (slippage <= 0) throw Error("Slippage must be > 0");
+        if (slippage > 100) throw Error("Slippage must be <= 100");
+        if (Number(currentDebt) === 0) throw Error(`Loan for ${address} does not exist`);
+        if (Number(borrowed) === 0) throw Error(`User ${address} is not in liquidation mode`);
+
+        const minAmountBN: BigNumber = BN(borrowed).times(100 - slippage).div(100);
+        const _minAmount = fromBN(minAmountBN);
+        const contract = lending.contracts[this.addresses.controller].contract;
+        const gas = (await contract.liquidate.estimateGas(address, _minAmount, lending.constantOptions))
+        if (estimateGas) return smartNumber(gas);
+
+        await lending.updateFeeData();
+        const gasLimit = _mulBy1_3(DIGas(gas));
+        return (await contract.liquidate(address, _minAmount, { ...lending.options, gasLimit })).hash
+    }
+
+    public async liquidateEstimateGas(address: string, slippage = 0.1): Promise<number | number[]> {
+        if (!(await this.liquidateIsApproved(address))) throw Error("Approval is needed for gas estimation");
+        return await this._liquidate(address, slippage, true) as number | number[];
+    }
+
+    public async liquidate(address: string, slippage = 0.1): Promise<string> {
+        await this.liquidateApprove(address);
+        return await this._liquidate(address, slippage, false) as string;
+    }
 }
 
 /*export class OneWayMarketTemplate {
@@ -1218,10 +1270,10 @@ export class OneWayMarketTemplate {
         this.estimateGas = {
             createLoanApprove: this.createLoanApproveEstimateGas.bind(this),
             createLoan: this.createLoanEstimateGas.bind(this),
-            addCollateralApprove: this.addCollateralApproveEstimateGas.bind(this),
-            addCollateral: this.addCollateralEstimateGas.bind(this),
             borrowMoreApprove: this.borrowMoreApproveEstimateGas.bind(this),
             borrowMore: this.borrowMoreEstimateGas.bind(this),
+            addCollateralApprove: this.addCollateralApproveEstimateGas.bind(this),
+            addCollateral: this.addCollateralEstimateGas.bind(this),
             repayApprove: this.repayApproveEstimateGas.bind(this),
             repay: this.repayEstimateGas.bind(this),
             fullRepayApprove: this.fullRepayApproveEstimateGas.bind(this),
@@ -1250,59 +1302,6 @@ export class OneWayMarketTemplate {
         this.wallet = {
             balances: this.walletBalances.bind(this),
         }
-    }
-
-
-    // ---------------- LIQUIDATE ----------------
-
-    public async tokensToLiquidate(address = ""): Promise<string> {
-        address = _getAddress(address);
-        const _tokens = await lending.contracts[this.controller].contract.tokens_to_liquidate(address, lending.constantOptions) as bigint;
-
-        return ethers.utils.formatUnits(_tokens)
-    }
-
-    public async liquidateIsApproved(address = ""): Promise<boolean> {
-        const tokensToLiquidate = await this.tokensToLiquidate(address);
-        return true//await hasAllowance([lending.address], [tokensToLiquidate], lending.signerAddress, this.controller);
-    }
-
-    private async liquidateApproveEstimateGas (address = ""): Promise<number> {
-        const tokensToLiquidate = await this.tokensToLiquidate(address);
-        return 0//await ensureAllowanceEstimateGas([lending.address], [tokensToLiquidate], this.controller);
-    }
-
-    public async liquidateApprove(address = ""): Promise<string[]> {
-        const tokensToLiquidate = await this.tokensToLiquidate(address);
-        return ['w']//await ensureAllowance([lending.address], [tokensToLiquidate], this.controller);
-    }
-
-    private async _liquidate(address: string, slippage: number, estimateGas: boolean): Promise<string | number> {
-        const { stablecoin, debt: currentDebt } = await this.userState(address);
-        if (slippage <= 0) throw Error("Slippage must be > 0");
-        if (slippage > 100) throw Error("Slippage must be <= 100");
-        if (Number(currentDebt) === 0) throw Error(`Loan for ${address} does not exist`);
-        if (Number(stablecoin) === 0) throw Error(`User ${address} is not in liquidation mode`);
-
-        const minAmountBN: BigNumber = BN(stablecoin).times(100 - slippage).div(100);
-        const _minAmount = fromBN(minAmountBN);
-        const contract = lending.contracts[this.controller].contract;
-        const gas = (await contract.estimateGas.liquidate(address, _minAmount, isEth(this.collateral), lending.constantOptions))
-        if (estimateGas) return gas.toNumber();
-
-        await lending.updateFeeData();
-        const gasLimit = gas.mul(130).div(100);
-        return (await contract.liquidate(address, _minAmount, isEth(this.collateral), { ...lending.options, gasLimit })).hash
-    }
-
-    public async liquidateEstimateGas(address: string, slippage = 0.1): Promise<number> {
-        if (!(await this.liquidateIsApproved(address))) throw Error("Approval is needed for gas estimation");
-        return await this._liquidate(address, slippage, true) as number;
-    }
-
-    public async liquidate(address: string, slippage = 0.1): Promise<string> {
-        await this.liquidateApprove(address);
-        return await this._liquidate(address, slippage, false) as string;
     }
 
     // ---------------- SELF-LIQUIDATE ----------------

@@ -68,8 +68,8 @@ export class OneWayMarketTemplate {
         swap: (i: number, j: number, amount: number | string, slippage?: number) => Promise<number | number[]>,
         liquidateApprove: (address: string) => Promise<number | number[]>,
         liquidate: (address: string, slippage?: number) => Promise<number | number[]>,
-        // selfLiquidateApprove: () => Promise<number | number[]>,
-        // selfLiquidate: (slippage?: number) => Promise<number | number[]>,
+        selfLiquidateApprove: () => Promise<number | number[]>,
+        selfLiquidate: (slippage?: number) => Promise<number | number[]>,
     };
     stats: {
         parameters: () => Promise<{
@@ -121,8 +121,8 @@ export class OneWayMarketTemplate {
             swap: this.swapEstimateGas.bind(this),
             liquidateApprove: this.liquidateApproveEstimateGas.bind(this),
             liquidate: this.liquidateEstimateGas.bind(this),
-            // selfLiquidateApprove: this.selfLiquidateApproveEstimateGas.bind(this),
-            // selfLiquidate: this.selfLiquidateEstimateGas.bind(this),
+            selfLiquidateApprove: this.selfLiquidateApproveEstimateGas.bind(this),
+            selfLiquidate: this.selfLiquidateEstimateGas.bind(this),
         }
         this.stats = {
             parameters: this.statsParameters.bind(this),
@@ -1182,127 +1182,6 @@ export class OneWayMarketTemplate {
         await this.liquidateApprove(address);
         return await this._liquidate(address, slippage, false) as string;
     }
-}
-
-/*export class OneWayMarketTemplate {
-    id: string;
-    address: string;
-    controller: string;
-    monetaryPolicy: string;
-    collateral: string;
-    leverageZap: string;
-    deleverageZap: string;
-    healthCalculator: string | undefined;
-    collateralSymbol: string;
-    collateralDecimals: number;
-    coins: string[];
-    coinAddresses: string[];
-    coinDecimals: number[];
-    minBands: number;
-    maxBands: number;
-    defaultBands: number;
-    A: number;
-    tickSpace: number; // %
-    estimateGas: {
-        createLoanApprove: (collateral: number | string) => Promise<number>,
-        createLoan: (collateral: number | string, debt: number | string, range: number) => Promise<number>,
-        addCollateralApprove: (collateral: number | string) => Promise<number>,
-        addCollateral: (collateral: number | string, address?: string) => Promise<number>,
-        borrowMoreApprove: (collateral: number | string) => Promise<number>,
-        borrowMore: (collateral: number | string, debt: number | string) => Promise<number>,
-        repayApprove: (debt: number | string) => Promise<number>,
-        repay: (debt: number | string, address?: string) => Promise<number>,
-        fullRepayApprove: (address?: string) => Promise<number>,
-        fullRepay: (address?: string) => Promise<number>,
-        swapApprove: (i: number, amount: number | string) => Promise<number>,
-        swap: (i: number, j: number, amount: number | string, slippage?: number) => Promise<number>,
-        liquidateApprove: (address: string) => Promise<number>,
-        liquidate: (address: string, slippage?: number) => Promise<number>,
-        selfLiquidateApprove: () => Promise<number>,
-        selfLiquidate: (slippage?: number) => Promise<number>,
-    };
-    stats: {
-        parameters: () => Promise<{
-            fee: string, // %
-            admin_fee: string, // %
-            rate: string, // %
-            liquidation_discount: string, // %
-            loan_discount: string, // %
-        }>,
-        balances: () => Promise<[string, string]>,
-        maxMinBands: () => Promise<[number, number]>,
-        #activeBand:() => Promise<number>,
-        liquidatingBand:() => Promise<number | null>,
-        bandBalances:(n: number) => Promise<{ stablecoin: string, collateral: string }>,
-        bandsBalances: () => Promise<{ [index: number]: { stablecoin: string, collateral: string } }>,
-        totalSupply: () => Promise<string>,
-        totalDebt: () => Promise<string>,
-        totalStablecoin: () => Promise<string>,
-        totalCollateral: () => Promise<string>,
-        capAndAvailable: () => Promise<{ "cap": string, "available": string }>,
-    };
-    wallet: {
-        balances: (address?: string) => Promise<{ stablecoin: string, collateral: string }>,
-    };
-
-    constructor(id: string) {
-
-        const llammaData = lending.constants.LLAMMAS[id];
-
-        this.id = id;
-        this.address = llammaData.amm_address;
-        this.controller = llammaData.controller_address;
-        this.monetaryPolicy = llammaData.monetary_policy_address;
-        this.collateral = llammaData.collateral_address;
-        this.leverageZap = llammaData.leverage_zap;
-        this.deleverageZap = llammaData.deleverage_zap;
-        this.healthCalculator = llammaData.health_calculator_zap;
-        this.collateralSymbol = llammaData.collateral_symbol;
-        this.collateralDecimals = llammaData.collateral_decimals;
-        this.coins = ["lending", llammaData.collateral_symbol];
-        this.coinAddresses = [lending.address, llammaData.collateral_address];
-        this.coinDecimals = [18, llammaData.collateral_decimals];
-        this.minBands = llammaData.min_bands;
-        this.maxBands = llammaData.max_bands;
-        this.defaultBands = llammaData.default_bands;
-        this.A = llammaData.A;
-        this.tickSpace = 1 / llammaData.A * 100;
-        this.estimateGas = {
-            createLoanApprove: this.createLoanApproveEstimateGas.bind(this),
-            createLoan: this.createLoanEstimateGas.bind(this),
-            borrowMoreApprove: this.borrowMoreApproveEstimateGas.bind(this),
-            borrowMore: this.borrowMoreEstimateGas.bind(this),
-            addCollateralApprove: this.addCollateralApproveEstimateGas.bind(this),
-            addCollateral: this.addCollateralEstimateGas.bind(this),
-            repayApprove: this.repayApproveEstimateGas.bind(this),
-            repay: this.repayEstimateGas.bind(this),
-            fullRepayApprove: this.fullRepayApproveEstimateGas.bind(this),
-            fullRepay: this.fullRepayEstimateGas.bind(this),
-            swapApprove: this.swapApproveEstimateGas.bind(this),
-            swap: this.swapEstimateGas.bind(this),
-            liquidateApprove: this.liquidateApproveEstimateGas.bind(this),
-            liquidate: this.liquidateEstimateGas.bind(this),
-            selfLiquidateApprove: this.selfLiquidateApproveEstimateGas.bind(this),
-            selfLiquidate: this.selfLiquidateEstimateGas.bind(this),
-        }
-        this.stats = {
-            parameters: this.statsParameters.bind(this),
-            balances: this.statsBalances.bind(this),
-            maxMinBands: this.statsMaxMinBands.bind(this),
-            #activeBand: this.statsActiveBand.bind(this),
-            liquidatingBand: this.statsLiquidatingBand.bind(this),
-            bandBalances: this.statsBandBalances.bind(this),
-            bandsBalances: this.statsBandsBalances.bind(this),
-            totalSupply: this.statsTotalSupply.bind(this),
-            totalDebt: this.statsTotalDebt.bind(this),
-            totalStablecoin: this.statsTotalStablecoin.bind(this),
-            totalCollateral: this.statsTotalCollateral.bind(this),
-            capAndAvailable: this.statsCapAndAvailable.bind(this),
-        }
-        this.wallet = {
-            balances: this.walletBalances.bind(this),
-        }
-    }
 
     // ---------------- SELF-LIQUIDATE ----------------
 
@@ -1310,7 +1189,7 @@ export class OneWayMarketTemplate {
         return await this.liquidateIsApproved()
     }
 
-    private async selfLiquidateApproveEstimateGas (): Promise<number> {
+    private async selfLiquidateApproveEstimateGas (): Promise<number | number[]> {
         return this.liquidateApproveEstimateGas()
     }
 
@@ -1318,13 +1197,13 @@ export class OneWayMarketTemplate {
         return await this.liquidateApprove()
     }
 
-    public async selfLiquidateEstimateGas(slippage = 0.1): Promise<number> {
+    public async selfLiquidateEstimateGas(slippage = 0.1): Promise<number | number[]> {
         if (!(await this.selfLiquidateIsApproved())) throw Error("Approval is needed for gas estimation");
-        return await this._liquidate(lending.signerAddress, slippage, true) as number;
+        return await this._liquidate(lending.signerAddress, slippage, true) as number | number[];
     }
 
     public async selfLiquidate(slippage = 0.1): Promise<string> {
         await this.selfLiquidateApprove();
         return await this._liquidate(lending.signerAddress, slippage, false) as string;
     }
-*/
+}

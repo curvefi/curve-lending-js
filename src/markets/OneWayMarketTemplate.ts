@@ -91,7 +91,7 @@ export class OneWayMarketTemplate {
         capAndAvailable: () => Promise<{ cap: string, available: string }>,
     };
     wallet: {
-        balances: (address?: string) => Promise<{ collateral: string, borrowed: string }>,
+        balances: (address?: string) => Promise<{ collateral: string, borrowed: string, vaultShares: string }>,
     };
 
     vault: {
@@ -516,9 +516,9 @@ export class OneWayMarketTemplate {
 
     // ---------------- WALLET BALANCES ----------------
 
-    private async walletBalances(address = ""): Promise<{ collateral: string, borrowed: string }> {
-        const [collateral, borrowed] = await getBalances([this.collateral_token.address, this.borrowed_token.address], address);
-        return { collateral, borrowed }
+    private async walletBalances(address = ""): Promise<{ collateral: string, borrowed: string, vaultShares: string }> {
+        const [collateral, borrowed, vaultShares] = await getBalances([this.collateral_token.address, this.borrowed_token.address, this.addresses.vault], address);
+        return { collateral, borrowed, vaultShares }
     }
 
     // ---------------- USER POSITION ----------------

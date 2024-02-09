@@ -156,8 +156,6 @@ class Lending implements ILending {
                 };
             }
 
-
-
             if (providerSettings.url) {
                 this.provider = new ethers.JsonRpcProvider(providerSettings.url, undefined, jsonRpcApiProviderOptions);
             } else {
@@ -291,6 +289,13 @@ class Lending implements ILending {
             this.setContract(controllers[index], ControllerABI);
             this.setContract(monetary_policies[index], MonetaryPolicyABI);
             this.setContract(vaults[index], VaultABI);
+            this.constants.COINS[vaults[index]] = {
+                address: vaults[index],
+                decimals: 18,
+                name: "Curve Vault for " + this.constants.COINS[borrowed_tokens[index]].name,
+                symbol: "cv" + this.constants.COINS[borrowed_tokens[index]].symbol,
+            };
+            this.constants.DECIMALS[vaults[index]] = 18;
             this.constants.ONE_WAY_MARKETS[`one-way-market-${index}`] = {
                 id: `market-${index}`,
                 addresses: {

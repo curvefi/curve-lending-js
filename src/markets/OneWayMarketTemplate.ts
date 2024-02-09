@@ -61,8 +61,8 @@ export class OneWayMarketTemplate {
         addCollateralApprove: (collateral: number | string) => Promise<number | number[]>,
         addCollateral: (collateral: number | string, address?: string) => Promise<number | number[]>,
         removeCollateral: (collateral: number | string) => Promise<number | number[]>,
-        // repayApprove: (debt: number | string) => Promise<number | number[]>,
-        // repay: (debt: number | string, address?: string) => Promise<number | number[]>,
+        repayApprove: (debt: number | string) => Promise<number | number[]>,
+        repay: (debt: number | string, address?: string) => Promise<number | number[]>,
         // fullRepayApprove: (address?: string) => Promise<number | number[]>,
         // fullRepay: (address?: string) => Promise<number | number[]>,
         // swapApprove: (i: number, amount: number | string) => Promise<number | number[]>,
@@ -112,8 +112,8 @@ export class OneWayMarketTemplate {
             addCollateralApprove: this.addCollateralApproveEstimateGas.bind(this),
             addCollateral: this.addCollateralEstimateGas.bind(this),
             removeCollateral: this.removeCollateralEstimateGas.bind(this),
-            // repayApprove: this.repayApproveEstimateGas.bind(this),
-            // repay: this.repayEstimateGas.bind(this),
+            repayApprove: this.repayApproveEstimateGas.bind(this),
+            repay: this.repayEstimateGas.bind(this),
             // fullRepayApprove: this.fullRepayApproveEstimateGas.bind(this),
             // fullRepay: this.fullRepayEstimateGas.bind(this),
             // swapApprove: this.swapApproveEstimateGas.bind(this),
@@ -900,6 +900,83 @@ export class OneWayMarketTemplate {
     public async removeCollateral(collateral: number | string): Promise<string> {
         return await this._removeCollateral(collateral, false) as string;
     }
+
+    // ---------------- REPAY ----------------
+
+    private async _repayBands(debt: number | string, address: string): Promise<[bigint, bigint]> {
+        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState(address);
+        if (_currentDebt === BigInt(0)) throw Error(`Loan for ${address} does not exist`);
+
+        const N = await this.userRange(address);
+        const _debt = _currentDebt - parseUnits(debt, this.borrowed_token.decimals);
+        const _n1 = await this._calcN1(_currentCollateral, _debt, N);
+        const _n2 = _n1 + BigInt(N - 1);
+
+        return [_n2, _n1];
+    }
+
+    public async repayBands(debt: number | string, address = ""): Promise<[number, number]> {
+        const [_n2, _n1] = await this._repayBands(debt, address);
+
+        return [Number(_n2), Number(_n1)];
+    }
+
+    public async repayPrices(debt: number | string, address = ""): Promise<string[]> {
+        const [_n2, _n1] = await this._repayBands(debt, address);
+
+        return await this._getPrices(_n2, _n1);
+    }
+
+    public async repayIsApproved(debt: number | string): Promise<boolean> {
+        return await hasAllowance([this.borrowed_token.address], [debt], lending.signerAddress, this.addresses.controller);
+    }
+
+    private async repayApproveEstimateGas (debt: number | string): Promise<number | number[]> {
+        return await ensureAllowanceEstimateGas([this.borrowed_token.address], [debt], this.addresses.controller);
+    }
+
+    public async repayApprove(debt: number | string): Promise<string[]> {
+        return await ensureAllowance([this.borrowed_token.address], [debt], this.addresses.controller);
+    }
+
+    public async repayHealth(debt: number | string, full = true, address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _debt = parseUnits(debt) * BigInt(-1);
+
+        const contract = lending.contracts[this.addresses.controller].contract;
+        let _health = await contract.health_calculator(address, 0, _debt, full, 0, lending.constantOptions) as bigint;
+        _health = _health * BigInt(100);
+
+        return formatUnits(_health);
+    }
+
+    private async _repay(debt: number | string, address: string, estimateGas: boolean): Promise<string | number | number[]> {
+        address = _getAddress(address);
+        const { debt: currentDebt } = await this.userState(address);
+        if (Number(currentDebt) === 0) throw Error(`Loan for ${address} does not exist`);
+
+        const _debt = parseUnits(debt);
+        const contract = lending.contracts[this.addresses.controller].contract;
+        const [_, n1] = await this.userBands(address);
+        const { borrowed } = await this.userState(address);
+        const n = (BN(borrowed).gt(0)) ? MAX_ACTIVE_BAND : n1 - 1;  // In liquidation mode it doesn't matter if active band moves
+        const gas = await contract.repay.estimateGas(_debt, address, n, lending.constantOptions);
+        if (estimateGas) return smartNumber(gas);
+
+        await lending.updateFeeData();
+        const gasLimit = _mulBy1_3(DIGas(gas));
+        return (await contract.repay(_debt, address, n, { ...lending.options, gasLimit })).hash
+    }
+
+    public async repayEstimateGas(debt: number | string, address = ""): Promise<number | number[]> {
+        if (!(await this.repayIsApproved(debt))) throw Error("Approval is needed for gas estimation");
+        return await this._repay(debt, address, true) as number | number[];
+    }
+
+    public async repay(debt: number | string, address = ""): Promise<string> {
+        await this.repayApprove(debt);
+        return await this._repay(debt, address, false) as string;
+    }
 }
 
 /*export class OneWayMarketTemplate {
@@ -1020,83 +1097,6 @@ export class OneWayMarketTemplate {
         this.wallet = {
             balances: this.walletBalances.bind(this),
         }
-    }
-
-    // ---------------- REPAY ----------------
-
-    private async _repayBands(debt: number | string, address: string): Promise<[bigint, bigint]> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState(address);
-        if (_currentDebt.eq(0)) throw Error(`Loan for ${address} does not exist`);
-
-        const N = await this.userRange(address);
-        const _debt = _currentDebt.sub(parseUnits(debt));
-        const _n1 = await this._calcN1(_currentCollateral, _debt, N);
-        const _n2 = _n1.add(N - 1);
-
-        return [_n2, _n1];
-    }
-
-    public async repayBands(debt: number | string, address = ""): Promise<[number, number]> {
-        const [_n2, _n1] = await this._repayBands(debt, address);
-
-        return [_n2.toNumber(), _n1.toNumber()];
-    }
-
-    public async repayPrices(debt: number | string, address = ""): Promise<string[]> {
-        const [_n2, _n1] = await this._repayBands(debt, address);
-
-        return await this._getPrices(_n2, _n1);
-    }
-
-    public async repayIsApproved(debt: number | string): Promise<boolean> {
-        return true//await hasAllowance([lending.address], [debt], lending.signerAddress, this.controller);
-    }
-
-    private async repayApproveEstimateGas (debt: number | string): Promise<number> {
-        return 0//await ensureAllowanceEstimateGas([lending.address], [debt], this.controller);
-    }
-
-    public async repayApprove(debt: number | string): Promise<string[]> {
-        return ['0']//await ensureAllowance([lending.address], [debt], this.controller);
-    }
-
-    public async repayHealth(debt: number | string, full = true, address = ""): Promise<string> {
-        address = _getAddress(address);
-        const _debt = parseUnits(debt).mul(-1);
-
-        const contract = lending.contracts[this.healthCalculator ?? this.controller].contract;
-        let _health = await contract.health_calculator(address, 0, _debt, full, 0, lending.constantOptions) as bigint;
-        _health = _health.mul(100);
-
-        return ethers.utils.formatUnits(_health);
-    }
-
-    private async _repay(debt: number | string, address: string, estimateGas: boolean): Promise<string | number> {
-        address = _getAddress(address);
-        const { debt: currentDebt } = await this.userState(address);
-        if (Number(currentDebt) === 0) throw Error(`Loan for ${address} does not exist`);
-
-        const _debt = parseUnits(debt);
-        const contract = lending.contracts[this.controller].contract;
-        const [_, n1] = await this.userBands(address);
-        const { stablecoin } = await this.userState(address);
-        const n = (BN(stablecoin).gt(0)) ? MAX_ACTIVE_BAND : n1 - 1;  // In liquidation mode it doesn't matter if active band moves
-        const gas = await contract.estimateGas.repay(_debt, address, n, isEth(this.collateral), lending.constantOptions);
-        if (estimateGas) return gas.toNumber();
-
-        await lending.updateFeeData();
-        const gasLimit = gas.mul(130).div(100);
-        return (await contract.repay(_debt, address, n, isEth(this.collateral), { ...lending.options, gasLimit })).hash
-    }
-
-    public async repayEstimateGas(debt: number | string, address = ""): Promise<number> {
-        if (!(await this.repayIsApproved(debt))) throw Error("Approval is needed for gas estimation");
-        return await this._repay(debt, address, true) as number;
-    }
-
-    public async repay(debt: number | string, address = ""): Promise<string> {
-        await this.repayApprove(debt);
-        return await this._repay(debt, address, false) as string;
     }
 
     // ---------------- FULL REPAY ----------------

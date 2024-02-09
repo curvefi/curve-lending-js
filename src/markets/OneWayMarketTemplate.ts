@@ -63,8 +63,8 @@ export class OneWayMarketTemplate {
         removeCollateral: (collateral: number | string) => Promise<number | number[]>,
         repayApprove: (debt: number | string) => Promise<number | number[]>,
         repay: (debt: number | string, address?: string) => Promise<number | number[]>,
-        // fullRepayApprove: (address?: string) => Promise<number | number[]>,
-        // fullRepay: (address?: string) => Promise<number | number[]>,
+        fullRepayApprove: (address?: string) => Promise<number | number[]>,
+        fullRepay: (address?: string) => Promise<number | number[]>,
         // swapApprove: (i: number, amount: number | string) => Promise<number | number[]>,
         // swap: (i: number, j: number, amount: number | string, slippage?: number) => Promise<number | number[]>,
         // liquidateApprove: (address: string) => Promise<number | number[]>,
@@ -114,8 +114,8 @@ export class OneWayMarketTemplate {
             removeCollateral: this.removeCollateralEstimateGas.bind(this),
             repayApprove: this.repayApproveEstimateGas.bind(this),
             repay: this.repayEstimateGas.bind(this),
-            // fullRepayApprove: this.fullRepayApproveEstimateGas.bind(this),
-            // fullRepay: this.fullRepayEstimateGas.bind(this),
+            fullRepayApprove: this.fullRepayApproveEstimateGas.bind(this),
+            fullRepay: this.fullRepayEstimateGas.bind(this),
             // swapApprove: this.swapApproveEstimateGas.bind(this),
             // swap: this.swapEstimateGas.bind(this),
             // liquidateApprove: this.liquidateApproveEstimateGas.bind(this),
@@ -977,6 +977,46 @@ export class OneWayMarketTemplate {
         await this.repayApprove(debt);
         return await this._repay(debt, address, false) as string;
     }
+
+    // ---------------- FULL REPAY ----------------
+
+    private async _fullRepayAmount(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const { debt } = await this.userState(address);
+        return BN(debt).times(1.0001).toString();
+    }
+
+    public async fullRepayIsApproved(address = ""): Promise<boolean> {
+        address = _getAddress(address);
+        const fullRepayAmount = await this._fullRepayAmount(address);
+        return await this.repayIsApproved(fullRepayAmount);
+    }
+
+    private async fullRepayApproveEstimateGas (address = ""): Promise<number | number[]> {
+        address = _getAddress(address);
+        const fullRepayAmount = await this._fullRepayAmount(address);
+        return await this.repayApproveEstimateGas(fullRepayAmount);
+    }
+
+    public async fullRepayApprove(address = ""): Promise<string[]> {
+        address = _getAddress(address);
+        const fullRepayAmount = await this._fullRepayAmount(address);
+        return await this.repayApprove(fullRepayAmount);
+    }
+
+    public async fullRepayEstimateGas(address = ""): Promise<number | number[]> {
+        address = _getAddress(address);
+        const fullRepayAmount = await this._fullRepayAmount(address);
+        if (!(await this.repayIsApproved(fullRepayAmount))) throw Error("Approval is needed for gas estimation");
+        return await this._repay(fullRepayAmount, address, true) as number | number[];
+    }
+
+    public async fullRepay(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const fullRepayAmount = await this._fullRepayAmount(address);
+        await this.repayApprove(fullRepayAmount);
+        return await this._repay(fullRepayAmount, address, false) as string;
+    }
 }
 
 /*export class OneWayMarketTemplate {
@@ -1097,46 +1137,6 @@ export class OneWayMarketTemplate {
         this.wallet = {
             balances: this.walletBalances.bind(this),
         }
-    }
-
-    // ---------------- FULL REPAY ----------------
-
-    private async _fullRepayAmount(address = ""): Promise<string> {
-        address = _getAddress(address);
-        const debt = await this.userDebt(address);
-        return BN(debt).times(1.0001).toString();
-    }
-
-    public async fullRepayIsApproved(address = ""): Promise<boolean> {
-        address = _getAddress(address);
-        const fullRepayAmount = await this._fullRepayAmount(address);
-        return await this.repayIsApproved(fullRepayAmount);
-    }
-
-    private async fullRepayApproveEstimateGas (address = ""): Promise<number> {
-        address = _getAddress(address);
-        const fullRepayAmount = await this._fullRepayAmount(address);
-        return await this.repayApproveEstimateGas(fullRepayAmount);
-    }
-
-    public async fullRepayApprove(address = ""): Promise<string[]> {
-        address = _getAddress(address);
-        const fullRepayAmount = await this._fullRepayAmount(address);
-        return await this.repayApprove(fullRepayAmount);
-    }
-
-    public async fullRepayEstimateGas(address = ""): Promise<number> {
-        address = _getAddress(address);
-        const fullRepayAmount = await this._fullRepayAmount(address);
-        if (!(await this.repayIsApproved(fullRepayAmount))) throw Error("Approval is needed for gas estimation");
-        return await this._repay(fullRepayAmount, address, true) as number;
-    }
-
-    public async fullRepay(address = ""): Promise<string> {
-        address = _getAddress(address);
-        const fullRepayAmount = await this._fullRepayAmount(address);
-        await this.repayApprove(fullRepayAmount);
-        return await this._repay(fullRepayAmount, address, false) as string;
     }
 
     // ---------------- SWAP ----------------

@@ -52,23 +52,23 @@ export class OneWayMarketTemplate {
     maxBands: number
 
     estimateGas: {
-        createLoanApprove: (collateral: number | string) => Promise<number | number[]>,
-        createLoan: (collateral: number | string, debt: number | string, range: number) => Promise<number | number[]>,
-        borrowMoreApprove: (collateral: number | string) => Promise<number | number[]>,
-        borrowMore: (collateral: number | string, debt: number | string) => Promise<number | number[]>,
-        addCollateralApprove: (collateral: number | string) => Promise<number | number[]>,
-        addCollateral: (collateral: number | string, address?: string) => Promise<number | number[]>,
-        removeCollateral: (collateral: number | string) => Promise<number | number[]>,
-        repayApprove: (debt: number | string) => Promise<number | number[]>,
-        repay: (debt: number | string, address?: string) => Promise<number | number[]>,
-        fullRepayApprove: (address?: string) => Promise<number | number[]>,
-        fullRepay: (address?: string) => Promise<number | number[]>,
-        swapApprove: (i: number, amount: number | string) => Promise<number | number[]>,
-        swap: (i: number, j: number, amount: number | string, slippage?: number) => Promise<number | number[]>,
-        liquidateApprove: (address: string) => Promise<number | number[]>,
-        liquidate: (address: string, slippage?: number) => Promise<number | number[]>,
-        selfLiquidateApprove: () => Promise<number | number[]>,
-        selfLiquidate: (slippage?: number) => Promise<number | number[]>,
+        createLoanApprove: (collateral: number | string) => Promise<TGas>,
+        createLoan: (collateral: number | string, debt: number | string, range: number) => Promise<TGas>,
+        borrowMoreApprove: (collateral: number | string) => Promise<TGas>,
+        borrowMore: (collateral: number | string, debt: number | string) => Promise<TGas>,
+        addCollateralApprove: (collateral: number | string) => Promise<TGas>,
+        addCollateral: (collateral: number | string, address?: string) => Promise<TGas>,
+        removeCollateral: (collateral: number | string) => Promise<TGas>,
+        repayApprove: (debt: number | string) => Promise<TGas>,
+        repay: (debt: number | string, address?: string) => Promise<TGas>,
+        fullRepayApprove: (address?: string) => Promise<TGas>,
+        fullRepay: (address?: string) => Promise<TGas>,
+        swapApprove: (i: number, amount: number | string) => Promise<TGas>,
+        swap: (i: number, j: number, amount: number | string, slippage?: number) => Promise<TGas>,
+        liquidateApprove: (address: string) => Promise<TGas>,
+        liquidate: (address: string, slippage?: number) => Promise<TGas>,
+        selfLiquidateApprove: () => Promise<TGas>,
+        selfLiquidate: (slippage?: number) => Promise<TGas>,
     };
     stats: {
         parameters: () => Promise<{
@@ -109,6 +109,10 @@ export class OneWayMarketTemplate {
         estimateGas: {
             depositApprove: (amount: TAmount) => Promise<TGas>,
             deposit: (amount: TAmount) => Promise<TGas>,
+            mintApprove: (amount: TAmount) => Promise<TGas>,
+            mint: (amount: TAmount) => Promise<TGas>,
+            withdraw: (amount: TAmount) => Promise<TGas>,
+            redeem: (amount: TAmount) => Promise<TGas>,
         }
     };
 
@@ -175,10 +179,16 @@ export class OneWayMarketTemplate {
             estimateGas: {
                 depositApprove: this.vaultDepositApproveEstimateGas.bind(this),
                 deposit: this.vaultDepositEstimateGas.bind(this),
+                mintApprove: this.vaultMintApproveEstimateGas.bind(this),
+                mint: this.vaultMintEstimateGas.bind(this),
+                withdraw: this.vaultWithdrawEstimateGas.bind(this),
+                redeem: this.vaultRedeemEstimateGas.bind(this),
             },
         }
 
     }
+
+    // ---------------- VAULT ----------------
 
     private async _vaultDeposit(amount: TAmount, estimateGas = false): Promise<string | TGas> {
         const _amount = parseUnits(amount, this.borrowed_token.decimals);
@@ -214,7 +224,6 @@ export class OneWayMarketTemplate {
         return await this._vaultDeposit(amount, false) as string;
     }
 
-
     private async vaultPreviewDeposit(amount: TAmount, estimateGas = false): Promise<string> {
         const _amount = parseUnits(amount, this.borrowed_token.decimals);
         const _shares = await lending.contracts[this.addresses.vault].contract.previewDeposit(_amount);
@@ -228,11 +237,38 @@ export class OneWayMarketTemplate {
         return formatUnits(_amount,  this.borrowed_token.decimals);
     }
 
-    private async vaultMint(amount: TAmount): Promise<string> {
+    private async _vaultMint(amount: TAmount, estimateGas = false): Promise<string | TGas> {
         const _amount = parseUnits(amount, 18);
-        const _assets = await lending.contracts[this.addresses.vault].contract.mint(_amount);
+        const gas = await lending.contracts[this.addresses.vault].contract.mint.estimateGas(_amount, { ...lending.constantOptions });
+        if (estimateGas) return smartNumber(gas);
 
-        return formatUnits(_assets, this.borrowed_token.decimals);
+        await lending.updateFeeData();
+
+        const gasLimit = _mulBy1_3(DIGas(gas));
+
+        return (await lending.contracts[this.addresses.vault].contract.mint(_amount, { ...lending.options, gasLimit })).hash;
+    }
+
+    public async vaultMintIsApproved(borrowed: TAmount): Promise<boolean> {
+        return await hasAllowance([this.borrowed_token.address], [borrowed], lending.signerAddress, this.addresses.vault);
+    }
+
+    private async vaultMintApproveEstimateGas (borrowed: TAmount): Promise<TGas> {
+        return await ensureAllowanceEstimateGas([this.borrowed_token.address], [borrowed], this.addresses.vault);
+    }
+
+    public async vaultMintApprove(borrowed: TAmount): Promise<string[]> {
+        return await ensureAllowance([this.borrowed_token.address], [borrowed], this.addresses.vault);
+    }
+
+    public async vaultMintEstimateGas(amount: TAmount): Promise<TGas> {
+        if (!(await this.vaultMintIsApproved(amount))) throw Error("Approval is needed for gas estimation");
+        return await this._vaultMint(amount, true) as number;
+    }
+
+    public async vaultMint(amount: TAmount): Promise<string> {
+        await this.vaultMintApprove(amount);
+        return await this._vaultMint(amount, false) as string;
     }
 
     private async vaultPreviewMint(amount: TAmount): Promise<string> {
@@ -248,11 +284,24 @@ export class OneWayMarketTemplate {
         return formatUnits(_shares, 18);
     }
 
-    private async vaultWithdraw(amount: TAmount): Promise<string> {
+    private async _vaultWithdraw(amount: TAmount, estimateGas = false): Promise<string | TGas> {
         const _amount = parseUnits(amount, this.borrowed_token.decimals);
-        const _shares = await lending.contracts[this.addresses.vault].contract.withdraw(_amount);
+        const gas = await lending.contracts[this.addresses.vault].contract.withdraw.estimateGas(_amount, { ...lending.constantOptions });
+        if (estimateGas) return smartNumber(gas);
 
-        return formatUnits(_shares, 18);
+        await lending.updateFeeData();
+
+        const gasLimit = _mulBy1_3(DIGas(gas));
+
+        return (await lending.contracts[this.addresses.vault].contract.withdraw(_amount, { ...lending.options, gasLimit })).hash;
+    }
+
+    public async vaultWithdrawEstimateGas(amount: TAmount): Promise<TGas> {
+        return await this._vaultWithdraw(amount, true) as number;
+    }
+
+    public async vaultWithdraw(amount: TAmount): Promise<string> {
+        return await this._vaultWithdraw(amount, false) as string;
     }
 
     private async vaultPreviewWithdraw(amount: TAmount): Promise<string> {
@@ -268,11 +317,24 @@ export class OneWayMarketTemplate {
         return formatUnits(_assets, this.borrowed_token.decimals);
     }
 
-    private async vaultRedeem(amount: TAmount): Promise<string> {
+    private async _vaultRedeem(amount: TAmount, estimateGas = false): Promise<string | TGas> {
         const _amount = parseUnits(amount, 18);
-        const _assets = await lending.contracts[this.addresses.vault].contract.redeem(_amount);
+        const gas = await lending.contracts[this.addresses.vault].contract.redeem.estimateGas(_amount, { ...lending.constantOptions });
+        if (estimateGas) return smartNumber(gas);
 
-        return formatUnits(_assets, this.borrowed_token.decimals);
+        await lending.updateFeeData();
+
+        const gasLimit = _mulBy1_3(DIGas(gas));
+
+        return (await lending.contracts[this.addresses.vault].contract.redeem(_amount, { ...lending.options, gasLimit })).hash;
+    }
+
+    public async vaultRedeemEstimateGas(amount: TAmount): Promise<TGas> {
+        return await this._vaultRedeem(amount, true) as number;
+    }
+
+    public async vaultRedeem(amount: TAmount): Promise<string> {
+        return await this._vaultRedeem(amount, false) as string;
     }
 
     private async vaultPreviewRedeem(amount: TAmount): Promise<string> {
@@ -868,7 +930,7 @@ export class OneWayMarketTemplate {
         return await hasAllowance([this.addresses.collateral_token], [collateral], lending.signerAddress, this.addresses.controller);
     }
 
-    private async borrowMoreApproveEstimateGas (collateral: number | string): Promise<number | number[]> {
+    private async borrowMoreApproveEstimateGas (collateral: number | string): Promise<TGas> {
         return await ensureAllowanceEstimateGas([this.addresses.collateral_token], [collateral], this.addresses.controller);
     }
 
@@ -876,7 +938,7 @@ export class OneWayMarketTemplate {
         return await ensureAllowance([this.addresses.collateral_token], [collateral], this.addresses.controller);
     }
 
-    private async _borrowMore(collateral: number | string, debt: number | string, estimateGas: boolean): Promise<string | number | number[]> {
+    private async _borrowMore(collateral: number | string, debt: number | string, estimateGas: boolean): Promise<string | TGas> {
         const { borrowed, debt: currentDebt } = await this.userState();
         if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
         if (Number(borrowed) > 0) throw Error(`User ${lending.signerAddress} is already in liquidation mode`);
@@ -892,9 +954,9 @@ export class OneWayMarketTemplate {
         return (await contract.borrow_more(_collateral, _debt, { ...lending.options, gasLimit })).hash
     }
 
-    public async borrowMoreEstimateGas(collateral: number | string, debt: number | string): Promise<number | number[]> {
+    public async borrowMoreEstimateGas(collateral: number | string, debt: number | string): Promise<TGas> {
         if (!(await this.borrowMoreIsApproved(collateral))) throw Error("Approval is needed for gas estimation");
-        return await this._borrowMore(collateral, debt, true) as number | number[];
+        return await this._borrowMore(collateral, debt, true) as TGas;
     }
 
     public async borrowMore(collateral: number | string, debt: number | string): Promise<string> {
@@ -944,7 +1006,7 @@ export class OneWayMarketTemplate {
         return await hasAllowance([this.addresses.collateral_token], [collateral], lending.signerAddress, this.addresses.controller);
     }
 
-    private async addCollateralApproveEstimateGas (collateral: number | string): Promise<number | number[]> {
+    private async addCollateralApproveEstimateGas (collateral: number | string): Promise<TGas> {
         return await ensureAllowanceEstimateGas([this.addresses.collateral_token], [collateral], this.addresses.controller);
     }
 
@@ -952,7 +1014,7 @@ export class OneWayMarketTemplate {
         return await ensureAllowance([this.addresses.collateral_token], [collateral], this.addresses.controller);
     }
 
-    private async _addCollateral(collateral: number | string, address: string, estimateGas: boolean): Promise<string | number | number[]> {
+    private async _addCollateral(collateral: number | string, address: string, estimateGas: boolean): Promise<string | TGas> {
         const { borrowed, debt: currentDebt } = await this.userState(address);
         if (Number(currentDebt) === 0) throw Error(`Loan for ${address} does not exist`);
         if (Number(borrowed) > 0) throw Error(`User ${address} is already in liquidation mode`);
@@ -967,10 +1029,10 @@ export class OneWayMarketTemplate {
         return (await contract.add_collateral(_collateral, address, { ...lending.options, gasLimit })).hash
     }
 
-    public async addCollateralEstimateGas(collateral: number | string, address = ""): Promise<number | number[]> {
+    public async addCollateralEstimateGas(collateral: number | string, address = ""): Promise<TGas> {
         address = _getAddress(address);
         if (!(await this.addCollateralIsApproved(collateral))) throw Error("Approval is needed for gas estimation");
-        return await this._addCollateral(collateral, address, true) as number | number[];
+        return await this._addCollateral(collateral, address, true) as TGas;
     }
 
     public async addCollateral(collateral: number | string, address = ""): Promise<string> {
@@ -1024,7 +1086,7 @@ export class OneWayMarketTemplate {
         return formatUnits(_health);
     }
 
-    private async _removeCollateral(collateral: number | string, estimateGas: boolean): Promise<string | number | number[]> {
+    private async _removeCollateral(collateral: number | string, estimateGas: boolean): Promise<string | TGas> {
         const { borrowed, debt: currentDebt } = await this.userState();
         if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
         if (Number(borrowed) > 0) throw Error(`User ${lending.signerAddress} is already in liquidation mode`);
@@ -1039,8 +1101,8 @@ export class OneWayMarketTemplate {
         return (await contract.remove_collateral(_collateral, { ...lending.options, gasLimit })).hash
     }
 
-    public async removeCollateralEstimateGas(collateral: number | string): Promise<number | number[]> {
-        return await this._removeCollateral(collateral, true) as number | number[];
+    public async removeCollateralEstimateGas(collateral: number | string): Promise<TGas> {
+        return await this._removeCollateral(collateral, true) as TGas;
     }
 
     public async removeCollateral(collateral: number | string): Promise<string> {
@@ -1077,7 +1139,7 @@ export class OneWayMarketTemplate {
         return await hasAllowance([this.borrowed_token.address], [debt], lending.signerAddress, this.addresses.controller);
     }
 
-    private async repayApproveEstimateGas (debt: number | string): Promise<number | number[]> {
+    private async repayApproveEstimateGas (debt: number | string): Promise<TGas> {
         return await ensureAllowanceEstimateGas([this.borrowed_token.address], [debt], this.addresses.controller);
     }
 
@@ -1096,7 +1158,7 @@ export class OneWayMarketTemplate {
         return formatUnits(_health);
     }
 
-    private async _repay(debt: number | string, address: string, estimateGas: boolean): Promise<string | number | number[]> {
+    private async _repay(debt: number | string, address: string, estimateGas: boolean): Promise<string | TGas> {
         address = _getAddress(address);
         const { debt: currentDebt } = await this.userState(address);
         if (Number(currentDebt) === 0) throw Error(`Loan for ${address} does not exist`);
@@ -1114,9 +1176,9 @@ export class OneWayMarketTemplate {
         return (await contract.repay(_debt, address, n, { ...lending.options, gasLimit })).hash
     }
 
-    public async repayEstimateGas(debt: number | string, address = ""): Promise<number | number[]> {
+    public async repayEstimateGas(debt: number | string, address = ""): Promise<TGas> {
         if (!(await this.repayIsApproved(debt))) throw Error("Approval is needed for gas estimation");
-        return await this._repay(debt, address, true) as number | number[];
+        return await this._repay(debt, address, true) as TGas;
     }
 
     public async repay(debt: number | string, address = ""): Promise<string> {
@@ -1138,7 +1200,7 @@ export class OneWayMarketTemplate {
         return await this.repayIsApproved(fullRepayAmount);
     }
 
-    private async fullRepayApproveEstimateGas (address = ""): Promise<number | number[]> {
+    private async fullRepayApproveEstimateGas (address = ""): Promise<TGas> {
         address = _getAddress(address);
         const fullRepayAmount = await this._fullRepayAmount(address);
         return await this.repayApproveEstimateGas(fullRepayAmount);
@@ -1150,11 +1212,11 @@ export class OneWayMarketTemplate {
         return await this.repayApprove(fullRepayAmount);
     }
 
-    public async fullRepayEstimateGas(address = ""): Promise<number | number[]> {
+    public async fullRepayEstimateGas(address = ""): Promise<TGas> {
         address = _getAddress(address);
         const fullRepayAmount = await this._fullRepayAmount(address);
         if (!(await this.repayIsApproved(fullRepayAmount))) throw Error("Approval is needed for gas estimation");
-        return await this._repay(fullRepayAmount, address, true) as number | number[];
+        return await this._repay(fullRepayAmount, address, true) as TGas;
     }
 
     public async fullRepay(address = ""): Promise<string> {
@@ -1237,7 +1299,7 @@ export class OneWayMarketTemplate {
         return await hasAllowance([this.coinAddresses[i]], [amount], lending.signerAddress, this.addresses.amm);
     }
 
-    private async swapApproveEstimateGas (i: number, amount: number | string): Promise<number | number[]> {
+    private async swapApproveEstimateGas (i: number, amount: number | string): Promise<TGas> {
         if (i !== 0 && i !== 1) throw Error("Wrong index");
 
         return await ensureAllowanceEstimateGas([this.coinAddresses[i]], [amount], this.addresses.amm);
@@ -1249,7 +1311,7 @@ export class OneWayMarketTemplate {
         return await ensureAllowance([this.coinAddresses[i]], [amount], this.addresses.amm);
     }
 
-    private async _swap(i: number, j: number, amount: number | string, slippage: number, estimateGas: boolean): Promise<string | number | number[]> {
+    private async _swap(i: number, j: number, amount: number | string, slippage: number, estimateGas: boolean): Promise<string | TGas> {
         if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
 
         const [inDecimals, outDecimals] = [this.coinDecimals[i], this.coinDecimals[j]];
@@ -1266,9 +1328,9 @@ export class OneWayMarketTemplate {
         return (await contract.exchange(i, j, _amount, _minRecvAmount, { ...lending.options, gasLimit })).hash
     }
 
-    public async swapEstimateGas(i: number, j: number, amount: number | string, slippage = 0.1): Promise<number | number[]> {
+    public async swapEstimateGas(i: number, j: number, amount: number | string, slippage = 0.1): Promise<TGas> {
         if (!(await this.swapIsApproved(i, amount))) throw Error("Approval is needed for gas estimation");
-        return await this._swap(i, j, amount, slippage, true) as number | number[];
+        return await this._swap(i, j, amount, slippage, true) as TGas;
     }
 
     public async swap(i: number, j: number, amount: number | string, slippage = 0.1): Promise<string> {
@@ -1290,7 +1352,7 @@ export class OneWayMarketTemplate {
         return await hasAllowance([this.addresses.borrowed_token], [tokensToLiquidate], lending.signerAddress, this.addresses.controller);
     }
 
-    private async liquidateApproveEstimateGas (address = ""): Promise<number | number[]> {
+    private async liquidateApproveEstimateGas (address = ""): Promise<TGas> {
         const tokensToLiquidate = await this.tokensToLiquidate(address);
         return await ensureAllowanceEstimateGas([this.addresses.borrowed_token], [tokensToLiquidate], this.addresses.controller);
     }
@@ -1300,7 +1362,7 @@ export class OneWayMarketTemplate {
         return await ensureAllowance([this.addresses.borrowed_token], [tokensToLiquidate], this.addresses.controller);
     }
 
-    private async _liquidate(address: string, slippage: number, estimateGas: boolean): Promise<string | number | number[]> {
+    private async _liquidate(address: string, slippage: number, estimateGas: boolean): Promise<string | TGas> {
         const { borrowed, debt: currentDebt } = await this.userState(address);
         if (slippage <= 0) throw Error("Slippage must be > 0");
         if (slippage > 100) throw Error("Slippage must be <= 100");
@@ -1318,9 +1380,9 @@ export class OneWayMarketTemplate {
         return (await contract.liquidate(address, _minAmount, { ...lending.options, gasLimit })).hash
     }
 
-    public async liquidateEstimateGas(address: string, slippage = 0.1): Promise<number | number[]> {
+    public async liquidateEstimateGas(address: string, slippage = 0.1): Promise<TGas> {
         if (!(await this.liquidateIsApproved(address))) throw Error("Approval is needed for gas estimation");
-        return await this._liquidate(address, slippage, true) as number | number[];
+        return await this._liquidate(address, slippage, true) as TGas;
     }
 
     public async liquidate(address: string, slippage = 0.1): Promise<string> {
@@ -1334,7 +1396,7 @@ export class OneWayMarketTemplate {
         return await this.liquidateIsApproved()
     }
 
-    private async selfLiquidateApproveEstimateGas (): Promise<number | number[]> {
+    private async selfLiquidateApproveEstimateGas (): Promise<TGas> {
         return this.liquidateApproveEstimateGas()
     }
 
@@ -1342,9 +1404,9 @@ export class OneWayMarketTemplate {
         return await this.liquidateApprove()
     }
 
-    public async selfLiquidateEstimateGas(slippage = 0.1): Promise<number | number[]> {
+    public async selfLiquidateEstimateGas(slippage = 0.1): Promise<TGas> {
         if (!(await this.selfLiquidateIsApproved())) throw Error("Approval is needed for gas estimation");
-        return await this._liquidate(lending.signerAddress, slippage, true) as number | number[];
+        return await this._liquidate(lending.signerAddress, slippage, true) as TGas;
     }
 
     public async selfLiquidate(slippage = 0.1): Promise<string> {

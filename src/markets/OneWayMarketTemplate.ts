@@ -20,8 +20,7 @@ import {
     DIGas,
     smartNumber,
 } from "../utils.js";
-import {IDict, TGas} from "../interfaces.js";
-import {TAmount} from "../interfaces";
+import {IDict, TGas, TAmount} from "../interfaces.js";
 
 export class OneWayMarketTemplate {
     id: string;

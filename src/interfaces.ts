@@ -16,6 +16,7 @@ export interface ICurveContract {
 }
 
 export type TAmount = number | string
+export type TGas = number | number[]
 
 export interface ILlamma {
     amm_address: string,

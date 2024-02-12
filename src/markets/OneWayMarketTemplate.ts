@@ -96,9 +96,13 @@ export class OneWayMarketTemplate {
     vault: {
         maxDeposit: (address?: string) => Promise<string>,
         previewDeposit: (amount: TAmount) => Promise<string>,
+        depositIsApproved: (borrowed: TAmount) => Promise<boolean>
+        depositApprove: (borrowed: TAmount) => Promise<string[]>
         deposit: (amount: TAmount) => Promise<string>,
         maxMint: (address?: string) => Promise<string>,
         previewMint: (amount: TAmount) => Promise<string>,
+        mintIsApproved: (borrowed: TAmount) => Promise<boolean>
+        mintApprove: (borrowed: TAmount) => Promise<string[]>
         mint: (amount: TAmount) => Promise<string>,
         maxWithdraw: (address?: string) => Promise<string>,
         previewWithdraw: (amount: TAmount) => Promise<string>,
@@ -166,9 +170,13 @@ export class OneWayMarketTemplate {
         this.vault = {
             maxDeposit: this.vaultMaxDeposit.bind(this),
             previewDeposit: this.vaultPreviewDeposit.bind(this),
+            depositIsApproved: this.vaultDepositIsApproved.bind(this),
+            depositApprove: this.vaultDepositApprove.bind(this),
             deposit: this.vaultDeposit.bind(this),
             maxMint: this.vaultMaxMint.bind(this),
             previewMint: this.vaultPreviewMint.bind(this),
+            mintIsApproved: this.vaultMintIsApproved.bind(this),
+            mintApprove: this.vaultMintApprove.bind(this),
             mint: this.vaultMint.bind(this),
             maxWithdraw: this.vaultMaxWithdraw.bind(this),
             previewWithdraw: this.vaultPreviewWithdraw.bind(this),
@@ -204,7 +212,7 @@ export class OneWayMarketTemplate {
         return formatUnits(_shares, 18);
     }
 
-    public async vaultDepositIsApproved(borrowed: TAmount): Promise<boolean> {
+    private async vaultDepositIsApproved(borrowed: TAmount): Promise<boolean> {
         return await hasAllowance([this.borrowed_token.address], [borrowed], lending.signerAddress, this.addresses.vault);
     }
 
@@ -212,7 +220,7 @@ export class OneWayMarketTemplate {
         return await ensureAllowanceEstimateGas([this.borrowed_token.address], [borrowed], this.addresses.vault);
     }
 
-    public async vaultDepositApprove(borrowed: TAmount): Promise<string[]> {
+    private async vaultDepositApprove(borrowed: TAmount): Promise<string[]> {
         return await ensureAllowance([this.borrowed_token.address], [borrowed], this.addresses.vault);
     }
 
@@ -228,12 +236,12 @@ export class OneWayMarketTemplate {
         return (await lending.contracts[this.addresses.vault].contract.deposit(_amount, { ...lending.options, gasLimit })).hash;
     }
 
-    public async vaultDepositEstimateGas(amount: TAmount): Promise<TGas> {
+    private async vaultDepositEstimateGas(amount: TAmount): Promise<TGas> {
         if (!(await this.vaultDepositIsApproved(amount))) throw Error("Approval is needed for gas estimation");
         return await this._vaultDeposit(amount, true) as number;
     }
 
-    public async vaultDeposit(amount: TAmount): Promise<string> {
+    private async vaultDeposit(amount: TAmount): Promise<string> {
         await this.vaultDepositApprove(amount);
         return await this._vaultDeposit(amount, false) as string;
     }
@@ -253,7 +261,7 @@ export class OneWayMarketTemplate {
         return formatUnits(_assets, this.borrowed_token.decimals);
     }
 
-    public async vaultMintIsApproved(borrowed: TAmount): Promise<boolean> {
+    private async vaultMintIsApproved(borrowed: TAmount): Promise<boolean> {
         return await hasAllowance([this.borrowed_token.address], [borrowed], lending.signerAddress, this.addresses.vault);
     }
 
@@ -261,7 +269,7 @@ export class OneWayMarketTemplate {
         return await ensureAllowanceEstimateGas([this.borrowed_token.address], [borrowed], this.addresses.vault);
     }
 
-    public async vaultMintApprove(borrowed: TAmount): Promise<string[]> {
+    private async vaultMintApprove(borrowed: TAmount): Promise<string[]> {
         return await ensureAllowance([this.borrowed_token.address], [borrowed], this.addresses.vault);
     }
 
@@ -277,12 +285,12 @@ export class OneWayMarketTemplate {
         return (await lending.contracts[this.addresses.vault].contract.mint(_amount, { ...lending.options, gasLimit })).hash;
     }
 
-    public async vaultMintEstimateGas(amount: TAmount): Promise<TGas> {
+    private async vaultMintEstimateGas(amount: TAmount): Promise<TGas> {
         if (!(await this.vaultMintIsApproved(amount))) throw Error("Approval is needed for gas estimation");
         return await this._vaultMint(amount, true) as number;
     }
 
-    public async vaultMint(amount: TAmount): Promise<string> {
+    private async vaultMint(amount: TAmount): Promise<string> {
         await this.vaultMintApprove(amount);
         return await this._vaultMint(amount, false) as string;
     }
@@ -314,11 +322,11 @@ export class OneWayMarketTemplate {
         return (await lending.contracts[this.addresses.vault].contract.withdraw(_amount, { ...lending.options, gasLimit })).hash;
     }
 
-    public async vaultWithdrawEstimateGas(amount: TAmount): Promise<TGas> {
+    private async vaultWithdrawEstimateGas(amount: TAmount): Promise<TGas> {
         return await this._vaultWithdraw(amount, true) as number;
     }
 
-    public async vaultWithdraw(amount: TAmount): Promise<string> {
+    private async vaultWithdraw(amount: TAmount): Promise<string> {
         return await this._vaultWithdraw(amount, false) as string;
     }
 
@@ -349,11 +357,11 @@ export class OneWayMarketTemplate {
         return (await lending.contracts[this.addresses.vault].contract.redeem(_amount, { ...lending.options, gasLimit })).hash;
     }
 
-    public async vaultRedeemEstimateGas(amount: TAmount): Promise<TGas> {
+    private async vaultRedeemEstimateGas(amount: TAmount): Promise<TGas> {
         return await this._vaultRedeem(amount, true) as number;
     }
 
-    public async vaultRedeem(amount: TAmount): Promise<string> {
+    private async vaultRedeem(amount: TAmount): Promise<string> {
         return await this._vaultRedeem(amount, false) as string;
     }
 

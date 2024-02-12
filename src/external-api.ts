@@ -15,6 +15,18 @@ export const _getPoolsFromApi = memoize(
     }
 )
 
+export const _getAllPoolsFromApi = async (network: INetworkName): Promise<IExtendedPoolDataFromApi[]> => {
+    return await Promise.all([
+        _getPoolsFromApi(network, "main"),
+        _getPoolsFromApi(network, "crypto"),
+        _getPoolsFromApi(network, "factory"),
+        _getPoolsFromApi(network, "factory-crvusd"),
+        _getPoolsFromApi(network, "factory-crypto"),
+        _getPoolsFromApi(network, "factory-tricrypto"),
+        _getPoolsFromApi(network, "factory-stable-ng"),
+    ]);
+}
+
 export const _getUserCollateral = memoize(
     async (network: INetworkName, controller: string, user: string, collateralDecimals = 18): Promise<string> => {
         const url = `https://prices.curve.fi/v1/lending/collateral_events/${network}/${controller}/${user}`;

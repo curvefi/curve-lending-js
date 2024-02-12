@@ -3,12 +3,10 @@ import { ethers,  BigNumberish, Numeric } from "ethers";
 import { Call } from "ethcall";
 import BigNumber from 'bignumber.js';
 import {ICurveContract, IDict} from "./interfaces.js";
-import { _getPoolsFromApi } from "./external-api";
+import { _getAllPoolsFromApi } from "./external-api.js";
 import { lending } from "./lending.js";
 import {JsonFragment} from "ethers/lib.esm";
 
-//export const MAX_ALLOWANCE = ethers.BigNumber.from(2).pow(ethers.BigNumber.from(256)).sub(ethers.BigNumber.from(1));
-//export const MAX_ACTIVE_BAND = ethers.BigNumber.from(2).pow(ethers.BigNumber.from(255)).sub(ethers.BigNumber.from(1));
 export const MAX_ALLOWANCE = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");  // 2**256 - 1
 export const MAX_ACTIVE_BAND = BigInt("57896044618658097711785492504343953926634992332820282019728792003956564819967");  // 2**255 - 1
 
@@ -133,8 +131,10 @@ export const handleMultiCallResponse = (callsMap: string[], response: any[]) => 
 }
 
 // coins can be either addresses or symbols
-export const _getCoinAddressesNoCheck = (coins: string[]): string[] => {
-    return coins.map((c) => c.toLowerCase()).map((c) => lending.constants.COINS[c].address || c);
+export const _getCoinAddressesNoCheck = (...coins: string[] | string[][]): string[] => {
+    if (coins.length == 1 && Array.isArray(coins[0])) coins = coins[0];
+    coins = coins as string[];
+    return coins.map((c) => c.toLowerCase()).map((c) => lending.constants.COINS[c] || c);
 }
 
 export const _getCoinAddresses = (coins: string[]): string[] => {
@@ -288,4 +288,169 @@ export const ensureAllowance = async (coins: string[], amounts: (number | string
     const _amounts = amounts.map((a, i) => parseUnits(a, decimals[i]));
 
     return await _ensureAllowance(coinAddresses, _amounts, spender, isMax)
+}
+
+export const _getUsdPricesFromApi = async (): Promise<IDict<number>> => {
+    const network = lending.constants.NETWORK_NAME;
+    const allTypesExtendedPoolData = await _getAllPoolsFromApi(network);
+    const priceDict: IDict<Record<string, number>[]> = {};
+    const priceDictByMaxTvl: IDict<number> = {};
+
+    for (const extendedPoolData of allTypesExtendedPoolData) {
+        for (const pool of extendedPoolData.poolData) {
+            const lpTokenAddress = pool.lpTokenAddress ?? pool.address;
+            const totalSupply = pool.totalSupply / (10 ** 18);
+            if(lpTokenAddress.toLowerCase() in priceDict) {
+                priceDict[lpTokenAddress.toLowerCase()].push({
+                    price: pool.usdTotal && totalSupply ? pool.usdTotal / totalSupply : 0,
+                    tvl: pool.usdTotal,
+                })
+            } else {
+                priceDict[lpTokenAddress.toLowerCase()] = []
+                priceDict[lpTokenAddress.toLowerCase()].push({
+                    price: pool.usdTotal && totalSupply ? pool.usdTotal / totalSupply : 0,
+                    tvl: pool.usdTotal,
+                })
+            }
+
+            for (const coin of pool.coins) {
+                if (typeof coin.usdPrice === "number") {
+                    if(coin.address.toLowerCase() in priceDict) {
+                        priceDict[coin.address.toLowerCase()].push({
+                            price: coin.usdPrice,
+                            tvl: pool.usdTotal,
+                        })
+                    } else {
+                        priceDict[coin.address.toLowerCase()] = []
+                        priceDict[coin.address.toLowerCase()].push({
+                            price: coin.usdPrice,
+                            tvl: pool.usdTotal,
+                        })
+                    }
+                }
+            }
+
+            for (const coin of pool.gaugeRewards ?? []) {
+                if (typeof coin.tokenPrice === "number") {
+                    if(coin.tokenAddress.toLowerCase() in priceDict) {
+                        priceDict[coin.tokenAddress.toLowerCase()].push({
+                            price: coin.tokenPrice,
+                            tvl: pool.usdTotal,
+                        });
+                    } else {
+                        priceDict[coin.tokenAddress.toLowerCase()] = []
+                        priceDict[coin.tokenAddress.toLowerCase()].push({
+                            price: coin.tokenPrice,
+                            tvl: pool.usdTotal,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    for(const address in priceDict) {
+        if(priceDict[address].length > 0) {
+            const maxTvlItem = priceDict[address].reduce((prev, current) => {
+                if (+current.tvl > +prev.tvl) {
+                    return current;
+                } else {
+                    return prev;
+                }
+            });
+            priceDictByMaxTvl[address] = maxTvlItem.price
+        } else {
+            priceDictByMaxTvl[address] = 0
+        }
+
+    }
+
+    return priceDictByMaxTvl
+}
+
+
+const _usdRatesCache: IDict<{ rate: number, time: number }> = {}
+export const _getUsdRate = async (assetId: string): Promise<number> => {
+    if (lending.chainId === 1 && assetId.toLowerCase() === '0x8762db106b2c2a0bccb3a80d1ed41273552616e8') return 0; // RSR
+    const pricesFromApi = await _getUsdPricesFromApi();
+    if (assetId.toLowerCase() in pricesFromApi) return pricesFromApi[assetId.toLowerCase()];
+
+    if (assetId === 'USD' || (lending.chainId === 137 && (assetId.toLowerCase() === lending.constants.COINS.am3crv.toLowerCase()))) return 1
+
+    let chainName = {
+        1: 'ethereum',
+        10: 'optimistic-ethereum',
+        56: "binance-smart-chain",
+        100: 'xdai',
+        137: 'polygon-pos',
+        250: 'fantom',
+        324: 'zksync',
+        1284: 'moonbeam',
+        2222: 'kava',
+        8453: 'base',
+        42220: 'celo',
+        43114: 'avalanche',
+        42161: 'arbitrum-one',
+        1313161554: 'aurora',
+    }[lending.chainId];
+
+    const nativeTokenName = {
+        1: 'ethereum',
+        10: 'ethereum',
+        56: 'binancecoin',
+        100: 'xdai',
+        137: 'matic-network',
+        250: 'fantom',
+        324: 'ethereum',
+        1284: 'moonbeam',
+        2222: 'kava',
+        8453: 'ethereum',
+        42220: 'celo',
+        43114: 'avalanche-2',
+        42161: 'ethereum',
+        1313161554: 'ethereum',
+    }[lending.chainId] as string;
+
+    if (chainName === undefined) {
+        throw Error('curve object is not initialized')
+    }
+
+    assetId = {
+        'CRV': 'curve-dao-token',
+        'EUR': 'stasis-eurs',
+        'BTC': 'bitcoin',
+        'ETH': 'ethereum',
+        'LINK': 'link',
+    }[assetId.toUpperCase()] || assetId
+    assetId = isEth(assetId) ? nativeTokenName : assetId.toLowerCase();
+
+    // No EURT on Coingecko Polygon
+    if (lending.chainId === 137 && assetId.toLowerCase() === lending.constants.COINS.eurt) {
+        chainName = 'ethereum';
+        assetId = '0xC581b735A1688071A1746c968e0798D642EDE491'.toLowerCase(); // EURT Ethereum
+    }
+
+    // CRV
+    if (assetId.toLowerCase() === lending.constants.ALIASES.crv) {
+        assetId = 'curve-dao-token';
+    }
+
+    if ((_usdRatesCache[assetId]?.time || 0) + 600000 < Date.now()) {
+        const url = [nativeTokenName, 'ethereum', 'bitcoin', 'link', 'curve-dao-token', 'stasis-eurs'].includes(assetId.toLowerCase()) ?
+            `https://api.coingecko.com/api/v3/simple/price?ids=${assetId}&vs_currencies=usd` :
+            `https://api.coingecko.com/api/v3/simple/token_price/${chainName}?contract_addresses=${assetId}&vs_currencies=usd`
+        const response = await axios.get(url);
+        try {
+            _usdRatesCache[assetId] = {'rate': response.data[assetId]['usd'] ?? 0, 'time': Date.now()};
+        } catch (err) { // TODO pay attention!
+            _usdRatesCache[assetId] = {'rate': 0, 'time': Date.now()};
+        }
+    }
+
+    return _usdRatesCache[assetId]['rate']
+}
+
+export const getUsdRate = async (coin: string): Promise<number> => {
+    const [coinAddress] = _getCoinAddressesNoCheck(coin);
+    return await _getUsdRate(coinAddress);
 }

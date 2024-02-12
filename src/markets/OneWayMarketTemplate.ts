@@ -164,18 +164,18 @@ export class OneWayMarketTemplate {
         }
 
         this.vault = {
-            deposit: this.vaultDeposit.bind(this),
-            previewDeposit: this.vaultPreviewDeposit.bind(this),
             maxDeposit: this.vaultMaxDeposit.bind(this),
-            mint: this.vaultMint.bind(this),
-            previewMint: this.vaultPreviewMint.bind(this),
+            previewDeposit: this.vaultPreviewDeposit.bind(this),
+            deposit: this.vaultDeposit.bind(this),
             maxMint: this.vaultMaxMint.bind(this),
-            withdraw: this.vaultWithdraw.bind(this),
-            previewWithdraw: this.vaultPreviewWithdraw.bind(this),
+            previewMint: this.vaultPreviewMint.bind(this),
+            mint: this.vaultMint.bind(this),
             maxWithdraw: this.vaultMaxWithdraw.bind(this),
-            redeem: this.vaultRedeem.bind(this),
-            previewRedeem: this.vaultPreviewRedeem.bind(this),
+            previewWithdraw: this.vaultPreviewWithdraw.bind(this),
+            withdraw: this.vaultWithdraw.bind(this),
             maxRedeem: this.vaultMaxRedeem.bind(this),
+            previewRedeem: this.vaultPreviewRedeem.bind(this),
+            redeem: this.vaultRedeem.bind(this),
             estimateGas: {
                 depositApprove: this.vaultDepositApproveEstimateGas.bind(this),
                 deposit: this.vaultDepositEstimateGas.bind(this),
@@ -190,16 +190,18 @@ export class OneWayMarketTemplate {
 
     // ---------------- VAULT ----------------
 
-    private async _vaultDeposit(amount: TAmount, estimateGas = false): Promise<string | TGas> {
+    private async vaultMaxDeposit(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _amount = await lending.contracts[this.addresses.vault].contract.maxDeposit(address);
+
+        return formatUnits(_amount,  this.borrowed_token.decimals);
+    }
+
+    private async vaultPreviewDeposit(amount: TAmount, estimateGas = false): Promise<string> {
         const _amount = parseUnits(amount, this.borrowed_token.decimals);
-        const gas = await lending.contracts[this.addresses.vault].contract.deposit.estimateGas(_amount, { ...lending.constantOptions });
-        if (estimateGas) return smartNumber(gas);
+        const _shares = await lending.contracts[this.addresses.vault].contract.previewDeposit(_amount);
 
-        await lending.updateFeeData();
-
-        const gasLimit = _mulBy1_3(DIGas(gas));
-
-        return (await lending.contracts[this.addresses.vault].contract.deposit(_amount, { ...lending.options, gasLimit })).hash;
+        return formatUnits(_shares, 18);
     }
 
     public async vaultDepositIsApproved(borrowed: TAmount): Promise<boolean> {
@@ -214,6 +216,18 @@ export class OneWayMarketTemplate {
         return await ensureAllowance([this.borrowed_token.address], [borrowed], this.addresses.vault);
     }
 
+    private async _vaultDeposit(amount: TAmount, estimateGas = false): Promise<string | TGas> {
+        const _amount = parseUnits(amount, this.borrowed_token.decimals);
+        const gas = await lending.contracts[this.addresses.vault].contract.deposit.estimateGas(_amount, { ...lending.constantOptions });
+        if (estimateGas) return smartNumber(gas);
+
+        await lending.updateFeeData();
+
+        const gasLimit = _mulBy1_3(DIGas(gas));
+
+        return (await lending.contracts[this.addresses.vault].contract.deposit(_amount, { ...lending.options, gasLimit })).hash;
+    }
+
     public async vaultDepositEstimateGas(amount: TAmount): Promise<TGas> {
         if (!(await this.vaultDepositIsApproved(amount))) throw Error("Approval is needed for gas estimation");
         return await this._vaultDeposit(amount, true) as number;
@@ -224,30 +238,19 @@ export class OneWayMarketTemplate {
         return await this._vaultDeposit(amount, false) as string;
     }
 
-    private async vaultPreviewDeposit(amount: TAmount, estimateGas = false): Promise<string> {
-        const _amount = parseUnits(amount, this.borrowed_token.decimals);
-        const _shares = await lending.contracts[this.addresses.vault].contract.previewDeposit(_amount);
+
+    private async vaultMaxMint(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _shares = await lending.contracts[this.addresses.vault].contract.maxMint(address);
 
         return formatUnits(_shares, 18);
     }
 
-    private async vaultMaxDeposit(address = ""): Promise<string> {
-        address = _getAddress(address);
-        const _amount = await lending.contracts[this.addresses.vault].contract.maxDeposit(address);
-
-        return formatUnits(_amount,  this.borrowed_token.decimals);
-    }
-
-    private async _vaultMint(amount: TAmount, estimateGas = false): Promise<string | TGas> {
+    private async vaultPreviewMint(amount: TAmount): Promise<string> {
         const _amount = parseUnits(amount, 18);
-        const gas = await lending.contracts[this.addresses.vault].contract.mint.estimateGas(_amount, { ...lending.constantOptions });
-        if (estimateGas) return smartNumber(gas);
+        const _assets = await lending.contracts[this.addresses.vault].contract.previewMint(_amount);
 
-        await lending.updateFeeData();
-
-        const gasLimit = _mulBy1_3(DIGas(gas));
-
-        return (await lending.contracts[this.addresses.vault].contract.mint(_amount, { ...lending.options, gasLimit })).hash;
+        return formatUnits(_assets, this.borrowed_token.decimals);
     }
 
     public async vaultMintIsApproved(borrowed: TAmount): Promise<boolean> {
@@ -262,6 +265,18 @@ export class OneWayMarketTemplate {
         return await ensureAllowance([this.borrowed_token.address], [borrowed], this.addresses.vault);
     }
 
+    private async _vaultMint(amount: TAmount, estimateGas = false): Promise<string | TGas> {
+        const _amount = parseUnits(amount, 18);
+        const gas = await lending.contracts[this.addresses.vault].contract.mint.estimateGas(_amount, { ...lending.constantOptions });
+        if (estimateGas) return smartNumber(gas);
+
+        await lending.updateFeeData();
+
+        const gasLimit = _mulBy1_3(DIGas(gas));
+
+        return (await lending.contracts[this.addresses.vault].contract.mint(_amount, { ...lending.options, gasLimit })).hash;
+    }
+
     public async vaultMintEstimateGas(amount: TAmount): Promise<TGas> {
         if (!(await this.vaultMintIsApproved(amount))) throw Error("Approval is needed for gas estimation");
         return await this._vaultMint(amount, true) as number;
@@ -272,16 +287,17 @@ export class OneWayMarketTemplate {
         return await this._vaultMint(amount, false) as string;
     }
 
-    private async vaultPreviewMint(amount: TAmount): Promise<string> {
-        const _amount = parseUnits(amount, 18);
-        const _assets = await lending.contracts[this.addresses.vault].contract.previewMint(_amount);
+
+    private async vaultMaxWithdraw(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _assets = await lending.contracts[this.addresses.vault].contract.maxWithdraw(address);
 
         return formatUnits(_assets, this.borrowed_token.decimals);
     }
 
-    private async vaultMaxMint(address = ""): Promise<string> {
-        address = _getAddress(address);
-        const _shares = await lending.contracts[this.addresses.vault].contract.maxMint(address);
+    private async vaultPreviewWithdraw(amount: TAmount): Promise<string> {
+        const _amount = parseUnits(amount, this.borrowed_token.decimals);
+        const _shares = await lending.contracts[this.addresses.vault].contract.previewWithdraw(_amount);
 
         return formatUnits(_shares, 18);
     }
@@ -306,16 +322,17 @@ export class OneWayMarketTemplate {
         return await this._vaultWithdraw(amount, false) as string;
     }
 
-    private async vaultPreviewWithdraw(amount: TAmount): Promise<string> {
-        const _amount = parseUnits(amount, this.borrowed_token.decimals);
-        const _shares = await lending.contracts[this.addresses.vault].contract.previewWithdraw(_amount);
+
+    private async vaultMaxRedeem(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _shares = await lending.contracts[this.addresses.vault].contract.maxRedeem(address)
 
         return formatUnits(_shares, 18);
     }
 
-    private async vaultMaxWithdraw(address = ""): Promise<string> {
-        address = _getAddress(address);
-        const _assets = await lending.contracts[this.addresses.vault].contract.maxWithdraw(address);
+    private async vaultPreviewRedeem(amount: TAmount): Promise<string> {
+        const _amount = parseUnits(amount, 18);
+        const _assets = await lending.contracts[this.addresses.vault].contract.previewRedeem(_amount);
 
         return formatUnits(_assets, this.borrowed_token.decimals);
     }
@@ -338,20 +355,6 @@ export class OneWayMarketTemplate {
 
     public async vaultRedeem(amount: TAmount): Promise<string> {
         return await this._vaultRedeem(amount, false) as string;
-    }
-
-    private async vaultPreviewRedeem(amount: TAmount): Promise<string> {
-        const _amount = parseUnits(amount, 18);
-        const _assets = await lending.contracts[this.addresses.vault].contract.previewRedeem(_amount);
-
-        return formatUnits(_assets, this.borrowed_token.decimals);
-    }
-
-    private async vaultMaxRedeem(address = ""): Promise<string> {
-        address = _getAddress(address);
-        const _shares = await lending.contracts[this.addresses.vault].contract.maxRedeem(address)
-
-        return formatUnits(_shares, 18);
     }
 
     // ---------------- STATS ----------------

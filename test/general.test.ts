@@ -1,5 +1,5 @@
 import { assert } from "chai";
-import { lending } from "../src/lending.js";
+import lending from "../src/index.js";
 import { getOneWayMarket, OneWayMarketTemplate } from "../src/markets/index.js";
 import { BN } from "../src/utils.js";
 
@@ -207,7 +207,7 @@ describe('General test', async function () {
 
     before(async function () {
         await lending.init('JsonRpc', {},{ gasPrice: 0 });
-        await lending.fetchMarkets();
+        await lending.oneWayfactory.fetchMarkets();
     });
 
     for (const oneWayMarketId of ONE_WAY_MARKETS) {

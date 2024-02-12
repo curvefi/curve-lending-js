@@ -307,7 +307,7 @@ class Lending implements ILending {
 
     }
 
-    fetchMarkets = async () => {
+    fetchOneWayMarkets = async () => {
         const {amms, controllers, borrowed_tokens, collateral_tokens, monetary_policies, vaults, gauges} = await this.getFactoryMarketData()
         const COIN_DATA = await this.getCoins(collateral_tokens, borrowed_tokens);
         for (const c in COIN_DATA) {

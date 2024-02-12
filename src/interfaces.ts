@@ -68,10 +68,10 @@ export interface ILending {
     options: { gasPrice?: number | bigint, maxFeePerGas?: number | bigint, maxPriorityFeePerGas?: number | bigint },
     constants: {
         ONE_WAY_MARKETS: IDict<IOneWayMarket>,
-        COINS: IDict<ICoin>
         DECIMALS: IDict<number>;
         NETWORK_NAME: INetworkName;
         ALIASES: Record<string, string>;
+        COINS: Record<string, string>;
     };
 }
 

@@ -7,7 +7,6 @@ import LlammaABI from './constants/abis/Llamma.json' assert { type: 'json' };
 import ControllerABI from './constants/abis/Controller.json' assert { type: 'json' };
 import MonetaryPolicyABI from './constants/abis/MonetaryPolicy.json' assert { type: 'json' };
 import VaultABI from './constants/abis/Vault.json' assert { type: 'json' };
-
 import {
     ALIASES_ETHEREUM,
     ALIASES_OPTIMISM,
@@ -24,64 +23,94 @@ import {
     ALIASES_BASE,
     ALIASES_BSC,
 } from "./constants/aliases.js";
+import {
+    COINS_ETHEREUM,
+    COINS_OPTIMISM,
+    COINS_POLYGON,
+    COINS_FANTOM,
+    COINS_AVALANCHE,
+    COINS_ARBITRUM,
+    COINS_XDAI,
+    COINS_MOONBEAM,
+    COINS_AURORA,
+    COINS_KAVA,
+    COINS_CELO,
+    COINS_ZKSYNC,
+    COINS_BASE,
+    COINS_BSC,
+} from "./constants/coins.js";
 import { createCall, handleMultiCallResponse} from "./utils.js";
 
 export const NETWORK_CONSTANTS: { [index: number]: any } = {
     1: {
         NAME: 'ethereum',
         ALIASES: ALIASES_ETHEREUM,
+        COINS: COINS_ETHEREUM,
     },
     10: {
         NAME: 'optimism',
         ALIASES: ALIASES_OPTIMISM,
+        COINS: COINS_OPTIMISM,
     },
     56: {
         NAME: 'bsc',
         ALIASES: ALIASES_BSC,
+        COINS: COINS_BSC,
     },
     100: {
         NAME: 'xdai',
         ALIASES: ALIASES_XDAI,
+        COINS: COINS_XDAI,
     },
     137: {
         NAME: 'polygon',
         ALIASES: ALIASES_POLYGON,
+        COINS: COINS_POLYGON,
     },
     250: {
         NAME: 'fantom',
         ALIASES: ALIASES_FANTOM,
+        COINS: COINS_FANTOM,
     },
     324: {
         NAME: 'zksync',
         ALIASES: ALIASES_ZKSYNC,
+        COINS: COINS_ZKSYNC,
     },
     1284: {
         NAME: 'moonbeam',
         ALIASES: ALIASES_MOONBEAM,
+        COINS: COINS_MOONBEAM,
     },
     2222: {
         NAME: 'kava',
         ALIASES: ALIASES_KAVA,
+        COINS: COINS_KAVA,
     },
     8453: {
         NAME: 'base',
         ALIASES: ALIASES_BASE,
+        COINS: COINS_BASE,
     },
     42161: {
         NAME: 'arbitrum',
         ALIASES: ALIASES_ARBITRUM,
+        COINS: COINS_ARBITRUM,
     },
     42220: {
         NAME: 'celo',
         ALIASES: ALIASES_CELO,
+        COINS: COINS_CELO,
     },
     43114: {
         NAME: 'avalanche',
         ALIASES: ALIASES_AVALANCHE,
+        COINS: COINS_AVALANCHE,
     },
     1313161554: {
         NAME: 'aurora',
         ALIASES: ALIASES_AURORA,
+        COINS: COINS_AURORA,
     },
 }
 
@@ -99,10 +128,10 @@ class Lending implements ILending {
     options: { gasPrice?: number | bigint, maxFeePerGas?: number | bigint, maxPriorityFeePerGas?: number | bigint };
     constants: {
         ONE_WAY_MARKETS: IDict<IOneWayMarket>,
-        COINS: IDict<ICoin>
         DECIMALS: IDict<number>;
         NETWORK_NAME: INetworkName;
         ALIASES: Record<string, string>;
+        COINS: Record<string, string>;
     };
 
     constructor() {
@@ -196,6 +225,7 @@ class Lending implements ILending {
 
         this.constants.NETWORK_NAME = NETWORK_CONSTANTS[this.chainId].NAME;
         this.constants.ALIASES = NETWORK_CONSTANTS[this.chainId].ALIASES;
+        this.constants.COINS = NETWORK_CONSTANTS[this.chainId].COINS;
 
         this.multicallProvider = new MulticallProvider(this.chainId, this.provider);
 
@@ -279,9 +309,9 @@ class Lending implements ILending {
 
     fetchMarkets = async () => {
         const {amms, controllers, borrowed_tokens, collateral_tokens, monetary_policies, vaults, gauges} = await this.getFactoryMarketData()
-        this.constants.COINS = await this.getCoins(collateral_tokens, borrowed_tokens);
-        for (const c in this.constants.COINS) {
-            this.constants.DECIMALS[c] = this.constants.COINS[c].decimals;
+        const COIN_DATA = await this.getCoins(collateral_tokens, borrowed_tokens);
+        for (const c in COIN_DATA) {
+            this.constants.DECIMALS[c] = COIN_DATA[c].decimals;
         }
 
         amms.forEach((amm: string, index: number) => {
@@ -289,11 +319,11 @@ class Lending implements ILending {
             this.setContract(controllers[index], ControllerABI);
             this.setContract(monetary_policies[index], MonetaryPolicyABI);
             this.setContract(vaults[index], VaultABI);
-            this.constants.COINS[vaults[index]] = {
+            COIN_DATA[vaults[index]] = {
                 address: vaults[index],
                 decimals: 18,
-                name: "Curve Vault for " + this.constants.COINS[borrowed_tokens[index]].name,
-                symbol: "cv" + this.constants.COINS[borrowed_tokens[index]].symbol,
+                name: "Curve Vault for " + COIN_DATA[borrowed_tokens[index]].name,
+                symbol: "cv" + COIN_DATA[borrowed_tokens[index]].symbol,
             };
             this.constants.DECIMALS[vaults[index]] = 18;
             this.constants.ONE_WAY_MARKETS[`one-way-market-${index}`] = {
@@ -307,8 +337,8 @@ class Lending implements ILending {
                     vault: vaults[index],
                     gauge: gauges[index],
                 },
-                borrowed_token: this.constants.COINS[borrowed_tokens[index]],
-                collateral_token: this.constants.COINS[collateral_tokens[index]],
+                borrowed_token: COIN_DATA[borrowed_tokens[index]],
+                collateral_token: COIN_DATA[collateral_tokens[index]],
             }
         })
     }

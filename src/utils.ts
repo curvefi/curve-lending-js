@@ -10,7 +10,7 @@ import {JsonFragment} from "ethers/lib.esm";
 //export const MAX_ALLOWANCE = ethers.BigNumber.from(2).pow(ethers.BigNumber.from(256)).sub(ethers.BigNumber.from(1));
 //export const MAX_ACTIVE_BAND = ethers.BigNumber.from(2).pow(ethers.BigNumber.from(255)).sub(ethers.BigNumber.from(1));
 export const MAX_ALLOWANCE = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");  // 2**256 - 1
-export const MAX_ACTIVE_BAND = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");  // 2**256 - 1
+export const MAX_ACTIVE_BAND = BigInt("57896044618658097711785492504343953926634992332820282019728792003956564819967");  // 2**255 - 1
 
 // Common
 

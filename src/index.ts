@@ -34,6 +34,7 @@ const lending = {
     getUsdRate,
     oneWayfactory: {
         fetchMarkets:  _lending.fetchOneWayMarkets,
+        getMarketList: _lending.getOneWayMarketList,
     },
     estimateGas: {
         ensureAllowance: ensureAllowanceEstimateGas,

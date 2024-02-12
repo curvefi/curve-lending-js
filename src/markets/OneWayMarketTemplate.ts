@@ -94,18 +94,18 @@ export class OneWayMarketTemplate {
     };
 
     vault: {
-        deposit: (amount: TAmount) => Promise<string>,
+        maxDeposit: (address?: string) => Promise<string>,
         previewDeposit: (amount: TAmount) => Promise<string>,
-        maxDeposit: () => Promise<string>,
-        mint: (amount: TAmount) => Promise<string>,
+        deposit: (amount: TAmount) => Promise<string>,
+        maxMint: (address?: string) => Promise<string>,
         previewMint: (amount: TAmount) => Promise<string>,
-        maxMint: () => Promise<string>,
-        withdraw: (amount: TAmount) => Promise<string>,
+        mint: (amount: TAmount) => Promise<string>,
+        maxWithdraw: (address?: string) => Promise<string>,
         previewWithdraw: (amount: TAmount) => Promise<string>,
-        maxWithdraw: () => Promise<string>,
-        redeem: (amount: TAmount) => Promise<string>,
+        withdraw: (amount: TAmount) => Promise<string>,
+        maxRedeem: (address?: string) => Promise<string>,
         previewRedeem: (amount: TAmount) => Promise<string>,
-        maxRedeem: () => Promise<string>,
+        redeem: (amount: TAmount) => Promise<string>,
         estimateGas: {
             depositApprove: (amount: TAmount) => Promise<TGas>,
             deposit: (amount: TAmount) => Promise<TGas>,

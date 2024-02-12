@@ -231,8 +231,9 @@ export class OneWayMarketTemplate {
         return formatUnits(_shares, 18);
     }
 
-    private async vaultMaxDeposit(): Promise<string> {
-        const _amount = await lending.contracts[this.addresses.vault].contract.maxDeposit();
+    private async vaultMaxDeposit(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _amount = await lending.contracts[this.addresses.vault].contract.maxDeposit(address);
 
         return formatUnits(_amount,  this.borrowed_token.decimals);
     }
@@ -278,8 +279,9 @@ export class OneWayMarketTemplate {
         return formatUnits(_assets, this.borrowed_token.decimals);
     }
 
-    private async vaultMaxMint(): Promise<string> {
-        const _shares = await lending.contracts[this.addresses.vault].contract.maxMint()
+    private async vaultMaxMint(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _shares = await lending.contracts[this.addresses.vault].contract.maxMint(address);
 
         return formatUnits(_shares, 18);
     }
@@ -311,8 +313,9 @@ export class OneWayMarketTemplate {
         return formatUnits(_shares, 18);
     }
 
-    private async vaultMaxWithdraw(): Promise<string> {
-        const _assets = await lending.contracts[this.addresses.vault].contract.maxWithdraw();
+    private async vaultMaxWithdraw(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _assets = await lending.contracts[this.addresses.vault].contract.maxWithdraw(address);
 
         return formatUnits(_assets, this.borrowed_token.decimals);
     }
@@ -344,8 +347,9 @@ export class OneWayMarketTemplate {
         return formatUnits(_assets, this.borrowed_token.decimals);
     }
 
-    private async vaultMaxRedeem(): Promise<string> {
-        const _shares = await lending.contracts[this.addresses.vault].contract.maxRedeem()
+    private async vaultMaxRedeem(address = ""): Promise<string> {
+        address = _getAddress(address);
+        const _shares = await lending.contracts[this.addresses.vault].contract.maxRedeem(address)
 
         return formatUnits(_shares, 18);
     }

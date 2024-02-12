@@ -200,7 +200,8 @@ export class OneWayMarketTemplate {
 
     private async vaultMaxDeposit(address = ""): Promise<string> {
         address = _getAddress(address);
-        const _amount = await lending.contracts[this.addresses.vault].contract.maxDeposit(address);
+        // const _amount = await lending.contracts[this.addresses.vault].contract.maxDeposit(address);  TODO use maxDeposit
+        const _amount = await lending.contracts[this.addresses.borrowed_token].contract.balanceOf(address);
 
         return formatUnits(_amount,  this.borrowed_token.decimals);
     }
@@ -249,7 +250,9 @@ export class OneWayMarketTemplate {
 
     private async vaultMaxMint(address = ""): Promise<string> {
         address = _getAddress(address);
-        const _shares = await lending.contracts[this.addresses.vault].contract.maxMint(address);
+        // const _shares = await lending.contracts[this.addresses.vault].contract.maxMint(address);  TODO use maxMint
+        const _assetBalance = await lending.contracts[this.addresses.borrowed_token].contract.balanceOf(address);
+        const _shares = await lending.contracts[this.addresses.vault].contract.convertToShares(_assetBalance);
 
         return formatUnits(_shares, 18);
     }

@@ -11,8 +11,8 @@ const swapTest = (id: string) => {
 
     before(async function () {
         oneWayMarket = getOneWayMarket(id);
-        const maxDeposit = Number(await oneWayMarket.vault.maxDeposit()) * 0.05;
-        await oneWayMarket.vault.deposit(maxDeposit);
+        const depositAmount = Number(await oneWayMarket.vault.maxDeposit()) * 0.05;
+        await oneWayMarket.vault.deposit(depositAmount);
         maxDebt = await oneWayMarket.createLoanMaxRecv(0.3, 10);
         await oneWayMarket.createLoan(0.3, maxDebt, 10)
     });

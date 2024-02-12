@@ -1,377 +1,314 @@
-// import crvusd from "../src";
-//
-// const generalMethodsTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const balances1 = await crvusd.getBalances(['crvusd', 'sfrxeth']);
-//     // OR const balances1 = await crvusd.getBalances(['0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E', '0xac3E018457B222d93114458476f3E3416Abbe38F']);
-//     console.log(balances1);
-//     // [ '0.0', '1.0' ]
-//
-//     // You can specify address
-//     const balances2 = await crvusd.getBalances(['crvusd', 'sfrxeth'], "0x0063046686E46Dc6F15918b61AE2B121458534a5");
-//     // OR const balances2 = await crvusd.getBalances(['0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E', '0xac3E018457B222d93114458476f3E3416Abbe38F'], '0x0063046686E46Dc6F15918b61AE2B121458534a5');
-//     console.log(balances2);
-//     // [ '0.0', '0.0' ]
-//
-//     const spender = "0x136e783846ef68C8Bd00a3369F787dF8d683a696" // sfrxeth llamma address
-//
-//     await crvusd.getAllowance(["crvusd", "sfrxeth"], crvusd.signerAddress, spender);
-//     // [ '0.0', '0.0' ]
-//     await crvusd.hasAllowance(["crvusd", "sfrxeth"], ['1000', '1000'], crvusd.signerAddress, spender);
-//     // false
-//     await crvusd.ensureAllowance(["crvusd", "sfrxeth"], ['1000', '1000'], spender);
-//     // [
-//     //     '0xb0cada2a2983dc0ed85a26916d32b9caefe45fecde47640bd7d0e214ff22aed3',
-//     //     '0x00ea7d827b3ad50ce933e96c579810cd7e70d66a034a86ec4e1e10005634d041'
-//     // ]
-//
-//     await crvusd.getUsdRate('0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
-//     // 1257.43
-//
-//     console.log(await crvusd.totalSupply());
-// }
-//
-// const llammaFieldsTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const llamma = crvusd.getLlamma('sfrxeth');
-//
-//     console.log(llamma.id);
-//     console.log(llamma.address);
-//     console.log(llamma.controller);
-//     console.log(llamma.monetaryPolicy);
-//     console.log(llamma.collateral);
-//     console.log(llamma.collateralSymbol);
-//     console.log(llamma.collateralDecimals);
-//     console.log(llamma.coins);
-//     console.log(llamma.coinAddresses);
-//     console.log(llamma.coinDecimals);
-//     console.log(llamma.minBands);
-//     console.log(llamma.maxBands);
-//     console.log(llamma.defaultBands);
-//     console.log(llamma.A);
-//     console.log(llamma.tickSpace);
-// }
-//
-// const walletBalancesTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const llamma = crvusd.getLlamma('sfrxeth');
-//
-//     // 1. Current address (signer) balances
-//
-//     console.log(await llamma.wallet.balances());
-//     // { stablecoin: '0.0', collateral: '1.0' }
-//
-//     // 2. You can specify the address
-//
-//     console.log(await llamma.wallet.balances("0x0063046686E46Dc6F15918b61AE2B121458534a5"));
-//     // { stablecoin: '0.0', collateral: '0.0' }
-// }
-//
-// const statsTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const llamma = crvusd.getLlamma('sfrxeth');
-//
-//     console.log(await llamma.stats.parameters());
-//     console.log(await llamma.stats.balances());
-//     console.log(await llamma.stats.maxMinBands());
-//     console.log(await llamma.stats.activeBand());
-//     const liquidatingBand = await llamma.stats.liquidatingBand();
-//     console.log(liquidatingBand);
-//     console.log(await llamma.stats.bandBalances(liquidatingBand ?? 0));
-//     console.log(await llamma.stats.bandsBalances());
-//     console.log(await llamma.stats.totalSupply());
-//     console.log(await llamma.stats.totalDebt());
-//     console.log(await llamma.stats.totalStablecoin());
-//     console.log(await llamma.stats.totalCollateral());
-//     console.log(await llamma.stats.capAndAvailable());
-// }
-//
-// const generalTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     console.log(crvusd.getLlammaList());
-//
-//     const llamma = crvusd.getLlamma('sfrxeth');
-//
-//
-//     console.log("\n--- CREATE LOAN ---\n");
-//
-//     console.log(await llamma.oraclePrice());
-//     console.log(await llamma.price());
-//     console.log(await llamma.basePrice());
-//     console.log(await llamma.wallet.balances());
-//     console.log(await llamma.createLoanMaxRecv(1, 5));
-//     console.log(await llamma.createLoanBands(1, 1000, 5));
-//     console.log(await llamma.createLoanPrices(1, 1000, 5));
-//     console.log(await llamma.createLoanHealth(1, 1000, 5));  // FULL
-//     console.log(await llamma.createLoanHealth(1, 1000, 5, false));  // NOT FULL
-//
-//     console.log(await llamma.createLoanIsApproved(1));
-//     // false
-//     console.log(await llamma.createLoanApprove(1));
-//     // [
-//     //     '0xc111e471715ae6f5437e12d3b94868a5b6542cd7304efca18b5782d315760ae5'
-//     // ]
-//     console.log(await llamma.createLoan(1, 1000, 5));
-//
-//     console.log(await llamma.userDebt());  // OR await llamma.userDebt(address);
-//     console.log(await llamma.loanExists());
-//     console.log(await llamma.userHealth());  // FULL
-//     console.log(await llamma.userHealth(false));  // NOT FULL
-//     console.log(await llamma.userRange());
-//     console.log(await llamma.userBands());
-//     console.log(await llamma.userPrices());
-//     console.log(await llamma.userState());
-//     console.log(await llamma.userBandsBalances());
-//
-//     console.log("\n--- BORROW MORE ---\n");
-//
-//     console.log(await llamma.borrowMoreMaxRecv(0.5));
-//     console.log(await llamma.borrowMoreBands(0.5, 500));
-//     console.log(await llamma.borrowMorePrices(0.5, 500));
-//     console.log(await llamma.borrowMoreHealth(0.5, 500));  // FULL
-//     console.log(await llamma.borrowMoreHealth(0.5, 500, false));  // NOT FULL
-//
-//     console.log(await llamma.borrowMoreIsApproved(0.5));
-//     console.log(await llamma.borrowMoreApprove(0.5));
-//
-//     console.log(await llamma.borrowMore(0.5, 500));
-//
-//     console.log(await llamma.userHealth());  // FULL
-//     console.log(await llamma.userHealth(false));  // NOT FULL
-//     console.log(await llamma.userBands());
-//     console.log(await llamma.userPrices());
-//     console.log(await llamma.userState());
-//
-//     console.log("\n--- ADD COLLATERAL ---\n");
-//
-//     console.log(await llamma.addCollateralBands(0.2));
-//     console.log(await llamma.addCollateralPrices(0.2));
-//     console.log(await llamma.addCollateralHealth(0.2));  // FULL
-//     console.log(await llamma.addCollateralHealth(0.2, false));  // NOT FULL
-//
-//     console.log(await llamma.addCollateralIsApproved(0.2));
-//     console.log(await llamma.addCollateralApprove(0.2));
-//
-//     console.log(await llamma.addCollateral(0.2));  // OR await llamma.addCollateral(0.2, forAddress);
-//
-//     console.log(await llamma.userHealth());  // FULL
-//     console.log(await llamma.userHealth(false));  // NOT FULL
-//     console.log(await llamma.userBands());
-//     console.log(await llamma.userPrices());
-//     console.log(await llamma.userState());
-//
-//     console.log("\n--- REMOVE COLLATERAL ---\n")
-//
-//     console.log(await llamma.maxRemovable());
-//     console.log(await llamma.removeCollateralBands(0.1));
-//     console.log(await llamma.removeCollateralPrices(0.1));
-//     console.log(await llamma.removeCollateralHealth(0.1));  // FULL
-//     console.log(await llamma.removeCollateralHealth(0.1, false));  // NOT FULL
-//
-//     console.log(await llamma.removeCollateral(0.1));
-//
-//     console.log(await llamma.userHealth());  // FULL
-//     console.log(await llamma.userHealth(false));  // NOT FULL
-//     console.log(await llamma.userBands());
-//     console.log(await llamma.userPrices());
-//     console.log(await llamma.userState());
-//
-//     console.log("\n--- REPAY ---\n");
-//
-//     console.log(await llamma.wallet.balances());
-//
-//     console.log(await llamma.repayBands(1000));
-//     console.log(await llamma.repayPrices(1000));
-//     console.log(await llamma.repayHealth(1000));  // FULL
-//     console.log(await llamma.repayHealth(1000, false));  // NOT FULL
-//
-//     console.log(await llamma.repayIsApproved(1000));
-//     console.log(await llamma.repayApprove(1000));
-//
-//     console.log(await llamma.repay(1000));
-//
-//     console.log(await llamma.userDebt());
-//     console.log(await llamma.loanExists());
-//     console.log(await llamma.userHealth());  // FULL
-//     console.log(await llamma.userHealth(false));  // NOT FULL
-//     console.log(await llamma.userBands());
-//     console.log(await llamma.userPrices());
-//     console.log(await llamma.userState());
-//
-//     console.log("\n--- FULL REPAY ---\n");
-//
-//     console.log(await llamma.fullRepayIsApproved());
-//     console.log(await llamma.fullRepayApprove());
-//
-//     console.log(await llamma.fullRepay());
-//
-//     console.log(await llamma.loanExists());
-//     console.log(await llamma.userState());
-// }
-//
-// const createLoanAllRangesTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const llamma = crvusd.getLlamma('sfrxeth');
-//
-//     console.log(await llamma.createLoanMaxRecvAllRanges(1));
-//     console.log(await llamma.createLoanBandsAllRanges(1, 1600));
-//     console.log(await llamma.createLoanPricesAllRanges(1, 1600));
-// }
-//
-// const swapTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const llamma = crvusd.getLlamma('sfrxeth');
-//
-//     console.log(await llamma.wallet.balances());
-//
-//     console.log(await llamma.maxSwappable(0, 1));
-//     console.log(await llamma.swapExpected(0, 1, 100));
-//     console.log(await llamma.swapRequired(0, 1, 100));
-//     console.log(await llamma.swapPriceImpact(0, 1, 100));
-//     console.log(await llamma.swapIsApproved(0, 100));
-//     console.log(await llamma.swapApprove(0, 100));
-//     console.log(await llamma.swap(0, 1, 100, 0.1));
-//
-//     console.log(await llamma.wallet.balances());
-// }
-//
-// const selfLiquidationTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const llamma = crvusd.getLlamma('sfrxeth');
-//
-//     const maxDebt = await llamma.createLoanMaxRecv(0.3, 10);
-//     await llamma.createLoan(0.3, maxDebt, 10);
-//     await llamma.swap(0, 1, Number(maxDebt) * 10, 0.05);
-//
-//     console.log(await llamma.wallet.balances());
-//     console.log(await llamma.userState());
-//
-//     console.log(await llamma.tokensToLiquidate());
-//     console.log(await llamma.selfLiquidateIsApproved());
-//     console.log(await llamma.selfLiquidateApprove());
-//     console.log(await llamma.selfLiquidate(0.1));
-//
-//     console.log(await llamma.wallet.balances());
-//     console.log(await llamma.userState());
-// }
-//
-// const userLossTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const llamma = crvusd.getLlamma('sfrxeth');
-//
-//     console.log(await llamma.userLoss("0x0063046686E46Dc6F15918b61AE2B121458534a5"));
-//     // {
-//     //     deposited_collateral: '929.933909709140155529',
-//     //     current_collateral_estimation: '883.035865972092328038',
-//     //     loss: '46.898043737047827491',
-//     //     loss_pct: '5.043158793049750311'
-//     // }
-// }
-//
-// const leverageTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const llamma = crvusd.getLlamma('wsteth');
-//
-//     console.log(await llamma.leverage.createLoanMaxRecv(1, 5));
-//     const { collateral, leverage, routeIdx } = await llamma.leverage.createLoanCollateral(1, 1000);
-//     console.log({ collateral, leverage, routeIdx });
-//     console.log(await llamma.leverage.getRouteName(routeIdx));
-//     console.log(await llamma.leverage.getMaxRange(1, 1000));
-//     console.log(await llamma.leverage.createLoanBands(1, 1000, 5));
-//     console.log(await llamma.leverage.createLoanPrices(1, 1000, 5));
-//     console.log(await llamma.leverage.createLoanHealth(1, 1000, 5));  // FULL
-//     console.log(await llamma.leverage.createLoanHealth(1, 1000, 5, false));  // NOT FULL
-//     console.log(await llamma.leverage.priceImpact(1, 1000));
-//
-//     console.log(await llamma.leverage.createLoanIsApproved(1));
-//     // false
-//     console.log(await llamma.leverage.createLoanApprove(1));
-//     // [
-//     //     '0xa2cb9316c58a4e383a0fcc9d9c60c3742c46a901115b23d2c84ced6b61c5be84'
-//     // ]
-//     console.log(await llamma.leverage.createLoan(1, 1000, 5, 0.5));
-//
-//     console.log(await llamma.userDebt());  // OR await llamma.userDebt(address);
-//     console.log(await llamma.loanExists());
-//     console.log(await llamma.userHealth());  // FULL
-//     console.log(await llamma.userHealth(false));  // NOT FULL
-//     console.log(await llamma.userRange());
-//     console.log(await llamma.userBands());
-//     console.log(await llamma.userPrices());
-//     console.log(await llamma.userState());
-//     console.log(await llamma.userBandsBalances());
-// }
-//
-// const leverageAllRangesTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const llamma = crvusd.getLlamma('wsteth');
-//
-//     console.log(await llamma.leverage.createLoanMaxRecvAllRanges(1));
-//     console.log(await llamma.leverage.createLoanBandsAllRanges(1, 14000));
-//     console.log(await llamma.leverage.createLoanPricesAllRanges(1, 14000));
-// }
-//
-// const deleverageTest = async () => {
-//     await crvusd.init('JsonRpc', {});
-//
-//     const llamma = crvusd.getLlamma('wsteth');
-//
-//     console.log(await llamma.userState());
-//     const { stablecoins, routeIdx } = await llamma.deleverage.repayStablecoins(0.5);
-//     console.log({ stablecoins, routeIdx });
-//     console.log(await llamma.deleverage.getRouteName(routeIdx));
-//     console.log(await llamma.deleverage.repayBands(0.5));
-//     console.log(await llamma.deleverage.repayPrices(0.5));
-//     console.log(await llamma.deleverage.repayHealth(0.5));  // FULL
-//     console.log(await llamma.deleverage.repayHealth(0.5, false));  // NOT FULL
-//     console.log(await llamma.deleverage.priceImpact(0.5));
-//     console.log(await llamma.deleverage.isAvailable(0.5));
-//     console.log(await llamma.deleverage.isFullRepayment(0.5));
-//
-//     console.log(await llamma.deleverage.repay(0.5, 0.3));
-//
-//     console.log(await llamma.userState());
-//     console.log(await llamma.userBands());
-//     console.log(await llamma.userPrices());
-//     console.log(await llamma.userHealth());  // FULL
-//     console.log(await llamma.userHealth(false));  // NOT FULL
-//     console.log(await llamma.userBandsBalances());
-// }
-//
-// (async () => {
-//     console.log("\n--- generalMethodsTest ---\n")
-//     await generalMethodsTest();
-//     console.log("\n--- llammaFieldsTest ---\n")
-//     await llammaFieldsTest();
-//     console.log("\n--- walletBalancesTest ---\n")
-//     await walletBalancesTest();
-//     console.log("\n--- statsTest ---\n")
-//     await statsTest();
-//     console.log("\n--- generalTest ---\n")
-//     await generalTest();
-//     console.log("\n--- createLoanAllRangesTest ---\n")
-//     await createLoanAllRangesTest();
-//     console.log("\n--- swapTest ---\n")
-//     await swapTest();
-//     console.log("\n--- selfLiquidationTest ---\n")
-//     await selfLiquidationTest();
-//     console.log("\n--- userLossTest ---\n")
-//     await userLossTest();
-//     console.log("\n--- leverageTest ---\n")
-//     await leverageTest();
-//     console.log("\n--- leverageAllRangesTest ---\n")
-//     await leverageAllRangesTest();
-//     console.log("\n--- deleverageTest ---\n")
-//     await deleverageTest();
-// })()
+import lending from "../src/index.js";
+
+const generalMethodsTest = async () => {
+    await lending.init('JsonRpc', {});  // Polygon network
+    await lending.oneWayfactory.fetchMarkets();
+
+    const balances1 = await lending.getBalances(['sdt', 'weth']);
+    // OR const balances1 = await lending.getBalances(['0x361a5a4993493ce00f61c32d4ecca5512b82ce90', '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619']);
+    console.log(balances1);
+
+    // You can specify address
+    const balances2 = await lending.getBalances(['sdt', 'weth'], "0x0063046686E46Dc6F15918b61AE2B121458534a5");
+    // OR const balances2 = await lending.getBalances(['0x361a5a4993493ce00f61c32d4ecca5512b82ce90', '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619'], '0x0063046686E46Dc6F15918b61AE2B121458534a5');
+    console.log(balances2);
+
+    const spender = "0x136e783846ef68C8Bd00a3369F787dF8d683a696"
+
+    console.log(await lending.getAllowance(['sdt', 'weth'], lending.signerAddress, spender));
+    console.log(await lending.hasAllowance(['sdt', 'weth'], ['1000', '1000'], lending.signerAddress, spender));
+    console.log(await lending.ensureAllowance(['sdt', 'weth'], ['1000', '1000'], spender));
+
+    console.log(await lending.getUsdRate('0x7ceb23fd6bc0add59e62ac25578270cff1b9f619'));
+}
+
+const oneWayMarketFieldsTest = async () => {
+    await lending.init('JsonRpc', {});
+    await lending.oneWayfactory.fetchMarkets();
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
+    console.log(oneWayMarket.id);
+    console.log(oneWayMarket.addresses);
+    console.log(oneWayMarket.borrowed_token);
+    console.log(oneWayMarket.collateral_token);
+    console.log(oneWayMarket.coinAddresses);
+    console.log(oneWayMarket.coinDecimals);
+    console.log(oneWayMarket.defaultBands);
+    console.log(oneWayMarket.minBands);
+    console.log(oneWayMarket.maxBands);
+}
+
+const walletBalancesTest = async () => {
+    await lending.init('JsonRpc', {});
+    await lending.oneWayfactory.fetchMarkets();
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
+    // 1. Current address (signer) balances
+    console.log(await oneWayMarket.wallet.balances());
+
+    // 2. You can specify the address
+    console.log(await oneWayMarket.wallet.balances("0x0063046686E46Dc6F15918b61AE2B121458534a5"));
+}
+
+const statsTest = async () => {
+    await lending.init('JsonRpc', {});
+    await lending.oneWayfactory.fetchMarkets();
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
+    console.log(await oneWayMarket.stats.parameters());
+    console.log(await oneWayMarket.stats.balances());
+    console.log(await oneWayMarket.stats.maxMinBands());
+    console.log(await oneWayMarket.stats.activeBand());
+    const liquidatingBand = await oneWayMarket.stats.liquidatingBand();
+    console.log(liquidatingBand);
+    console.log(await oneWayMarket.stats.bandBalances(liquidatingBand ?? 0));
+    console.log(await oneWayMarket.stats.bandsBalances());
+    console.log(await oneWayMarket.stats.totalBorrowed());
+    console.log(await oneWayMarket.stats.totalDebt());
+    console.log(await oneWayMarket.stats.ammBalances());
+    console.log(await oneWayMarket.stats.capAndAvailable());
+}
+
+const vaultTest = async () => {
+    await lending.init('JsonRpc', {});
+    await lending.oneWayfactory.fetchMarkets();
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
+    console.log(await oneWayMarket.wallet.balances());
+
+    console.log(await oneWayMarket.vault.maxDeposit());
+    console.log(await oneWayMarket.vault.previewDeposit(20000));  // Shares to receive
+    console.log(await oneWayMarket.vault.depositIsApproved(20000));
+    console.log(await oneWayMarket.vault.depositApprove(20000));
+    console.log(await oneWayMarket.vault.deposit(20000));
+
+    console.log(await oneWayMarket.wallet.balances());
+
+    console.log(await oneWayMarket.vault.maxMint());
+    console.log(await oneWayMarket.vault.previewMint(20000));  // Assets to send
+    console.log(await oneWayMarket.vault.mintIsApproved(20000));
+    console.log(await oneWayMarket.vault.mintApprove(20000));
+    console.log(await oneWayMarket.vault.mint(20000));
+
+    console.log(await oneWayMarket.wallet.balances());
+
+    console.log(await oneWayMarket.vault.maxWithdraw());
+    console.log(await oneWayMarket.vault.previewWithdraw(10000));  // Shares to send
+    console.log(await oneWayMarket.vault.withdraw(10000));
+
+    console.log(await oneWayMarket.wallet.balances());
+
+    console.log(await oneWayMarket.vault.maxRedeem());
+    console.log(await oneWayMarket.vault.previewRedeem(10000));  // Assets to receive
+    console.log(await oneWayMarket.vault.redeem(10000));
+
+    console.log(await oneWayMarket.wallet.balances());
+
+}
+
+const generalTest = async () => {
+    await lending.init('JsonRpc', {});
+    await lending.oneWayfactory.fetchMarkets();
+
+    console.log(lending.oneWayfactory.getMarketList());
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
+
+    console.log("\n--- CREATE LOAN ---\n");
+
+    console.log(await oneWayMarket.oraclePrice());
+    console.log(await oneWayMarket.price());
+    console.log(await oneWayMarket.basePrice());
+    console.log(await oneWayMarket.wallet.balances());
+    console.log(await oneWayMarket.createLoanMaxRecv(1, 5));
+    console.log(await oneWayMarket.createLoanBands(1, 1000, 5));
+    console.log(await oneWayMarket.createLoanPrices(1, 1000, 5));
+    console.log(await oneWayMarket.createLoanHealth(1, 1000, 5));  // FULL
+    console.log(await oneWayMarket.createLoanHealth(1, 1000, 5, false));  // NOT FULL
+
+    console.log(await oneWayMarket.createLoanIsApproved(1));
+    // false
+    console.log(await oneWayMarket.createLoanApprove(1));
+    // [
+    //     '0xc111e471715ae6f5437e12d3b94868a5b6542cd7304efca18b5782d315760ae5'
+    // ]
+    console.log(await oneWayMarket.createLoan(1, 1000, 5));
+
+    console.log(await oneWayMarket.userLoanExists());
+    console.log(await oneWayMarket.userState());
+    console.log(await oneWayMarket.userHealth());  // FULL
+    console.log(await oneWayMarket.userHealth(false));  // NOT FULL
+    console.log(await oneWayMarket.userRange());
+    console.log(await oneWayMarket.userBands());
+    console.log(await oneWayMarket.userPrices());
+    console.log(await oneWayMarket.userBandsBalances());
+
+    console.log("\n--- BORROW MORE ---\n");
+
+    console.log(await oneWayMarket.borrowMoreMaxRecv(0.5));
+    console.log(await oneWayMarket.borrowMoreBands(0.5, 500));
+    console.log(await oneWayMarket.borrowMorePrices(0.5, 500));
+    console.log(await oneWayMarket.borrowMoreHealth(0.5, 500));  // FULL
+    console.log(await oneWayMarket.borrowMoreHealth(0.5, 500, false));  // NOT FULL
+
+    console.log(await oneWayMarket.borrowMoreIsApproved(0.5));
+    console.log(await oneWayMarket.borrowMoreApprove(0.5));
+
+    console.log(await oneWayMarket.borrowMore(0.5, 500));
+
+    console.log(await oneWayMarket.userState());
+    console.log(await oneWayMarket.userHealth());  // FULL
+    console.log(await oneWayMarket.userHealth(false));  // NOT FULL
+    console.log(await oneWayMarket.userBands());
+    console.log(await oneWayMarket.userPrices());
+
+    console.log("\n--- ADD COLLATERAL ---\n");
+
+    console.log(await oneWayMarket.addCollateralBands(0.2));
+    console.log(await oneWayMarket.addCollateralPrices(0.2));
+    console.log(await oneWayMarket.addCollateralHealth(0.2));  // FULL
+    console.log(await oneWayMarket.addCollateralHealth(0.2, false));  // NOT FULL
+
+    console.log(await oneWayMarket.addCollateralIsApproved(0.2));
+    console.log(await oneWayMarket.addCollateralApprove(0.2));
+
+    console.log(await oneWayMarket.addCollateral(0.2));  // OR await oneWayMarket.addCollateral(0.2, forAddress);
+
+    console.log(await oneWayMarket.userState());
+    console.log(await oneWayMarket.userHealth());  // FULL
+    console.log(await oneWayMarket.userHealth(false));  // NOT FULL
+    console.log(await oneWayMarket.userBands());
+    console.log(await oneWayMarket.userPrices());
+
+    console.log("\n--- REMOVE COLLATERAL ---\n")
+
+    console.log(await oneWayMarket.maxRemovable());
+    console.log(await oneWayMarket.removeCollateralBands(0.1));
+    console.log(await oneWayMarket.removeCollateralPrices(0.1));
+    console.log(await oneWayMarket.removeCollateralHealth(0.1));  // FULL
+    console.log(await oneWayMarket.removeCollateralHealth(0.1, false));  // NOT FULL
+
+    console.log(await oneWayMarket.removeCollateral(0.1));
+
+    console.log(await oneWayMarket.userState());
+    console.log(await oneWayMarket.userHealth());  // FULL
+    console.log(await oneWayMarket.userHealth(false));  // NOT FULL
+    console.log(await oneWayMarket.userBands());
+    console.log(await oneWayMarket.userPrices());
+
+    console.log("\n--- REPAY ---\n");
+
+    console.log(await oneWayMarket.wallet.balances());
+
+    console.log(await oneWayMarket.repayBands(1000));
+    console.log(await oneWayMarket.repayPrices(1000));
+    console.log(await oneWayMarket.repayHealth(1000));  // FULL
+    console.log(await oneWayMarket.repayHealth(1000, false));  // NOT FULL
+
+    console.log(await oneWayMarket.repayIsApproved(1000));
+    console.log(await oneWayMarket.repayApprove(1000));
+
+    console.log(await oneWayMarket.repay(1000));
+
+    console.log(await oneWayMarket.userLoanExists());
+    console.log(await oneWayMarket.userState());
+    console.log(await oneWayMarket.userHealth());  // FULL
+    console.log(await oneWayMarket.userHealth(false));  // NOT FULL
+    console.log(await oneWayMarket.userBands());
+    console.log(await oneWayMarket.userPrices());
+
+    console.log("\n--- FULL REPAY ---\n");
+
+    console.log(await oneWayMarket.fullRepayIsApproved());
+    console.log(await oneWayMarket.fullRepayApprove());
+
+    console.log(await oneWayMarket.fullRepay());
+
+    console.log(await oneWayMarket.userLoanExists());
+    console.log(await oneWayMarket.userState());
+}
+
+const createLoanAllRangesTest = async () => {
+    await lending.init('JsonRpc', {});
+    await lending.oneWayfactory.fetchMarkets();
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
+    console.log(await oneWayMarket.createLoanMaxRecvAllRanges(1));
+    console.log(await oneWayMarket.createLoanBandsAllRanges(1, 1600));
+    console.log(await oneWayMarket.createLoanPricesAllRanges(1, 1600));
+}
+
+const swapTest = async () => {
+    await lending.init('JsonRpc', {});
+    await lending.oneWayfactory.fetchMarkets();
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
+    // Load liquidity
+    await oneWayMarket.vault.deposit(10000);
+    const maxDebt = await oneWayMarket.createLoanMaxRecv(0.3, 10);
+    await oneWayMarket.createLoan(0.3, maxDebt, 10)
+
+    console.log(await oneWayMarket.wallet.balances());
+
+    console.log(await oneWayMarket.maxSwappable(0, 1));
+    console.log(await oneWayMarket.swapExpected(0, 1, 100));
+    console.log(await oneWayMarket.swapRequired(0, 1, 0.1));
+    console.log(await oneWayMarket.swapPriceImpact(0, 1, 100));
+    console.log(await oneWayMarket.swapIsApproved(0, 100));
+    console.log(await oneWayMarket.swapApprove(0, 100));
+    console.log(await oneWayMarket.swap(0, 1, 100, 0.1));
+
+    console.log(await oneWayMarket.wallet.balances());
+}
+
+const selfLiquidationTest = async () => {
+    await lending.init('JsonRpc', {});
+    await lending.oneWayfactory.fetchMarkets();
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
+    // Load liquidity
+    await oneWayMarket.vault.deposit(10000);
+    const maxDebt = await oneWayMarket.createLoanMaxRecv(0.3, 10);
+    await oneWayMarket.createLoan(0.3, maxDebt, 10);
+    await oneWayMarket.swap(0, 1, Number(maxDebt) * 10, 0.05);
+
+    console.log(await oneWayMarket.wallet.balances());
+    console.log(await oneWayMarket.userState());
+
+    console.log(await oneWayMarket.tokensToLiquidate());
+    console.log(await oneWayMarket.selfLiquidateIsApproved());
+    console.log(await oneWayMarket.selfLiquidateApprove());
+    console.log(await oneWayMarket.selfLiquidate(0.1));
+
+    console.log(await oneWayMarket.wallet.balances());
+    console.log(await oneWayMarket.userState());
+}
+
+(async () => {
+    console.log("\n--- generalMethodsTest ---\n")
+    await generalMethodsTest();
+    console.log("\n--- llammaFieldsTest ---\n")
+    await oneWayMarketFieldsTest();
+    console.log("\n--- walletBalancesTest ---\n")
+    await walletBalancesTest();
+    console.log("\n--- statsTest ---\n")
+    await statsTest();
+    console.log("\n--- vaultTest ---\n")
+    await vaultTest();
+    console.log("\n--- generalTest ---\n")
+    await generalTest();
+    console.log("\n--- createLoanAllRangesTest ---\n")
+    await createLoanAllRangesTest();
+    console.log("\n--- swapTest ---\n")
+    await swapTest();
+    console.log("\n--- selfLiquidationTest ---\n")
+    await selfLiquidationTest();
+})()

@@ -45,8 +45,8 @@ export class OneWayMarketTemplate {
         symbol: string;
         decimals: number;
     }
-    coinDecimals: [number, number]
     coinAddresses: [string, string]
+    coinDecimals: [number, number]
     defaultBands: number
     minBands: number
     maxBands: number

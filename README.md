@@ -135,36 +135,27 @@ import lending from "@curvefi/lending-api";
 
 (async () => {
     await lending.init('JsonRpc', {});
-    
-    const balances1 = await lending.getBalances(['lending', 'weth']);
-    // OR const balances1 = await lending.getBalances(['0x3194cBDC3dbcd3E11a07892e7bA5c3394048Cc87', '0xa3B53dDCd2E3fC28e8E130288F2aBD8d5EE37472']);
-    console.log(balances1);
-    // [ '10000.0', '0.0' ]
 
-    // You can specify the address
-    const balances2 = await lending.getBalances(['lending', 'weth'], "0x0063046686E46Dc6F15918b61AE2B121458534a5");
-    // OR const balances2 = await lending.getBalances(['0x3194cBDC3dbcd3E11a07892e7bA5c3394048Cc87', '0xa3B53dDCd2E3fC28e8E130288F2aBD8d5EE37472'], '0x0063046686E46Dc6F15918b61AE2B121458534a5');
-    console.log(balances2);
-    // [ '0.0', '0.0' ]
+    const balances1 = await lending.getBalances(['sdt', 'weth']);
+    // OR const balances1 = await lending.getBalances(['0x361a5a4993493ce00f61c32d4ecca5512b82ce90', '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619']);
+    //['80980.0', '99.0']
 
-    
-    const spender = "0x3897810a334833184Ef7D6B419ba4d78EC2bBF80";
+    // You can specify address
+    const balances2 = await lending.getBalances(['sdt', 'weth'], "0x0063046686E46Dc6F15918b61AE2B121458534a5");
+    // OR const balances2 = await lending.getBalances(['0x361a5a4993493ce00f61c32d4ecca5512b82ce90', '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619'], '0x0063046686E46Dc6F15918b61AE2B121458534a5');
+    //['0.0', '0.0']
 
-    await lending.getAllowance(["lending", "weth"], lending.signerAddress, spender);
-    // [ '0.0', '0.0' ]
-    await lending.hasAllowance(["lending", "weth"], ['1000', '1000'], lending.signerAddress, spender);
-    // false
-    await lending.ensureAllowance(["lending", "weth"], ['1000', '1000'], spender);
-    // [
-    //     '0xb0cada2a2983dc0ed85a26916d32b9caefe45fecde47640bd7d0e214ff22aed3',
-    //     '0x00ea7d827b3ad50ce933e96c579810cd7e70d66a034a86ec4e1e10005634d041'
-    // ]
+    const spender = "0x136e783846ef68C8Bd00a3369F787dF8d683a696"
 
-    await lending.getUsdRate('0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
-    // 1257.43
+    await lending.getAllowance(['sdt', 'weth'], lending.signerAddress, spender);
+    //['0.0', '0.0']
+    await lending.hasAllowance(['sdt', 'weth'], ['1000', '1000'], lending.signerAddress, spender);
+    //false
+    await lending.ensureAllowance(['sdt', 'weth'], ['1000', '1000'], spender);
+    //['0xab21975af93c403fff91ac50e3e0df6a55b59c3003b34e9900821f5fa19e5454', '0xb6e10a2975adbde7dfb4263c0957dcce6c28cbe7a862f285bb4bda43cca8d62d']
 
-    await lending.totalSupply();  // sum(oneWayMarketsSupply) + sum(pegKeepersDebt)
-    // 1415.12 
+    await lending.getUsdRate('0x7ceb23fd6bc0add59e62ac25578270cff1b9f619');
+    //2637.61
 })()
 ```
 

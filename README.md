@@ -8,19 +8,19 @@ Install from npm:
 
 ## Init
 ```ts
-import crvusd from "@curvefi/lending-api";
+import lending from "@curvefi/lending-api";
 
 (async () => {
     // 1. Dev
-    await crvusd.init('JsonRpc', {url: 'http://localhost:8545/', privateKey: ''}, { gasPrice: 0, maxFeePerGas: 0, maxPriorityFeePerGas: 0, chainId: 1 });
+    await lending.init('JsonRpc', {url: 'http://localhost:8545/', privateKey: ''}, { gasPrice: 0, maxFeePerGas: 0, maxPriorityFeePerGas: 0, chainId: 1 });
     // OR
-    await crvusd.init('JsonRpc', {}, {}); // In this case JsonRpc url, privateKey, fee data and chainId will be specified automatically
+    await lending.init('JsonRpc', {}, {}); // In this case JsonRpc url, privateKey, fee data and chainId will be specified automatically
 
     // 2. Infura
-    crvusd.init("Infura", { network: "homestead", apiKey: <INFURA_KEY> }, { chainId: 1 });
+    lending.init("Infura", { network: "homestead", apiKey: <INFURA_KEY> }, { chainId: 1 });
     
     // 3. Web3 provider
-    crvusd.init('Web3', { externalProvider: <WEB3_PROVIDER> }, { chainId: 1 });
+    lending.init('Web3', { externalProvider: <WEB3_PROVIDER> }, { chainId: 1 });
 })()
 ```
 **Note 1.** ```chainId``` parameter is optional, but you must specify it in the case you use Metamask on localhost network, because Metamask has that [bug](https://hardhat.org/metamask-issue.html)
@@ -34,7 +34,7 @@ import { useState, useMemo } from 'react'
 import { providers } from 'ethers'
 import Onboard from 'bnc-onboard'
 import type { Wallet } from 'bnc-onboard/dist/src/interfaces'
-import crvusd from '@curvefi/lending-api'
+import lending from '@curvefi/lending-api'
 
     ...
 
@@ -59,7 +59,7 @@ const WalletProvider: FunctionComponent = ({ children }) => {
                     wallet: (wallet) => {
                         setWallet(wallet)
                         if (wallet.provider) {
-                            crvusd.init("Web3", { externalProvider: wallet.provider }, { chainId: networkId })
+                            lending.init("Web3", { externalProvider: wallet.provider }, { chainId: networkId })
                         }
                     },
                 },
@@ -80,7 +80,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { providers } from 'ethers'
 import Onboard from 'bnc-onboard'
 import type { Wallet } from 'bnc-onboard/dist/src/interfaces'
-import crvusd from '@curvefi/lending-api'
+import lending from '@curvefi/lending-api'
 
     ...
 
@@ -115,7 +115,7 @@ const WalletProvider: FunctionComponent = ({ children }) => {
 
     useEffect(() => {
         if (address && wallet?.provider) {
-            crvusd.init("Web3", { externalProvider: wallet.provider }, { chainId: networkId })
+            lending.init("Web3", { externalProvider: wallet.provider }, { chainId: networkId })
         }
     }, [address, wallet?.provider]);
 
@@ -124,361 +124,502 @@ const WalletProvider: FunctionComponent = ({ children }) => {
 
 ## Notes
 - 1 Amounts can be passed in args either as numbers or strings.
-- 2 llamma.swap**PriceImpact** method returns %, e. g. 0 < priceImpact <= 100.
+- 2 oneWayMarket.swap**PriceImpact** method returns %, e. g. 0 < priceImpact <= 100.
 - 3 Slippage arg should be passed as %, e. g. 0 < slippage <= 100.
 
 
 
 ## General methods
 ```ts
-import crvusd from "@curvefi/lending-api";
+import lending from "@curvefi/lending-api";
 
 (async () => {
-    await crvusd.init('JsonRpc', {});
+    await lending.init('JsonRpc', {});
     
-    const balances1 = await crvusd.getBalances(['crvusd', 'weth']);
-    // OR const balances1 = await crvusd.getBalances(['0x3194cBDC3dbcd3E11a07892e7bA5c3394048Cc87', '0xa3B53dDCd2E3fC28e8E130288F2aBD8d5EE37472']);
+    const balances1 = await lending.getBalances(['lending', 'weth']);
+    // OR const balances1 = await lending.getBalances(['0x3194cBDC3dbcd3E11a07892e7bA5c3394048Cc87', '0xa3B53dDCd2E3fC28e8E130288F2aBD8d5EE37472']);
     console.log(balances1);
     // [ '10000.0', '0.0' ]
 
     // You can specify the address
-    const balances2 = await crvusd.getBalances(['crvusd', 'weth'], "0x0063046686E46Dc6F15918b61AE2B121458534a5");
-    // OR const balances2 = await crvusd.getBalances(['0x3194cBDC3dbcd3E11a07892e7bA5c3394048Cc87', '0xa3B53dDCd2E3fC28e8E130288F2aBD8d5EE37472'], '0x0063046686E46Dc6F15918b61AE2B121458534a5');
+    const balances2 = await lending.getBalances(['lending', 'weth'], "0x0063046686E46Dc6F15918b61AE2B121458534a5");
+    // OR const balances2 = await lending.getBalances(['0x3194cBDC3dbcd3E11a07892e7bA5c3394048Cc87', '0xa3B53dDCd2E3fC28e8E130288F2aBD8d5EE37472'], '0x0063046686E46Dc6F15918b61AE2B121458534a5');
     console.log(balances2);
     // [ '0.0', '0.0' ]
 
     
     const spender = "0x3897810a334833184Ef7D6B419ba4d78EC2bBF80";
 
-    await crvusd.getAllowance(["crvusd", "weth"], crvusd.signerAddress, spender);
+    await lending.getAllowance(["lending", "weth"], lending.signerAddress, spender);
     // [ '0.0', '0.0' ]
-    await crvusd.hasAllowance(["crvusd", "weth"], ['1000', '1000'], crvusd.signerAddress, spender);
+    await lending.hasAllowance(["lending", "weth"], ['1000', '1000'], lending.signerAddress, spender);
     // false
-    await crvusd.ensureAllowance(["crvusd", "weth"], ['1000', '1000'], spender);
+    await lending.ensureAllowance(["lending", "weth"], ['1000', '1000'], spender);
     // [
     //     '0xb0cada2a2983dc0ed85a26916d32b9caefe45fecde47640bd7d0e214ff22aed3',
     //     '0x00ea7d827b3ad50ce933e96c579810cd7e70d66a034a86ec4e1e10005634d041'
     // ]
 
-    await crvusd.getUsdRate('0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
+    await lending.getUsdRate('0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
     // 1257.43
 
-    await crvusd.totalSupply();  // sum(llammasSupply) + sum(pegKeepersDebt)
+    await lending.totalSupply();  // sum(oneWayMarketsSupply) + sum(pegKeepersDebt)
     // 1415.12 
 })()
 ```
 
-## Llammas
+## oneWayMarket
 
-### Llamma fields
+### oneWayMarket fields
 ```ts
-import crvusd from "@curvefi/lending-api";
+import lending from "@curvefi/lending-api";
 
 (async () => {
-    await crvusd.init('JsonRpc', {});
+    await lending.init('JsonRpc', {});
 
-    const llamma = crvusd.getLlamma('eth');
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
 
-    llamma.id;
-    // eth
-    llamma.address;
-    // 0x3897810a334833184Ef7D6B419ba4d78EC2bBF80
-    llamma.controller;
-    // 0x1eF9f7C2abD0E351a8966f00565e1b04765d3f0C
-    llamma.monetaryPolicy;
-    // 0xc684432FD6322c6D58b6bC5d28B18569aA0AD0A1
-    llamma.collateral;
-    // 0xac3E018457B222d93114458476f3E3416Abbe38F
-    llamma.collateralSymbol;
-    // WETH
-    llamma.collateralDecimals;
-    // 18
-    llamma.coins;
-    // [ 'crvUSD', 'WETH' ]
-    llamma.coinAddresses;
-    // [
-    //     '0x3194cBDC3dbcd3E11a07892e7bA5c3394048Cc87',
-    //     '0xa3B53dDCd2E3fC28e8E130288F2aBD8d5EE37472'
-    // ]
-    llamma.coinDecimals;
-    // [ 18, 18 ]
-    llamma.minBands;
-    // 5
-    llamma.maxBands;
-    // 50
-    llamma.defaultBands;
-    // 20
-    llamma.A;
-    // 100
-    llamma.tickSpace;
-    // 1 %
+    oneWayMarket.id
+    //"one-way-market-0"
+    oneWayMarket.addresses
+    //
+    {
+        amm: "0x78f7f91dce40269df106a189e47f27bab561332b"
+        borrowed_token: "0x361a5a4993493ce00f61c32d4ecca5512b82ce90"
+        collateral_token: "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+        controller: "0xe27dda8e706f41ca0b496e6cf1b7f1e8308e6732"
+        gauge: "0x0000000000000000000000000000000000000000"
+        monetary_policy: "0xa845d0688745db0f377a6c5bf5fcde0a3a1a6aeb"
+        vault: "0x42526886adb3b20a23a5a19c04e4bf81e9febb2b"
+    }
+    //
+    oneWayMarket.borrowed_token
+    //
+    {
+        address: "0x361a5a4993493ce00f61c32d4ecca5512b82ce90"
+        decimals: 18
+        name: "Stake DAO Token (PoS)"
+        symbol: "SDT"
+    }
+    //
+    oneWayMarket.collateral_token
+    //
+    {
+        address: "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+        decimals: 18
+        name: "Wrapped Ether"
+        symbol: "WETH"
+    }
+    //
+    oneWayMarket.coinAddresses
+    //
+    ["0x361a5a4993493ce00f61c32d4ecca5512b82ce90",
+    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"]
+    //
+    oneWayMarket.coinDecimals
+    //
+    [18,18]
+    //
+    oneWayMarket.defaultBands
+    //10
+    oneWayMarket.maxBands
+    //50
+    oneWayMarket.minBands
+    //4
 })()
 ````
 
-### Wallet balances for llamma
+### Wallet balances for oneWayMarket
 ```ts
-import crvusd from "@curvefi/lending-api";
+import lending from "@curvefi/lending-api";
 
 (async () => {
-    await crvusd.init('JsonRpc', {});
-    
-    const llamma = crvusd.getLlamma('eth');
-    
+    await lending.init('JsonRpc', {});
+    await lending.oneWayfactory.fetchMarkets();
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
     // 1. Current address (signer) balances
+    console.log(await oneWayMarket.wallet.balances());
+    //
+    {
+        borrowed: "100000.0"
+        collateral: "100.0"
+        vaultShares: "0.0"
+    }
+    //
 
-    await llamma.wallet.balances();
-    // { stablecoin: '0.0', collateral: '1.0' }
-
-    
     // 2. You can specify the address
-    
-    await llamma.wallet.balances("0x0063046686E46Dc6F15918b61AE2B121458534a5");
-    // { stablecoin: '0.0', collateral: '0.0' }
+    console.log(await oneWayMarket.wallet.balances("0x0063046686E46Dc6F15918b61AE2B121458534a5"));
+    //
+    {
+        borrowed: "0.0"
+        collateral: "0.0"
+        vaultShares: "0.0"
+    }
+    //
 })()
 ```
 
 ### Stats
 ```ts
-import crvusd from "@curvefi/lending-api";
+import lending from "@curvefi/lending-api";
 
 (async () => {
-    await crvusd.init('JsonRpc', {});
+    await lending.init('JsonRpc', {});
 
-    const llamma = crvusd.getLlamma('eth');
+    await lending.oneWayfactory.fetchMarkets();
 
-    await llamma.stats.parameters();
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
+    await oneWayMarket.stats.parameters();
+    //
+    {
+        A: "100"
+        admin_fee: "0.0"
+        base_price: "8595.062092132517715849"
+        fee: "0.6"
+        future_rate: "0.501252083027981"
+        liquidation_discount: "6.0"
+        loan_discount: "9.0"
+        rate: "0"
+    }
+    //
+    await oneWayMarket.stats.balances();
+    //['0.0', '0.0']
+    await oneWayMarket.stats.maxMinBands();
+    //[0,0]
+    await oneWayMarket.stats.activeBand();
+    //0
+    const liquidatingBand = await oneWayMarket.stats.liquidatingBand();
+    console.log(liquidatingBand);
+    //null
+    await oneWayMarket.stats.bandBalances(liquidatingBand ?? 0);
+    //
+    {
+        borrowed: "0.0"
+        collateral: "0.0"
+    }
+    //
+    await oneWayMarket.stats.bandsBalances();
     // {
-    //     fee: '0.0',
-    //     admin_fee: '0.0',
-    //     rate: '0.0',
-    //     future_rate: '0.0',
-    //     liquidation_discount: '2.0',
-    //     loan_discount: '5.0'
+    //     '0': { borrowed: '0.0', collateral: '0.0' },
+    //     '1': { borrowed: '0.0', collateral: '0.0' },
+    //     '2': { borrowed: '0.0', collateral: '0.0' },
+    //     '3': { borrowed: '0.0', collateral: '0.0' },
+    //     '4': { borrowed: '0.0', collateral: '0.0' },
+    //     '5': { borrowed: '0.0', collateral: '0.0' },
+    //     '6': { borrowed: '0.0', collateral: '0.0' },
+    //     '7': { borrowed: '0.0', collateral: '0.0' },
+    //     '8': { borrowed: '0.0', collateral: '0.0' },
+    //     '9': { borrowed: '0.0', collateral: '0.0' },
+    //     '10': { borrowed: '0.0', collateral: '0.0' },
+    //     '11': { borrowed: '0.0', collateral: '0.0' },
+    //     '12': { borrowed: '0.0', collateral: '0.1' },
+    //     '13': { borrowed: '0.0', collateral: '0.1' },
+    //     '14': { borrowed: '0.0', collateral: '0.1' },
+    //     '15': { borrowed: '0.0', collateral: '0.1' }
     // }
-    await llamma.stats.balances();
-    // [ '300.0', '0.402268776965776345' ]
-    await llamma.stats.maxMinBands();
-    // [ 15, 0 ]
-    await llamma.stats.activeBand();
-    // 11
-    const liquidatingBand = await llamma.stats.liquidatingBand();  // null when there is no liquidation
-    // 11
-    await llamma.stats.bandBalances(liquidatingBand);
-    // { stablecoin: '300.0', collateral: '0.002268776965776345' }
-    await llamma.stats.bandsBalances();
-    // {
-    //     '0': { stablecoin: '0.0', collateral: '0.0' },
-    //     '1': { stablecoin: '0.0', collateral: '0.0' },
-    //     '2': { stablecoin: '0.0', collateral: '0.0' },
-    //     '3': { stablecoin: '0.0', collateral: '0.0' },
-    //     '4': { stablecoin: '0.0', collateral: '0.0' },
-    //     '5': { stablecoin: '0.0', collateral: '0.0' },
-    //     '6': { stablecoin: '0.0', collateral: '0.0' },
-    //     '7': { stablecoin: '0.0', collateral: '0.0' },
-    //     '8': { stablecoin: '0.0', collateral: '0.0' },
-    //     '9': { stablecoin: '0.0', collateral: '0.0' },
-    //     '10': { stablecoin: '0.0', collateral: '0.0' },
-    //     '11': { stablecoin: '300.0', collateral: '0.002268776965776345' },
-    //     '12': { stablecoin: '0.0', collateral: '0.1' },
-    //     '13': { stablecoin: '0.0', collateral: '0.1' },
-    //     '14': { stablecoin: '0.0', collateral: '0.1' },
-    //     '15': { stablecoin: '0.0', collateral: '0.1' }
-    // }
-    await llamma.stats.totalSupply();
-    // 1375.74 
-    await llamma.stats.totalDebt();
-    // 1375.74
-    await llamma.stats.totalStablecoin();
-    // 300.0 
-    await llamma.stats.totalCollateral();
-    // 0.402268776965776345
-    await llamma.stats.capAndAvailable();
-    // { cap: '10000000.0', available: '172237.031342956400517635' }
+    await oneWayMarket.stats.totalBorrowed();
+    //1000
+    await oneWayMarket.stats.totalDebt();
+    //1000.0
+    await oneWayMarket.stats.ammBalances();
+    //
+    {
+        borrowed: "0"
+        collateral: "0"
+    }
+    //
+    await oneWayMarket.stats.capAndAvailable();
+    //
+    {
+        available: "0.0"
+        cap: "0.0"
+    }
+    //
 })()
+````
+
+
+### Vault: deposit, mint, withdraw, redeem
+```ts
+    await lending.init('JsonRpc', {});
+
+    await lending.oneWayfactory.fetchMarkets();
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+
+
+    await oneWayMarket.wallet.balances();
+    //
+    {
+        borrowed: "100000.0"
+        collateral: "100.0"
+        vaultShares: "0.0"
+    }
+    //
+    await oneWayMarket.vault.maxDeposit();
+    //100000.0
+    await oneWayMarket.vault.previewDeposit(20000);  // Shares to receive
+    //20000000.0
+    await oneWayMarket.vault.depositIsApproved(20000);
+    //false
+    await oneWayMarket.vault.depositApprove(20000);
+    //['0x18633be4d60d0afaa8dbbe63eb124ddbcd1fd7f8cc34ae16ef7ad34f4ffe1a53']
+    await oneWayMarket.vault.deposit(20000);
+    //0xbdc8bdc64fcf560aa9fbf8cf43a1f24dd54cb5c77a88c3a2a8b4408f2d409e2b
+    await oneWayMarket.wallet.balances();
+    //
+    {
+        borrowed: "80000.0"
+        collateral: "100.0"
+        vaultShares: "20000000.0"
+    }
+    //
+
+    await oneWayMarket.vault.maxMint();
+    //80000000.0
+    await oneWayMarket.vault.previewMint(20000);  // Assets to send
+    //20.0
+    await oneWayMarket.vault.mintIsApproved(20000);
+    //true
+    await oneWayMarket.vault.mintApprove(20000);
+    //[]
+    await oneWayMarket.vault.mint(20000);
+    //0x9e34e201edaeacd27cb3013e003d415c110f562ad105e587f7c8fb0c3b974142
+
+    await oneWayMarket.wallet.balances();
+    //
+    {
+        borrowed: "79980.0"
+        collateral: "100.0"
+        vaultShares: "20020000.0"
+    }
+    //
+
+    await oneWayMarket.vault.maxWithdraw();
+    //20020.0
+    await oneWayMarket.vault.previewWithdraw(10000);  // Shares to send
+    //10000000.0
+    await oneWayMarket.vault.withdraw(10000);
+    //0xa8df19e420040dc21e60f1a25eedec01fead748e2d654100ca3e2d0e369a7ae0
+
+    await oneWayMarket.wallet.balances();
+    //
+    {
+        borrowed: "89980.0"
+        collateral: "100.0"
+        vaultShares: "10020000.0"
+    }
+    //
+
+    await oneWayMarket.vault.maxRedeem();
+    //10020000.0
+    await oneWayMarket.vault.previewRedeem(10000);  // Assets to receive
+    //10.0
+    await oneWayMarket.vault.redeem(10000);
+    //0x391721baa517170c23819b070532a3429ab3c7a306042615bf8e1983d035e363
+
+    await oneWayMarket.wallet.balances();
+    //
+    {
+        borrowed: "89990.0"
+        collateral: "100.0"
+        vaultShares: "10010000.0"
+    }
+    //
 ````
 
 ### Create loan, add collateral, borrow more, repay
 ```ts
 (async () => {
-    await crvusd.init('JsonRpc', {});
+    await lending.init('JsonRpc', {});
 
-    console.log(crvusd.getLlammaList());
-    // [ 'sfrxeth' ]
-    
-    const llamma = crvusd.getLlamma('eth');
+    await lending.oneWayfactory.fetchMarkets();
+
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
     
     
     // --- CREATE LOAN ---
 
-    await llamma.oraclePrice();
+    await oneWayMarket.oraclePrice();
     // 3000.0
-    await llamma.price();
+    await oneWayMarket.price();
     // 3045.569137149127502965
-    await llamma.basePrice();
+    await oneWayMarket.basePrice();
     // '3000.0'
-    await llamma.wallet.balances();
-    // { stablecoin: '0.0', collateral: '1.0' }
-    await llamma.createLoanMaxRecv(0.5, 5);
+    await oneWayMarket.wallet.balances();
+    // { borrowed: '0.0', collateral: '1.0' }
+    await oneWayMarket.createLoanMaxRecv(0.5, 5);
     // 1375.74670276529114147
-    await llamma.createLoanBands(0.5, 1000, 5);
+    await oneWayMarket.createLoanBands(0.5, 1000, 5);
     // [ 36, 32 ]
-    await llamma.createLoanPrices(0.5, 1000, 5);
+    await oneWayMarket.createLoanPrices(0.5, 1000, 5);
     // [ '2068.347257607234777', '2174.941007873561634' ]
-    await llamma.createLoanHealth(0.5, 1000, 5);  // FULL
+    await oneWayMarket.createLoanHealth(0.5, 1000, 5);  // FULL
     // 45.191203147616155
-    await llamma.createLoanHealth(0.5, 1000, 5, false);  // NOT FULL
+    await oneWayMarket.createLoanHealth(0.5, 1000, 5, false);  // NOT FULL
     // 3.9382535412942367
     
-    await llamma.createLoanIsApproved(0.5);
+    await oneWayMarket.createLoanIsApproved(0.5);
     // false
-    await llamma.createLoanApprove(0.5);
+    await oneWayMarketa.createLoanApprove(0.5);
     // [
     //     '0xc111e471715ae6f5437e12d3b94868a5b6542cd7304efca18b5782d315760ae5'
     // ]
-    await llamma.createLoan(0.5, 1000, 5);
+    await oneWayMarket.createLoan(0.5, 1000, 5);
 
-    await llamma.debt();  // OR await llamma.debt(address);
-    // 1000.0
-    await llamma.loanExists();
-    // true
-    await llamma.userHealth();  // FULL
-    // 45.1912031476161562 %
-    await llamma.userHealth(false);  // NOT FULL
-    // 3.9382535412942379
-    await llamma.userRange()
-    // 5
-    await llamma.userBands();
-    // [ 36, 32 ]
-    await llamma.userPrices();
-    // [ '2068.347257607234777', '2174.941007873561634' ]
-    await llamma.userState();
-    // { collateral: '0.5', stablecoin: '0.0', debt: '1000.0' }
-    await llamma.userBandsBalances();
-    // {
-    //     '32': { stablecoin: '0.0', collateral: '0.1' },
-    //     '33': { stablecoin: '0.0', collateral: '0.1' },
-    //     '34': { stablecoin: '0.0', collateral: '0.1' },
-    //     '35': { stablecoin: '0.0', collateral: '0.1' },
-    //     '36': { stablecoin: '0.0', collateral: '0.1' }
-    // }
+    console.log(await oneWayMarket.userLoanExists());
+    //true
+    console.log(await oneWayMarket.userState());
+    //
+    {
+        N: "5"
+        borrowed: "0.0"
+        collateral: "1.0"
+        debt: "1000.0"
+    }
+    //
+    console.log(await oneWayMarket.userHealth());  // FULL
+    //722.5902543890457276
+    console.log(await oneWayMarket.userHealth(false));  // NOT FULL
+    //3.4708541149110123
+    console.log(await oneWayMarket.userRange());
+    //5
+    console.log(await oneWayMarket.userBands());
+    //[206,,202]
+    console.log(await oneWayMarket.userPrices());
+    //["1073.332550295331639435","1128.647508360591547283]
+    console.log(await oneWayMarket.userBandsBalances());
+    //
+    {
+        202: {collateral: '0.2', borrowed: '0.0'},
+        203: {collateral: '0.2', borrowed: '0.0'},
+        204: {collateral: '0.2', borrowed: '0.0'},
+        205: {collateral: '0.2', borrowed: '0.0'},
+        206: {collateral: '0.2', borrowed: '0.0'},
+    }
+    //
+    
 
     // --- BORROW MORE ---
 
-    await llamma.borrowMoreMaxRecv(0.1);
+    await oneWayMarket.borrowMoreMaxRecv(0.1);
     // 650.896043318349376298
-    await llamma.borrowMoreBands(0.1, 500);
+    await oneWayMarket.borrowMoreBands(0.1, 500);
     // [ 14, 10 ]
-    await llamma.borrowMorePrices(0.1, 500);
+    await oneWayMarket.borrowMorePrices(0.1, 500);
     // [ '2580.175063923865968', '2713.146225026413746' ]
-    await llamma.borrowMoreHealth(0.1, 500);  // FULL
+    await oneWayMarket.borrowMoreHealth(0.1, 500);  // FULL
     // 15.200984677843693 %
-    await llamma.borrowMoreHealth(0.1, 500, false);  // NOT FULL
+    await oneWayMarket.borrowMoreHealth(0.1, 500, false);  // NOT FULL
     // 3.7268336789002429 %
     
-    await llamma.borrowMoreIsApproved(0.1);
+    await oneWayMarket.borrowMoreIsApproved(0.1);
     // true
-    await llamma.borrowMoreApprove(0.1);
+    await oneWayMarket.borrowMoreApprove(0.1);
     // []
     
-    await llamma.borrowMore(0.1, 500);
+    await oneWayMarket.borrowMore(0.1, 500);
 
     // Full health: 15.200984677843694 %
     // Not full health: 3.7268336789002439 %
     // Bands: [ 14, 10 ]
     // Prices: [ '2580.175063923865968', '2713.146225026413746' ]
-    // State: { collateral: '0.6', stablecoin: '0.0', debt: '1500.0' }
+    // State: { collateral: '0.6', borrowed: '0.0', debt: '1500.0' }
 
     // --- ADD COLLATERAL ---
 
-    await llamma.addCollateralBands(0.2);
+    await oneWayMarket.addCollateralBands(0.2);
     // [ 43, 39 ]
-    await llamma.addCollateralPrices(0.2);
+    await oneWayMarket.addCollateralPrices(0.2);
     // [ '1927.834806254156043', '2027.187147180850842' ]
-    await llamma.addCollateralHealth(0.2);  // FULL
+    await oneWayMarket.addCollateralHealth(0.2);  // FULL
     // 55.2190795613534006
-    await llamma.addCollateralHealth(0.2, false);  // NOT FULL
+    await oneWayMarket.addCollateralHealth(0.2, false);  // NOT FULL
     // 3.3357274109987789
     
-    await llamma.addCollateralIsApproved(0.2);
+    await oneWayMarket.addCollateralIsApproved(0.2);
     // true
-    await llamma.addCollateralApprove(0.2);
+    await oneWayMarket.addCollateralApprove(0.2);
     // []
     
-    await llamma.addCollateral(0.2);  // OR await llamma.addCollateral(0.2, forAddress);
+    await oneWayMarket.addCollateral(0.2);  // OR await oneWayMarket.addCollateral(0.2, forAddress);
 
     // Full health: 55.2190795613534014 %
     // Not full health: 3.3357274109987797 %
     // Bands: [ 43, 39 ]
     // Prices: [ '1927.834806254156043', '2027.187147180850842' ]
-    // State: { collateral: '0.8', stablecoin: '0.0', debt: '1500.0' }
+    // State: { collateral: '0.8', borrowed: '0.0', debt: '1500.0' }
 
     // --- REMOVE COLLATERAL ---
 
-    await llamma.maxRemovable()
+    await oneWayMarket.maxRemovable()
     // 0.254841506439755199
-    await llamma.removeCollateralBands(0.1);
+    await oneWayMarket.removeCollateralBands(0.1);
     // [ 29, 25 ]
-    await llamma.removeCollateralPrices(0.1);
+    await oneWayMarket.removeCollateralPrices(0.1);
     // [ '2219.101120164841944', '2333.46407819744091' ]
-    await llamma.removeCollateralHealth(0.1);  // FULL
+    await oneWayMarket.removeCollateralHealth(0.1);  // FULL
     // 35.1846612411492316
-    await llamma.removeCollateralHealth(0.1, false);  // NOT FULL
+    await oneWayMarket.removeCollateralHealth(0.1, false);  // NOT FULL
     // 4.0796515570298074
     
-    await llamma.removeCollateral(0.1);
+    await oneWayMarket.removeCollateral(0.1);
 
     // Full health: 35.1846612411492326 %
     // Not full health: 4.0796515570298084 %
     // Bands: [ 29, 25 ]
     // Prices: [ '2219.101120164841944', '2333.46407819744091', ]
-    // State: { collateral: '0.7', stablecoin: '0.0', debt: '1500.0' }
+    // State: { collateral: '0.7', borrowed: '0.0', debt: '1500.0' }
 
     // --- REPAY ---
 
-    await llamma.wallet.balances();
-    // { stablecoin: '1500.0', collateral: '0.3' }
+    await oneWayMarket.wallet.balances();
+    // { borrowed: '1500.0', collateral: '0.3' }
 
-    await llamma.repayBands(1000);
+    await oneWayMarket.repayBands(1000);
     // [ 139, 135 ]
-    await llamma.repayPrices(1000);
+    await oneWayMarket.repayPrices(1000);
     // [ '734.595897104762463', '772.453820291837448' ]
-    await llamma.repayHealth(1000);  // FULL
+    await oneWayMarket.repayHealth(1000);  // FULL
     // 315.2178906180373138
-    await llamma.repayHealth(1000, false);  // NOT FULL
+    await oneWayMarket.repayHealth(1000, false);  // NOT FULL
     // 3.3614254588945566
     
-    await llamma.repayIsApproved(1000);
+    await oneWayMarket.repayIsApproved(1000);
     // true
-    await llamma.repayApprove(1000);
+    await oneWayMarket.repayApprove(1000);
     // []
-    await llamma.repay(1000);
+    await oneWayMarket.repay(1000);
 
     // Full health: 315.2178906180373149 %
     // Not full health: 3.3614254588945577 %
     // Bands: [ 139, 135 ]
     // Prices: [ '734.595897104762463', '772.453820291837448' ]
-    // State: { collateral: '0.7', stablecoin: '0.0', debt: '500.0' }
+    // State: { collateral: '0.7', borrowed: '0.0', debt: '500.0' }
 
     // --- FULL REPAY ---
 
-    await llamma.fullRepayIsApproved();
+    await oneWayMarket.fullRepayIsApproved();
     // true
-    await llamma.fullRepayApprove();
+    await oneWayMarket.fullRepayApprove();
     // []
-    await llamma.fullRepay();
+    await oneWayMarket.fullRepay();
 
     // Loan exists: false
-    // State: { collateral: '0.0', stablecoin: '0.0', debt: '0.0' }
+    // State: { collateral: '0.0', borrowed: '0.0', debt: '0.0' }
 })()
 ```
 
 ### Create loan all ranges methods
 ```ts
-    await crvusd.init('JsonRpc', {});
+    await lending.init('JsonRpc', {});
 
-    const llamma = crvusd.getLlamma('eth');
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
 
-    await llamma.createLoanMaxRecvAllRanges(1);
+    await oneWayMarket.createLoanMaxRecvAllRanges(1);
     // {
     //     '5': '2751.493405530582454486',
     //     '6': '2737.828112577888632315',
@@ -502,7 +643,7 @@ import crvusd from "@curvefi/lending-api";
     //     '50': '2217.556229455652339229'
     // }
 
-    await llamma.createLoanBandsAllRanges(1, 2600);
+    await oneWayMarket.createLoanBandsAllRanges(1, 2600);
     // {
     //     '5': [ 10, 6 ],
     //     '6': [ 11, 6 ],
@@ -526,7 +667,7 @@ import crvusd from "@curvefi/lending-api";
     //     '50': null
     // }
 
-    await llamma.createLoanPricesAllRanges(1, 2600);
+    await oneWayMarket.createLoanPricesAllRanges(1, 2600);
     // {
     //     '5': [ '2686.01476277614933533', '2824.440448203' ],
     //     '6': [ '2659.154615148387841976', '2824.440448203' ],
@@ -554,34 +695,34 @@ import crvusd from "@curvefi/lending-api";
 ### Swap
 ```ts
 (async () => {
-    await crvusd.init('JsonRpc', {});
+    await lending.init('JsonRpc', {});
 
-    const llamma = crvusd.getLlamma('eth');
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
 
-    await llamma.wallet.balances();
+    await oneWayMarket.wallet.balances();
     // {
-    //     stablecoin: '301.533523886491869218',
+    //     borrowed: '301.533523886491869218',
     //     collateral: '0.860611976623971606'
     // }
 
 
-    await llamma.maxSwappable(0, 1);
+    await oneWayMarket.maxSwappable(0, 1);
     // 380.672763174593107707
-    await llamma.swapExpected(0, 1, 100);  // 100 - in_amount
+    await oneWayMarket.swapExpected(0, 1, 100);  // 100 - in_amount
     // 0.03679356627103543 (out_amount)
-    await llamma.swapRequired(0, 1, 0.03679356627103543);  // 0.03679356627103543 - out_amount
+    await oneWayMarket.swapRequired(0, 1, 0.03679356627103543);  // 0.03679356627103543 - out_amount
     // 100.000000000000000558 (in_amount)
-    await llamma.swapPriceImpact(0, 1, 100);
+    await oneWayMarket.swapPriceImpact(0, 1, 100);
     // 0.170826
-    await llamma.swapIsApproved(0, 100);
+    await oneWayMarket.swapIsApproved(0, 100);
     // true
-    await llamma.swapApprove(0, 100);
+    await oneWayMarket.swapApprove(0, 100);
     // []
-    await llamma.swap(0, 1, 100, 0.1);
+    await oneWayMarket.swap(0, 1, 100, 0.1);
 
-    await llamma.wallet.balances();
+    await oneWayMarket.wallet.balances();
     // {
-    //     stablecoin: '201.533523886491869218',
+    //     borrowed: '201.533523886491869218',
     //     collateral: '0.897405542895007036'
     // }
 })()
@@ -590,347 +731,79 @@ import crvusd from "@curvefi/lending-api";
 ### Self-liquidation
 ```ts
 (async () => {
-    await crvusd.init('JsonRpc', {});
+    await lending.init('JsonRpc', {});
 
-    const llamma = crvusd.getLlamma('eth');
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
 
     // Wallet balances: {
-    //     stablecoin: '301.533523886491869218',
+    //     borrowed: '301.533523886491869218',
     //     collateral: '0.860611976623971606'
     // }
     // State: {
     //     collateral: '0.139388023376028394',
-    //     stablecoin: '2751.493405530582315609',
+    //     borrowed: '2751.493405530582315609',
     //     debt: '3053.026929417074184827'
     // }
     
-    await llamma.tokensToLiquidate();
+    await oneWayMarket.tokensToLiquidate();
     // 301.533523886491869218
-    await llamma.selfLiquidateIsApproved();
+    await oneWayMarket.selfLiquidateIsApproved();
     // true
-    await llamma.selfLiquidateApprove();
+    await oneWayMarket.selfLiquidateApprove();
     // []
-    await llamma.selfLiquidate(0.1); // slippage = 0.1 %
+    await oneWayMarket.selfLiquidate(0.1); // slippage = 0.1 %
 
-    // Wallet balances: { stablecoin: '0.0', collateral: '1.0' }
-    // State: { collateral: '0.0', stablecoin: '0.0', debt: '0.0' }
+    // Wallet balances: { borrowed: '0.0', collateral: '1.0' }
+    // State: { collateral: '0.0', borrowed: '0.0', debt: '0.0' }
 })()
 ```
 
 ### Liquidation
 ```ts
 (async () => {
-    await crvusd.init('JsonRpc', {});
+    await lending.init('JsonRpc', {});
 
-    const llamma = crvusd.getLlamma('eth');
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
     const addressToLiquidate = "0x66aB6D9362d4F35596279692F0251Db635165871";
 
-    await llamma.wallet.balances();
+    await oneWayMarket.wallet.balances();
     // Liquidator wallet balances: {
-    //     stablecoin: '301.533523886491869218',
+    //     borrowed: '301.533523886491869218',
     //     collateral: '0.860611976623971606'
     // }
-    await llamma.userState(addressToLiquidate);
+    await oneWayMarket.userState(addressToLiquidate);
     // State of the account we are goning to liquidate: {
     //     collateral: '0.139388023376028394',
-    //     stablecoin: '2751.493405530582315609',
+    //     borrowed: '2751.493405530582315609',
     //     debt: '3053.026929417074184827'
     // }
     
-    await llamma.tokensToLiquidate(addressToLiquidate);
+    await oneWayMarket.tokensToLiquidate(addressToLiquidate);
     // 301.533523886491869218
-    await llamma.liquidateIsApproved();
+    await oneWayMarket.liquidateIsApproved();
     // true
-    await llamma.liquidateApprove();
+    await oneWayMarket.liquidateApprove();
     // []
-    await llamma.liquidate(addressToLiquidate, 0.1); // slippage = 0.1 %
+    await oneWayMarket.liquidate(addressToLiquidate, 0.1); // slippage = 0.1 %
 
-    // Liquidator wallet balances: { stablecoin: '0.0', collateral: '1.0' }
-    // State of liquidated account: { collateral: '0.0', stablecoin: '0.0', debt: '0.0' }
+    // Liquidator wallet balances: { borrowed: '0.0', collateral: '1.0' }
+    // State of liquidated account: { collateral: '0.0', borrowed: '0.0', debt: '0.0' }
 })()
 ```
 
 ### User loss
 ```ts
 (async () => {
-    await crvusd.init('JsonRpc', {});
+    await lending.init('JsonRpc', {});
 
-    const llamma = crvusd.getLlamma('sfrxeth');
+    const oneWayMarket = lending.getoneWayMarket('sfrxeth');
 
-    console.log(await llamma.userLoss("0x0063046686E46Dc6F15918b61AE2B121458534a5"));
+    console.log(await oneWayMarket.userLoss("0x0063046686E46Dc6F15918b61AE2B121458534a5"));
     // {
     //     deposited_collateral: '929.933909709140155529',
     //     current_collateral_estimation: '883.035865972092328038',
     //     loss: '46.898043737047827491',
     //     loss_pct: '5.043158793049750311'
     // }
-})()
-```
-
-### Leverage
-```ts
-(async () => {
-
-    //        Creates leveraged position (collateral + leverage_collateral)
-    //                          ^
-    //                          | 
-    //        collateral        |         crvUSD                 crvUSD    
-    // user       -->      controller     -->     leverage_zap    -->    curve_router
-    //                          ^                      |  ^                   |
-    //                          |______________________|  |___________________|
-    //                             leverage_collateral     leverage_collateral
-    
-    await crvusd.init('JsonRpc', {});
-
-    const llamma = crvusd.getLlamma('wsteth');
-    
-    
-    await llamma.leverage.createLoanMaxRecv(1, 5);
-    // {
-    //     maxBorrowable: '16547.886068664425693035',
-    //     maxCollateral: '8.789653769216069731',
-    //     leverage: '8.7897',
-    //     routeIdx: 1
-    // }
-    const { collateral, leverage, routeIdx } = await llamma.leverage.createLoanCollateral(1, 1000);
-    // { collateral: '1.470781767566863562', leverage: '1.4708', routeIdx: 1 }
-    await llamma.leverage.getRouteName(routeIdx);
-    // crvUSD/USDT --> tricrypto2 --> steth
-    await llamma.leverage.getMaxRange(1, 1000);
-    // 50
-    await llamma.leverage.createLoanBands(1, 1000, 5);
-    // [ 103, 99 ]
-    await llamma.leverage.createLoanPrices(1, 1000, 5);
-    // [ '731.101353314760924139', '768.779182694401331144' ]
-    await llamma.leverage.createLoanHealth(1, 1000, 5);  // FULL
-    // 203.0010181561119221
-    await llamma.leverage.createLoanHealth(1, 1000, 5, false);  // NOT FULL
-    // 3.6596075146233826
-    await llamma.leverage.priceImpact(1, 1000);
-    // 0.0007 %
-
-    await llamma.leverage.createLoanIsApproved(1);
-    // false
-    await llamma.leverage.createLoanApprove(1);
-    // [
-    //     '0xc111e471715ae6f5437e12d3b94868a5b6542cd7304efca18b5782d315760ae5'
-    // ]
-    await llamma.leverage.createLoan(1, 1000, 5);
-    // 0x0c6fbfdbd5c35d84b6137d3f27b91235100c540f97d87f27eefe9c53d3fe2727
-
-    await llamma.debt();  // OR await llamma.debt(address);
-    // 1000.0
-    await llamma.loanExists();
-    // true
-    await llamma.userHealth();  // FULL
-    // 202.9745534261399119
-    await llamma.userHealth(false);  // NOT FULL
-    // 3.664403959327331
-    await llamma.userRange()
-    // 5
-    await llamma.userBands();
-    // [ 103, 99 ]
-    await llamma.userPrices();
-    // [ '731.101559601446893847', '768.779399612218705572' ]
-    await llamma.userState();
-    // {
-    //     collateral: '1.47084941027800225',
-    //     stablecoin: '0.0',
-    //     debt: '1000.0'
-    // }
-    await llamma.userBandsBalances();
-    // {
-    //     '99': { stablecoin: '0.0', collateral: '0.29416988205560045' },
-    //     '100': { stablecoin: '0.0', collateral: '0.29416988205560045' },
-    //     '101': { stablecoin: '0.0', collateral: '0.29416988205560045' },
-    //     '102': { stablecoin: '0.0', collateral: '0.29416988205560045' },
-    //     '103': { stablecoin: '0.0', collateral: '0.29416988205560045' }
-    // }
-
-})()
-```
-
-### Leverage all ranges methods
-```ts
-    await crvusd.init('JsonRpc', {});
-
-    const llamma = crvusd.getLlamma('wsteth');
-
-    await llamma.leverage.createLoanMaxRecvAllRanges(1);
-    // {
-    //     '4': {
-    //         maxBorrowable: '17147.090188198024935509',
-    //         maxCollateral: '9.062551195413331339',
-    //         leverage: '9.0626',
-    //         routeIdx: 1
-    //     },
-    //     '5': {
-    //         maxBorrowable: '16403.646954605099577422',
-    //         maxCollateral: '8.713012324116998431',
-    //         leverage: '8.7130',
-    //         routeIdx: 1
-    //     },
-    //     '6': {
-    //         maxBorrowable: '15719.798733163998861372',
-    //         maxCollateral: '8.391490399698554111',
-    //         leverage: '8.3915',
-    //         routeIdx: 1
-    //     },
-    //     '7': {
-    //         maxBorrowable: '15088.670386359222674207',
-    //         maxCollateral: '8.094753549413418159',
-    //         leverage: '8.0948',
-    //         routeIdx: 1
-    //     },
-    //     '8': {
-    //         maxBorrowable: '14504.40446852885551856',
-    //         maxCollateral: '7.820048255346502533',
-    //         leverage: '7.8200',
-    //         routeIdx: 1
-    //     },
-    //     '9': {
-    //         maxBorrowable: '13961.979739583096049766',
-    //         maxCollateral: '7.565014055477733007',
-    //         leverage: '7.5650',
-    //         routeIdx: 1
-    //     },
-    //     '10': {
-    //         maxBorrowable: '13457.067188253192169488',
-    //         maxCollateral: '7.327615875203003395',
-    //         leverage: '7.3276',
-    //         routeIdx: 1
-    //     },
-    //      
-    //      ...
-    //
-    //     '50': {
-    //         maxBorrowable: '5292.589588751249894884',
-    //         maxCollateral: '3.488707841886932836',
-    //         leverage: '3.4887',
-    //         routeIdx: 1
-    //     }
-    // }
-
-    await llamma.leverage.createLoanBandsAllRanges(1, 14000);
-    // {
-    //     '4': [ 3, 0 ],
-    //     '5': [ 3, -1 ],
-    //     '6': [ 4, -1 ],
-    //     '7': [ 4, -2 ],
-    //     '8': [ 5, -2 ],
-    //     '9': null,
-    //     '10': null,
-    //
-    //      ...
-    //
-    //     '50': null
-    // }
-
-    await llamma.leverage.createLoanPricesAllRanges(1, 14000);
-    // {
-    //     '4': [ '1997.376270314867650039', '2079.309355360395105159' ],
-    //     '5': [ '1997.376270314867650039', '2100.312480162015257736' ],
-    //     '6': [ '1977.402507611718973539', '2100.312480162015257736' ],
-    //     '7': [ '1977.402507611718973539', '2121.527757739409351246' ],
-    //     '8': [ '1957.628482535601783803', '2121.527757739409351246' ],
-    //     '9': null,
-    //     '10': null,
-    //
-    //      ...
-    //
-    //     '50': null
-    // }
-```
-
-### Deleverage
-```ts
-(async () => {
-
-    //    Deleveraged position (fully or partially)
-    //      ^
-    //      | 
-    //      |     collateral              collateral    
-    // controller     -->     leverage_zap    -->    curve_router
-    //      ^                      |    ^                   |
-    //      |______________________|    |___________________|
-    //               crvUSD                     crvUSD
-    
-    await crvusd.init('JsonRpc', {});
-
-    const llamma = crvusd.getLlamma('wsteth');
-
-
-    await llamma.userState();
-    // {
-    //     collateral: '1.532865973844812038',
-    //     stablecoin: '0.0',
-    //     debt: '1000.0'
-    // }
-    const { stablecoins, routeIdx } = await llamma.deleverage.repayStablecoins(0.5);
-    // { stablecoins: '936.993512434228957835', routeIdx: 2 }
-    await llamma.deleverage.getRouteName(routeIdx)
-    // wstETH wrapper -> steth -> factory-tricrypto-4 (TriCRV)
-    await llamma.deleverage.repayBands(0.5)
-    // [ 344, 340 ]
-    await llamma.deleverage.repayPrices(0.5)
-    // [ '65.389368517832066821', '68.759256234814550815' ]
-    await llamma.deleverage.repayHealth(0.5)  // FULL
-    // 2962.6116372201716629
-    await llamma.deleverage.repayHealth(0.5, false)  // NOT FULL
-    // 3.3355078309621505
-    await llamma.deleverage.priceImpact(0.5)
-    // 0.0080 %
-    await llamma.deleverage.isAvailable(0.5)
-    // true
-    await llamma.deleverage.isFullRepayment(0.5)
-    // false
-
-    await llamma.deleverage.repay(0.5, 0.3)
-
-    await llamma.userState()
-    // {
-    //     collateral: '1.032865973844812038',
-    //     stablecoin: '0.0',
-    //     debt: '63.006629410173187253'
-    // }
-    await llamma.userBands()
-    // [ 344, 340 ]
-    await llamma.userPrices()
-    // [ '65.389377792947951092', '68.759265987930143609' ]
-    await llamma.userHealth()  // FULL
-    // 2962.6210276926274746
-    await llamma.userHealth(false)  // NOT FULL
-    // 3.3352898532375197
-    await llamma.userBandsBalances()
-    // {
-    //     '340': { stablecoin: '0.0', collateral: '0.20657319476896241' },
-    //     '341': { stablecoin: '0.0', collateral: '0.206573194768962407' },
-    //     '342': { stablecoin: '0.0', collateral: '0.206573194768962407' },
-    //     '343': { stablecoin: '0.0', collateral: '0.206573194768962407' },
-    //     '344': { stablecoin: '0.0', collateral: '0.206573194768962407' }
-    // }
-})()
-```
-
-
-## Gas estimation
-Every non-constant method has corresponding gas estimation method. Rule: ```obj.method -> obj.estimateGas.method```
-
-**Examples**
-```ts
-import crvusd from "@curvefi/lending-api";
-
-(async () => {
-    await crvusd.init('JsonRpc', {});
-    
-    const spender = "0x3897810a334833184Ef7D6B419ba4d78EC2bBF80";
-    await crvusd.estimateGas.ensureAllowance(["weth"], [1], spender);
-    // 94523
-    
-    const llamma = crvusd.getLlamma('eth');
-    await llamma.estimateGas.createLoanApprove(0.5);
-    // 186042
-    await llamma.estimateGas.createLoan(0.5, 1000, 20);
-    // 1306411
 })()
 ```

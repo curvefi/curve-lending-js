@@ -148,6 +148,14 @@ const generalTest = async () => {
     console.log(await oneWayMarket.userPrices());
     console.log(await oneWayMarket.userBandsBalances());
 
+    console.log(await oneWayMarket.calcTickPrice(0));
+    console.log(await oneWayMarket.calcTickPrice(1));
+    console.log(await oneWayMarket.calcBandPrices(0));
+    console.log(await oneWayMarket.calcBandPrices(1));
+    console.log(await oneWayMarket.calcRangePct(0));
+    console.log(await oneWayMarket.calcRangePct(1));
+    console.log(await oneWayMarket.oraclePriceBand());
+
     console.log("\n--- BORROW MORE ---\n");
 
     console.log(await oneWayMarket.borrowMoreMaxRecv(0.5));

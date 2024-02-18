@@ -492,7 +492,21 @@ import lending from "@curvefi/lending-api";
         206: {collateral: '0.2', borrowed: '0.0'},
     }
     //
-    
+
+    await oneWayMarket.calcTickPrice(0);
+    //8595.062092132517715849
+    await oneWayMarket.calcTickPrice(1);
+    //8509.111471211192538691
+    await oneWayMarket.calcBandPrices(0);
+    //['8509.111471211192538691', '8595.062092132517715849']
+    await oneWayMarket.calcBandPrices(1);
+    //['8424.020356499080613304', '8509.111471211192538691']
+    await oneWayMarket.calcRangePct(0);
+    //0.000000
+    await oneWayMarket.calcRangePct(1);
+    //1.000000
+    await oneWayMarket.oraclePriceBand();
+    //4
 
     // --- BORROW MORE ---
 

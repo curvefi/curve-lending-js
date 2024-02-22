@@ -346,12 +346,15 @@ import lending from "@curvefi/lending-api";
 
     await oneWayMarket.wallet.balances();
     //
-    {
-        borrowed: "100000.0"
-        collateral: "100.0"
-        vaultShares: "0.0"
-    }
+    // {
+    //     borrowed: "100000.0"
+    //     collateral: "100.0"
+    //     vaultShares: "0.0"
+    // }
     //
+
+    await oneWayMarket.vault.rates();
+    // { borrowApr: '0', lendApr: '0', borrowApy: '0', lendApy: '0' }
     await oneWayMarket.vault.maxDeposit();
     //100000.0
     await oneWayMarket.vault.previewDeposit(20000);  // Shares to receive
@@ -362,13 +365,14 @@ import lending from "@curvefi/lending-api";
     //['0x18633be4d60d0afaa8dbbe63eb124ddbcd1fd7f8cc34ae16ef7ad34f4ffe1a53']
     await oneWayMarket.vault.deposit(20000);
     //0xbdc8bdc64fcf560aa9fbf8cf43a1f24dd54cb5c77a88c3a2a8b4408f2d409e2b
+    
     await oneWayMarket.wallet.balances();
     //
-    {
-        borrowed: "80000.0"
-        collateral: "100.0"
-        vaultShares: "20000000.0"
-    }
+    // {
+    //     borrowed: "80000.0"
+    //     collateral: "100.0"
+    //     vaultShares: "20000000.0"
+    // }
     //
 
     await oneWayMarket.vault.maxMint();
@@ -384,11 +388,11 @@ import lending from "@curvefi/lending-api";
 
     await oneWayMarket.wallet.balances();
     //
-    {
-        borrowed: "79980.0"
-        collateral: "100.0"
-        vaultShares: "20020000.0"
-    }
+    // {
+    //     borrowed: "79980.0"
+    //     collateral: "100.0"
+    //     vaultShares: "20020000.0"
+    // }
     //
 
     await oneWayMarket.vault.maxWithdraw();
@@ -400,11 +404,11 @@ import lending from "@curvefi/lending-api";
 
     await oneWayMarket.wallet.balances();
     //
-    {
-        borrowed: "89980.0"
-        collateral: "100.0"
-        vaultShares: "10020000.0"
-    }
+    // {
+    //     borrowed: "89980.0"
+    //     collateral: "100.0"
+    //     vaultShares: "10020000.0"
+    // }
     //
 
     await oneWayMarket.vault.maxRedeem();
@@ -416,11 +420,11 @@ import lending from "@curvefi/lending-api";
 
     await oneWayMarket.wallet.balances();
     //
-    {
-        borrowed: "89990.0"
-        collateral: "100.0"
-        vaultShares: "10010000.0"
-    }
+    // {
+    //     borrowed: "89990.0"
+    //     collateral: "100.0"
+    //     vaultShares: "10010000.0"
+    // }
     //
 ````
 

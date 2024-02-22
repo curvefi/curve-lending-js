@@ -95,6 +95,7 @@ export class OneWayMarketTemplate {
     };
 
     vault: {
+        rates: () => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
         maxDeposit: (address?: string) => Promise<string>,
         previewDeposit: (amount: TAmount) => Promise<string>,
         depositIsApproved: (borrowed: TAmount) => Promise<boolean>
@@ -170,6 +171,7 @@ export class OneWayMarketTemplate {
         }
 
         this.vault = {
+            rates: this.vaultRates.bind(this),
             maxDeposit: this.vaultMaxDeposit.bind(this),
             previewDeposit: this.vaultPreviewDeposit.bind(this),
             depositIsApproved: this.vaultDepositIsApproved.bind(this),
@@ -199,6 +201,34 @@ export class OneWayMarketTemplate {
     }
 
     // ---------------- VAULT ----------------
+
+    private _getRate = memoize(async (): Promise<bigint> => {
+        const llammaContract = lending.contracts[this.addresses.amm].contract;
+        return await llammaContract.rate();
+    },
+    {
+        promise: true,
+        maxAge: 5 * 60 * 1000, // 5m
+    });
+
+    private async vaultRates(): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
+        const _rate = await this._getRate();
+        const borrowApr =  toBN(_rate).times(365).times(86400).times(100).toString();
+        // borrowApy = e**(rate*365*86400) - 1
+        const borrowApy = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
+        let lendApr = "0";
+        let lendApy = "0";
+        const debt = await this.statsTotalDebt();
+        if (Number(debt) > 0) {
+            const { cap } = await this.statsCapAndAvailable();
+            lendApr = toBN(_rate).times(365).times(86400).times(debt).div(cap).times(100).toString();
+            // lendApy = (debt * e**(rate*365*86400) - debt) / cap
+            const debtInAYearBN = BN(debt).times(2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber());
+            lendApy = debtInAYearBN.minus(debt).div(cap).times(100).toString();
+        }
+
+        return { borrowApr, lendApr, borrowApy, lendApy }
+    }
 
     private async vaultMaxDeposit(address = ""): Promise<string> {
         address = _getAddress(address);

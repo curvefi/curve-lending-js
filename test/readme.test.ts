@@ -81,6 +81,7 @@ const vaultTest = async () => {
 
     console.log(await oneWayMarket.wallet.balances());
 
+    console.log(await oneWayMarket.vault.rates());
     console.log(await oneWayMarket.vault.maxDeposit());
     console.log(await oneWayMarket.vault.previewDeposit(20000));  // Shares to receive
     console.log(await oneWayMarket.vault.depositIsApproved(20000));

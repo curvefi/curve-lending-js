@@ -29,6 +29,7 @@ const oneWayMarketFieldsTest = async () => {
     const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
 
     console.log(oneWayMarket.id);
+    console.log(oneWayMarket.name);
     console.log(oneWayMarket.addresses);
     console.log(oneWayMarket.borrowed_token);
     console.log(oneWayMarket.collateral_token);

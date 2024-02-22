@@ -24,6 +24,7 @@ import {IDict, TGas, TAmount} from "../interfaces.js";
 
 export class OneWayMarketTemplate {
     id: string;
+    name: string
     addresses: {
         amm: string,
         controller: string,
@@ -123,6 +124,7 @@ export class OneWayMarketTemplate {
     constructor(id: string) {
         this.id = id;
         const marketData = lending.constants.ONE_WAY_MARKETS[id];
+        this.name = marketData.name;
         this.addresses = marketData.addresses;
         this.borrowed_token = marketData.borrowed_token;
         this.collateral_token = marketData.collateral_token;

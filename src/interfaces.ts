@@ -43,7 +43,7 @@ export interface ICoin {
 }
 
 export interface IOneWayMarket {
-    id: string,
+    name: string,
     addresses: {
         amm: string,
         controller: string,

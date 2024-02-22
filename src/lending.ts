@@ -327,7 +327,7 @@ class Lending implements ILending {
             };
             this.constants.DECIMALS[vaults[index]] = 18;
             this.constants.ONE_WAY_MARKETS[`one-way-market-${index}`] = {
-                id: `market-${index}`,
+                name: `market-${index}`, // TODO fetch the name from the factory
                 addresses: {
                     amm: amms[index],
                     controller: controllers[index],

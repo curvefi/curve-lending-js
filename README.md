@@ -171,7 +171,9 @@ import lending from "@curvefi/lending-api";
     const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
 
     oneWayMarket.id
-    //"one-way-market-0"
+    // "one-way-market-0"
+    oneWayMarket.name
+    // "market-0"
     oneWayMarket.addresses
     //
     {

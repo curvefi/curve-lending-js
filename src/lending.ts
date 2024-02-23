@@ -264,7 +264,7 @@ class Lending implements ILending {
         const factory = this.contracts[this.constants.ALIASES['one_way_factory']];
         const factoryContract = this.contracts[this.constants.ALIASES['one_way_factory']].contract;
         const markets_count = await factoryContract.market_count();
-        const callsMap = ['amms', 'controllers', 'borrowed_tokens', 'collateral_tokens', 'monetary_policies', 'vaults', 'gauges']
+        const callsMap = ['names', 'amms', 'controllers', 'borrowed_tokens', 'collateral_tokens', 'monetary_policies', 'vaults', 'gauges']
 
         const calls: Call[] = [];
         for (let i = 0; i < markets_count; i++) {
@@ -308,7 +308,7 @@ class Lending implements ILending {
     }
 
     fetchOneWayMarkets = async () => {
-        const {amms, controllers, borrowed_tokens, collateral_tokens, monetary_policies, vaults, gauges} = await this.getFactoryMarketData()
+        const {names, amms, controllers, borrowed_tokens, collateral_tokens, monetary_policies, vaults, gauges} = await this.getFactoryMarketData()
         const COIN_DATA = await this.getCoins(collateral_tokens, borrowed_tokens);
         for (const c in COIN_DATA) {
             this.constants.DECIMALS[c] = COIN_DATA[c].decimals;
@@ -327,7 +327,7 @@ class Lending implements ILending {
             };
             this.constants.DECIMALS[vaults[index]] = 18;
             this.constants.ONE_WAY_MARKETS[`one-way-market-${index}`] = {
-                name: `market-${index}`, // TODO fetch the name from the factory
+                name: names[index],
                 addresses: {
                     amm: amms[index],
                     controller: controllers[index],

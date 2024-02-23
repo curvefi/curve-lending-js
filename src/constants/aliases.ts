@@ -2,11 +2,11 @@ import { lowerCaseValues } from "./utils.js";
 
 
 export const ALIASES_ETHEREUM = lowerCaseValues({
-    "one_way_factory": "0xD7AF031d56f9f372849bd73B08b65493a42Cbd93",
+    "one_way_factory": "0xc67a44D958eeF0ff316C3a7c9E14FB96f6DedAA3",
 });
 
 export const ALIASES_POLYGON = lowerCaseValues({
-    "one_way_factory": "0xed4EA68c9164a2a51d646CFb25BaD15B483E510d",
+    "one_way_factory": "0x0000000000000000000000000000000000000000",
 });
 
 export const ALIASES_FANTOM = lowerCaseValues({

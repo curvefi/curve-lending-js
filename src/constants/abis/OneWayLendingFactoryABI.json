@@ -441,6 +441,23 @@
   {
     "stateMutability": "view",
     "type": "function",
+    "name": "names",
+    "inputs": [
+      {
+        "name": "n",
+        "type": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "stateMutability": "view",
+    "type": "function",
     "name": "amms",
     "inputs": [
       {

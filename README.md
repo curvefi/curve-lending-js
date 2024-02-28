@@ -335,97 +335,148 @@ import lending from "@curvefi/lending-api";
 ````
 
 
-### Vault: deposit, mint, withdraw, redeem
+### Vault: deposit, mint, stake, unstake, withdraw, redeem
 ```ts
     await lending.init('JsonRpc', {});
-
     await lending.oneWayfactory.fetchMarkets();
 
-    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
-
-
-    await oneWayMarket.wallet.balances();
-    //
-    // {
-    //     borrowed: "100000.0"
-    //     collateral: "100.0"
-    //     vaultShares: "0.0"
-    // }
-    //
-
-    await oneWayMarket.vault.rates();
-    // { borrowApr: '0', lendApr: '0', borrowApy: '0', lendApy: '0' }
-    await oneWayMarket.vault.maxDeposit();
-    //100000.0
-    await oneWayMarket.vault.previewDeposit(20000);  // Shares to receive
-    //20000000.0
-    await oneWayMarket.vault.depositIsApproved(20000);
-    //false
-    await oneWayMarket.vault.depositApprove(20000);
-    //['0x18633be4d60d0afaa8dbbe63eb124ddbcd1fd7f8cc34ae16ef7ad34f4ffe1a53']
-    await oneWayMarket.vault.deposit(20000);
-    //0xbdc8bdc64fcf560aa9fbf8cf43a1f24dd54cb5c77a88c3a2a8b4408f2d409e2b
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-1');
+    
     
     await oneWayMarket.wallet.balances();
-    //
     // {
-    //     borrowed: "80000.0"
-    //     collateral: "100.0"
-    //     vaultShares: "20000000.0"
+    //     collateral: '100000.0',
+    //     borrowed: '1000000.0',
+    //     vaultShares: '0.0',
+    //     gauge: '0.0'
     // }
-    //
 
-    await oneWayMarket.vault.maxMint();
-    //80000000.0
-    await oneWayMarket.vault.previewMint(20000);  // Assets to send
-    //20.0
-    await oneWayMarket.vault.mintIsApproved(20000);
-    //true
-    await oneWayMarket.vault.mintApprove(20000);
-    //[]
-    await oneWayMarket.vault.mint(20000);
-    //0x9e34e201edaeacd27cb3013e003d415c110f562ad105e587f7c8fb0c3b974142
+    await oneWayMarket.vault.rates();
+    // {
+    //     borrowApr: '19.2798458978544',
+    //     lendApr: '15.290427867246053076',
+    //     borrowApy: '21.263837251326034',
+    //     lendApy: '16.863888404234776759'
+    // }
+    
+    // ------------ DEPOSIT ------------
+
+    await oneWayMarket.vault.maxDeposit();
+    // 1000000.0
+    await oneWayMarket.vault.previewDeposit(20000);  // Shares to receive
+    // 19957279.880161894212096572
+    await oneWayMarket.vault.depositIsApproved(20000);
+    // false
+    await oneWayMarket.vault.depositApprove(20000);
+    // [
+    //     '0xb4a9da37381d6a7b36d89c977c6974d6f7d0aa7b82564b7bdef7b06b2fbd58ae'
+    // ]
+    await oneWayMarket.vault.deposit(20000);
+    // 0x2670db285b6ac1d1e4fc63455554303b583ea0278ee7d75624be4573e018aa2e
 
     await oneWayMarket.wallet.balances();
-    //
     // {
-    //     borrowed: "79980.0"
-    //     collateral: "100.0"
-    //     vaultShares: "20020000.0"
+    //     collateral: '100000.0',
+    //     borrowed: '980000.0',
+    //     vaultShares: '19957272.526619469933528807',
+    //     gauge: '0.0'
     // }
-    //
+
+    // ------------ MINT ------------
+
+    await oneWayMarket.vault.maxMint();
+    // 977906353.804354026742911543
+    await oneWayMarket.vault.previewMint(20000);  // Assets to send
+    // 20.042818950659253842
+    await oneWayMarket.vault.mintIsApproved(20000);
+    // true
+    await oneWayMarket.vault.mintApprove(20000);
+    // []
+    await oneWayMarket.vault.mint(20000);
+    // 0x9e34e201edaeacd27cb3013e003d415c110f562ad105e587f7c8fb0c3b974142
+
+    let balances = await oneWayMarket.wallet.balances();
+    // {
+    //     collateral: '100000.0',
+    //     borrowed: '979979.95718098845915171',
+    //     vaultShares: '19977272.526619469933528807',
+    //     gauge: '0.0'
+    // }
+
+    // ------------ STAKE ------------
+
+    await oneWayMarket.vault.stakeIsApproved(balances.vaultShares);
+    // false
+    await oneWayMarket.vault.stakeApprove(balances.vaultShares);
+    // [
+    //     '0xf3009825dfed3352d99b7d45b72d99b9a9b1773fae2abeabdb39d9880a3266d6'
+    // ]
+    await oneWayMarket.vault.stake(balances.vaultShares);
+    // 0x3572dfa980b98091061df4b27ea8f05dee8b49384cc781dbcd7b8cf099610426
+    balances = await oneWayMarket.wallet.balances();
+    // {
+    //     collateral: '100000.0',
+    //     borrowed: '979979.95718098845915171',
+    //     vaultShares: '0.0',
+    //     gauge: '19977272.526619469933528807'
+    // }
+    oneWayMarket.vault.rewardsOnly();
+    // false
+    await oneWayMarket.vault.totalLiquidity();
+    // 180638.919172
+    await oneWayMarket.vault.crvApr();
+    // [0, 0]
+    await oneWayMarket.vault.rewardTokens();
+    // []
+    await oneWayMarket.vault.rewardsApr();
+    // []
+
+    // ------------ UNSTAKE ------------
+
+    await oneWayMarket.vault.unstake(balances.gauge);
+    // 0x30216703c444705598b10b3b510d05a19b44ad84699d8e2f3f0198a4573def99
+
+    await oneWayMarket.wallet.balances();
+    // {
+    //     collateral: '100000.0',
+    //     borrowed: '979979.95718098845915171',
+    //     vaultShares: '19977272.526619469933528807',
+    //     gauge: '0.0'
+    // }
+
+    // ------------ WITHDRAW ------------
 
     await oneWayMarket.vault.maxWithdraw();
-    //20020.0
+    // 20020.043244481699203505
     await oneWayMarket.vault.previewWithdraw(10000);  // Shares to send
-    //10000000.0
+    // 9978636.051211318667087166
     await oneWayMarket.vault.withdraw(10000);
     //0xa8df19e420040dc21e60f1a25eedec01fead748e2d654100ca3e2d0e369a7ae0
 
     await oneWayMarket.wallet.balances();
-    //
     // {
-    //     borrowed: "89980.0"
-    //     collateral: "100.0"
-    //     vaultShares: "10020000.0"
+    //     collateral: '100000.0',
+    //     borrowed: '989979.95718098845915171',
+    //     vaultShares: '9998636.505706074967248914',
+    //     gauge: '0.0'
     // }
-    //
+
+    // ------------ REDEEM ------------
 
     await oneWayMarket.vault.maxRedeem();
-    //10020000.0
+    // 9998636.505706074967248914
     await oneWayMarket.vault.previewRedeem(10000);  // Assets to receive
-    //10.0
+    // 10.021409718764999588
     await oneWayMarket.vault.redeem(10000);
     //0x391721baa517170c23819b070532a3429ab3c7a306042615bf8e1983d035e363
 
     await oneWayMarket.wallet.balances();
-    //
     // {
-    //     borrowed: "89990.0"
-    //     collateral: "100.0"
-    //     vaultShares: "10010000.0"
+    //     collateral: '100000.0',
+    //     borrowed: '989989.978590745251091246',
+    //     vaultShares: '9988636.505706074967248914',
+    //     gauge: '0.0'
     // }
-    //
 ````
 
 ### Create loan, add collateral, borrow more, repay

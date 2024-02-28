@@ -77,7 +77,7 @@ const vaultTest = async () => {
     await lending.init('JsonRpc', {});
     await lending.oneWayfactory.fetchMarkets();
 
-    const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
+    const oneWayMarket = lending.getOneWayMarket('one-way-market-1');
 
     console.log(await oneWayMarket.wallet.balances());
 
@@ -95,6 +95,21 @@ const vaultTest = async () => {
     console.log(await oneWayMarket.vault.mintIsApproved(20000));
     console.log(await oneWayMarket.vault.mintApprove(20000));
     console.log(await oneWayMarket.vault.mint(20000));
+
+    let balances = await oneWayMarket.wallet.balances();
+    console.log(balances);
+
+    console.log(await oneWayMarket.vault.stakeIsApproved(balances.vaultShares));
+    console.log(await oneWayMarket.vault.stakeApprove(balances.vaultShares));
+    console.log(await oneWayMarket.vault.stake(balances.vaultShares));
+    balances = await oneWayMarket.wallet.balances();
+    console.log(balances);
+    console.log(oneWayMarket.vault.rewardsOnly());
+    console.log(await oneWayMarket.vault.totalLiquidity());
+    console.log(await oneWayMarket.vault.crvApr());
+    console.log(await oneWayMarket.vault.rewardTokens());
+    console.log(await oneWayMarket.vault.rewardsApr());
+    console.log(await oneWayMarket.vault.unstake(balances.gauge));
 
     console.log(await oneWayMarket.wallet.balances());
 

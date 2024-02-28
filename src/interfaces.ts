@@ -72,6 +72,7 @@ export interface ILending {
         NETWORK_NAME: INetworkName;
         ALIASES: Record<string, string>;
         COINS: Record<string, string>;
+        ZERO_ADDRESS: string,
     };
 }
 
@@ -115,3 +116,9 @@ export interface IExtendedPoolDataFromApi {
     tvlAll: number,
 }
 
+export interface IReward {
+    gaugeAddress: string,
+    tokenAddress: string,
+    symbol: string,
+    apy: number
+}

@@ -8,6 +8,7 @@ import {
     toBN,
     fromBN,
     getBalances,
+    _ensureAllowance,
     ensureAllowance,
     hasAllowance,
     ensureAllowanceEstimateGas,
@@ -17,10 +18,17 @@ import {
     MAX_ALLOWANCE,
     MAX_ACTIVE_BAND,
     _mulBy1_3,
+    _getUsdRate,
     DIGas,
     smartNumber,
 } from "../utils.js";
-import {IDict, TGas, TAmount} from "../interfaces.js";
+import { IDict, TGas, TAmount, IReward } from "../interfaces.js";
+import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
+
+
+const DAY = 86400;
+const WEEK = 7 * DAY;
+
 
 export class OneWayMarketTemplate {
     id: string;
@@ -91,9 +99,8 @@ export class OneWayMarketTemplate {
         capAndAvailable: () => Promise<{ cap: string, available: string }>,
     };
     wallet: {
-        balances: (address?: string) => Promise<{ collateral: string, borrowed: string, vaultShares: string }>,
+        balances: (address?: string) => Promise<{ collateral: string, borrowed: string, vaultShares: string, gauge: string }>,
     };
-
     vault: {
         rates: () => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
         maxDeposit: (address?: string) => Promise<string>,
@@ -112,6 +119,15 @@ export class OneWayMarketTemplate {
         maxRedeem: (address?: string) => Promise<string>,
         previewRedeem: (amount: TAmount) => Promise<string>,
         redeem: (amount: TAmount) => Promise<string>,
+        stakeIsApproved: (vaultShares: number | string) => Promise<boolean>,
+        stakeApprove: (vaultShares: number | string) => Promise<string[]>,
+        stake: (vaultShares: number | string) => Promise<string>,
+        unstake: (vaultShares: number | string) => Promise<string>,
+        rewardsOnly: () => boolean,
+        totalLiquidity: () => Promise<string>,
+        crvApr: (useApi?: boolean) => Promise<[baseApy: number, boostedApy: number]>,
+        rewardTokens: (useApi?: boolean) => Promise<{token: string, symbol: string, decimals: number}[]>,
+        rewardsApr: (useApi?: boolean) => Promise<IReward[]>,
         estimateGas: {
             depositApprove: (amount: TAmount) => Promise<TGas>,
             deposit: (amount: TAmount) => Promise<TGas>,
@@ -119,6 +135,9 @@ export class OneWayMarketTemplate {
             mint: (amount: TAmount) => Promise<TGas>,
             withdraw: (amount: TAmount) => Promise<TGas>,
             redeem: (amount: TAmount) => Promise<TGas>,
+            stakeApprove: (vaultShares: number | string) => Promise<TGas>,
+            stake: (vaultShares: number | string) => Promise<TGas>,
+            unstake: (vaultShares: number | string) => Promise<TGas>,
         }
     };
 
@@ -169,7 +188,6 @@ export class OneWayMarketTemplate {
         this.wallet = {
             balances: this.walletBalances.bind(this),
         }
-
         this.vault = {
             rates: this.vaultRates.bind(this),
             maxDeposit: this.vaultMaxDeposit.bind(this),
@@ -188,6 +206,15 @@ export class OneWayMarketTemplate {
             maxRedeem: this.vaultMaxRedeem.bind(this),
             previewRedeem: this.vaultPreviewRedeem.bind(this),
             redeem: this.vaultRedeem.bind(this),
+            stakeIsApproved: this.vaultStakeIsApproved.bind(this),
+            stakeApprove: this.vaultStakeApprove.bind(this),
+            stake: this.vaultStake.bind(this),
+            unstake: this.vaultUnstake.bind(this),
+            rewardsOnly: this.vaultRewardsOnly.bind(this),
+            totalLiquidity: this.vaultTotalLiquidity.bind(this),
+            crvApr: this.vaultCrvApr.bind(this),
+            rewardTokens: this.vaultRewardTokens.bind(this),
+            rewardsApr: this.vaultRewardsApr.bind(this),
             estimateGas: {
                 depositApprove: this.vaultDepositApproveEstimateGas.bind(this),
                 deposit: this.vaultDepositEstimateGas.bind(this),
@@ -195,6 +222,9 @@ export class OneWayMarketTemplate {
                 mint: this.vaultMintEstimateGas.bind(this),
                 withdraw: this.vaultWithdrawEstimateGas.bind(this),
                 redeem: this.vaultRedeemEstimateGas.bind(this),
+                stakeApprove: this.vaultStakeApproveEstimateGas.bind(this),
+                stake: this.vaultStakeEstimateGas.bind(this),
+                unstake: this.vaultUnstakeEstimateGas.bind(this),
             },
         }
 
@@ -398,6 +428,232 @@ export class OneWayMarketTemplate {
 
     private async vaultRedeem(amount: TAmount): Promise<string> {
         return await this._vaultRedeem(amount, false) as string;
+    }
+
+    // ---------------- VAULT STAKING ----------------
+
+    private async vaultStakeIsApproved(vaultShares: number | string): Promise<boolean> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            throw Error(`stakeIsApproved method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
+        }
+        return await hasAllowance([this.addresses.vault], [vaultShares], lending.signerAddress, this.addresses.gauge);
+    }
+
+    private async vaultStakeApproveEstimateGas(vaultShares: number | string): Promise<TGas> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            throw Error(`stakeApproveEstimateGas method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
+        }
+        return await ensureAllowanceEstimateGas([this.addresses.vault], [vaultShares], this.addresses.gauge);
+    }
+
+    private async vaultStakeApprove(vaultShares: number | string): Promise<string[]> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            throw Error(`stakeApprove method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
+        }
+        return await ensureAllowance([this.addresses.vault], [vaultShares], this.addresses.gauge);
+    }
+
+    private async vaultStakeEstimateGas(vaultShares: number | string): Promise<TGas> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            throw Error(`stakeEstimateGas method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
+        }
+        const _vaultShares = parseUnits(vaultShares);
+        return smartNumber(await lending.contracts[this.addresses.gauge].contract.deposit.estimateGas(_vaultShares, lending.constantOptions));
+    }
+
+    private async vaultStake(vaultShares: number | string): Promise<string> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            throw Error(`stake method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
+        }
+        const _vaultShares = parseUnits(vaultShares);
+        await _ensureAllowance([this.addresses.vault], [_vaultShares], this.addresses.gauge)
+
+        await lending.updateFeeData();
+        const gasLimit = _mulBy1_3(DIGas(await lending.contracts[this.addresses.gauge].contract.deposit.estimateGas(_vaultShares, lending.constantOptions)));
+        return (await lending.contracts[this.addresses.gauge].contract.deposit(_vaultShares, { ...lending.options, gasLimit })).hash;
+    }
+
+    private async vaultUnstakeEstimateGas(vaultShares: number | string): Promise<TGas> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            throw Error(`unstakeEstimateGas method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
+        }
+        const _vaultShares = parseUnits(vaultShares);
+        return smartNumber(await lending.contracts[this.addresses.gauge].contract.withdraw.estimateGas(_vaultShares, lending.constantOptions));
+    }
+
+    private async vaultUnstake(vaultShares: number | string): Promise<string> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            throw Error(`unstake method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
+        }
+        const _vaultShares = parseUnits(vaultShares);
+
+        await lending.updateFeeData();
+        const gasLimit = _mulBy1_3(DIGas((await lending.contracts[this.addresses.gauge].contract.withdraw.estimateGas(_vaultShares, lending.constantOptions))));
+        return (await lending.contracts[this.addresses.gauge].contract.withdraw(_vaultShares, { ...lending.options, gasLimit })).hash;
+    }
+
+    // ---------------- VAULT STAKING REWARDS ----------------
+
+    private vaultRewardsOnly(): boolean {
+        if (lending.chainId === 2222 || lending.chainId === 324) return true;  // TODO remove this for Kava and ZkSync
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) throw Error(`${this.name} doesn't have gauge`);
+        const gaugeContract = lending.contracts[this.addresses.gauge].contract;
+
+        return !('inflation_rate()' in gaugeContract || 'inflation_rate(uint256)' in gaugeContract);
+    }
+
+    private async vaultTotalLiquidity(): Promise<string> {
+        const { cap } = await this.statsCapAndAvailable();
+        const price = await _getUsdRate(this.addresses.borrowed_token);
+
+        return BN(cap).times(price).toFixed(6)
+    }
+
+    private _calcCrvApr = async (futureWorkingSupplyBN: BigNumber | null = null): Promise<[baseApy: number, boostedApy: number]> => {
+        const totalLiquidityUSD = await this.vaultTotalLiquidity();
+        if (Number(totalLiquidityUSD) === 0) return [0, 0];
+
+        let inflationRateBN, workingSupplyBN, totalSupplyBN;
+        if (lending.chainId !== 1) {
+            const gaugeContract = lending.contracts[this.addresses.gauge].multicallContract;
+            const lpTokenContract = lending.contracts[this.addresses.vault].multicallContract;
+            const crvContract = lending.contracts[lending.constants.ALIASES.crv].contract;
+
+            const currentWeek = Math.floor(Date.now() / 1000 / WEEK);
+            [inflationRateBN, workingSupplyBN, totalSupplyBN] = (await lending.multicallProvider.all([
+                gaugeContract.inflation_rate(currentWeek),
+                gaugeContract.working_supply(),
+                lpTokenContract.totalSupply(),
+            ]) as bigint[]).map((value) => toBN(value));
+
+            if (inflationRateBN.eq(0)) {
+                inflationRateBN = toBN(await crvContract.balanceOf(this.addresses.gauge, lending.constantOptions)).div(WEEK);
+            }
+        } else {
+            const gaugeContract = lending.contracts[this.addresses.gauge].multicallContract;
+            const lpTokenContract = lending.contracts[this.addresses.vault].multicallContract;
+            const gaugeControllerContract = lending.contracts[lending.constants.ALIASES.gauge_controller].multicallContract;
+
+            let weightBN;
+            [inflationRateBN, weightBN, workingSupplyBN, totalSupplyBN] = (await lending.multicallProvider.all([
+                gaugeContract.inflation_rate(),
+                gaugeControllerContract.gauge_relative_weight(this.addresses.gauge),
+                gaugeContract.working_supply(),
+                lpTokenContract.totalSupply(),
+            ]) as bigint[]).map((value) => toBN(value));
+
+            inflationRateBN = inflationRateBN.times(weightBN);
+        }
+
+        if (inflationRateBN.eq(0)) return [0, 0];
+        if (futureWorkingSupplyBN !== null) workingSupplyBN = futureWorkingSupplyBN;
+
+        // If you added 1$ value of LP it would be 0.4$ of working LP. So your annual reward per 1$ in USD is:
+        // (annual reward per working liquidity in $) * (0.4$ of working LP)
+        const rateBN = inflationRateBN.times(31536000).div(workingSupplyBN).times(totalSupplyBN).div(Number(totalLiquidityUSD)).times(0.4);
+        const crvPrice = await _getUsdRate(lending.constants.ALIASES.crv);
+        const baseApyBN = rateBN.times(crvPrice);
+        const boostedApyBN = baseApyBN.times(2.5);
+
+        return [baseApyBN.times(100).toNumber(), boostedApyBN.times(100).toNumber()]
+    }
+
+    private async vaultCrvApr(useApi = true): Promise<[baseApy: number, boostedApy: number]> {
+        if (this.vaultRewardsOnly()) throw Error(`${this.name} has Rewards-Only Gauge. Use stats.rewardsApy instead`);
+
+        // const isDisabledChain = [1313161554].includes(lending.chainId); // Disable Aurora
+        // if (useApi && !isDisabledChain) {
+        //     const crvAPYs = await _getCrvApyFromApi();
+        //     const poolCrvApy = crvAPYs[this.addresses.gauge] ?? [0, 0];  // new pools might be missing
+        //     return [poolCrvApy[0], poolCrvApy[1]];
+        // }
+
+        return await this._calcCrvApr();
+    }
+
+    private vaultRewardTokens = memoize(async (useApi = true): Promise<{token: string, symbol: string, decimals: number}[]> => {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) return []
+
+        // if (useApi) {
+        //     const rewards = await _getRewardsFromApi();
+        //     if (!rewards[this.addresses.gauge]) return [];
+        //     rewards[this.addresses.gauge].forEach((r) => _setContracts(r.tokenAddress, ERC20Abi));
+        //     return rewards[this.addresses.gauge].map((r) => ({ token: r.tokenAddress, symbol: r.symbol, decimals: Number(r.decimals) }));
+        // }
+
+        const gaugeContract = lending.contracts[this.addresses.gauge].contract;
+        const gaugeMulticallContract = lending.contracts[this.addresses.gauge].multicallContract;
+        const rewardCount = Number(lending.formatUnits(await gaugeContract.reward_count(lending.constantOptions), 0));
+
+        const tokenCalls = [];
+        for (let i = 0; i < rewardCount; i++) {
+            tokenCalls.push(gaugeMulticallContract.reward_tokens(i));
+        }
+        const tokens = (await lending.multicallProvider.all(tokenCalls) as string[])
+            .filter((addr) => addr !== lending.constants.ZERO_ADDRESS)
+            .map((addr) => addr.toLowerCase())
+            .filter((addr) => lending.chainId === 1 || addr !== lending.constants.COINS.crv);
+
+        const tokenInfoCalls = [];
+        for (const token of tokens) {
+            lending.setContract(token, ERC20Abi);
+            const tokenMulticallContract = lending.contracts[token].multicallContract;
+            tokenInfoCalls.push(tokenMulticallContract.symbol(), tokenMulticallContract.decimals());
+        }
+        const tokenInfo = await lending.multicallProvider.all(tokenInfoCalls);
+        for (let i = 0; i < tokens.length; i++) {
+            lending.constants.DECIMALS[tokens[i]] = tokenInfo[(i * 2) + 1] as number;
+        }
+
+        return tokens.map((token, i) => ({ token, symbol: tokenInfo[i * 2] as string, decimals: tokenInfo[(i * 2) + 1] as number }));
+    },
+    {
+        promise: true,
+        maxAge: 30 * 60 * 1000, // 30m
+    });
+
+    private vaultRewardsApr = async (useApi = true): Promise<IReward[]> => {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) return [];
+
+        // const isDisabledChain = [1313161554].includes(lending.chainId); // Disable Aurora
+        // if (useApi && !isDisabledChain) {
+        //     const rewards = await _getRewardsFromApi();
+        //     if (!rewards[this.addresses.gauge]) return [];
+        //     return rewards[this.addresses.gauge].map((r) => ({ gaugeAddress: r.gaugeAddress, tokenAddress: r.tokenAddress, symbol: r.symbol, apy: r.apy }));
+        // }
+
+        const apy: IReward[] = [];
+        const rewardTokens = await this.vaultRewardTokens(false);
+        for (const rewardToken of rewardTokens) {
+            const gaugeContract = lending.contracts[this.addresses.gauge].multicallContract;
+            const lpTokenContract = lending.contracts[this.addresses.vault].multicallContract;
+            const rewardContract = lending.contracts[this.addresses.gauge].multicallContract;
+
+            const totalLiquidityUSD = await this.vaultTotalLiquidity();
+            const rewardRate = await _getUsdRate(rewardToken.token);
+
+            const [rewardData, _stakedSupply, _totalSupply] = (await lending.multicallProvider.all([
+                rewardContract.reward_data(rewardToken.token),
+                gaugeContract.totalSupply(),
+                lpTokenContract.totalSupply(),
+            ]) as any[]);
+            const stakedSupplyBN = toBN(_stakedSupply as bigint);
+            const totalSupplyBN = toBN(_totalSupply as bigint);
+            const inflationBN = toBN(rewardData.rate, rewardToken.decimals);
+            const periodFinish = Number(lending.formatUnits(rewardData.period_finish, 0)) * 1000;
+            const baseApy = periodFinish > Date.now() ?
+                inflationBN.times(31536000).times(rewardRate).div(stakedSupplyBN).times(totalSupplyBN).div(Number(totalLiquidityUSD)) :
+                BN(0);
+
+            apy.push({
+                gaugeAddress: this.addresses.gauge,
+                tokenAddress: rewardToken.token,
+                symbol: rewardToken.symbol,
+                apy: baseApy.times(100).toNumber(),
+            });
+        }
+
+        return apy
     }
 
     // ---------------- STATS ----------------
@@ -663,9 +919,16 @@ export class OneWayMarketTemplate {
 
     // ---------------- WALLET BALANCES ----------------
 
-    private async walletBalances(address = ""): Promise<{ collateral: string, borrowed: string, vaultShares: string }> {
-        const [collateral, borrowed, vaultShares] = await getBalances([this.collateral_token.address, this.borrowed_token.address, this.addresses.vault], address);
-        return { collateral, borrowed, vaultShares }
+    private async walletBalances(address = ""): Promise<{ collateral: string, borrowed: string, vaultShares: string, gauge: string }> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            const [collateral, borrowed, vaultShares] =
+                await getBalances([this.collateral_token.address, this.borrowed_token.address, this.addresses.vault], address);
+            return { collateral, borrowed, vaultShares, gauge: "0" }
+        } else {
+            const [collateral, borrowed, vaultShares, gauge] =
+                await getBalances([this.collateral_token.address, this.borrowed_token.address, this.addresses.vault, this.addresses.gauge], address);
+            return { collateral, borrowed, vaultShares, gauge }
+        }
     }
 
     // ---------------- USER POSITION ----------------

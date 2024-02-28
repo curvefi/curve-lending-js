@@ -2,7 +2,7 @@ import axios from "axios";
 import { ethers,  BigNumberish, Numeric } from "ethers";
 import { Call } from "ethcall";
 import BigNumber from 'bignumber.js';
-import {ICurveContract, IDict} from "./interfaces.js";
+import {ICurveContract, IDict, TGas} from "./interfaces.js";
 import { _getAllPoolsFromApi } from "./external-api.js";
 import { lending } from "./lending.js";
 import {JsonFragment} from "ethers/lib.esm";
@@ -250,7 +250,7 @@ export const _ensureAllowance = async (coins: string[], amounts: bigint[], spend
 }
 
 // coins can be either addresses or symbols
-export const ensureAllowanceEstimateGas = async (coins: string[], amounts: (number | string)[], spender: string, isMax = true): Promise<number | number[]> => {
+export const ensureAllowanceEstimateGas = async (coins: string[], amounts: (number | string)[], spender: string, isMax = true): Promise<TGas> => {
     const coinAddresses = _getCoinAddresses(coins);
     const decimals = _getCoinDecimals(coinAddresses);
     const _amounts = amounts.map((a, i) => parseUnits(a, decimals[i]));

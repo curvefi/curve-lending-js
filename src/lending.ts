@@ -7,6 +7,8 @@ import LlammaABI from './constants/abis/Llamma.json' assert { type: 'json' };
 import ControllerABI from './constants/abis/Controller.json' assert { type: 'json' };
 import MonetaryPolicyABI from './constants/abis/MonetaryPolicy.json' assert { type: 'json' };
 import VaultABI from './constants/abis/Vault.json' assert { type: 'json' };
+import GaugeABI from './constants/abis/GaugeV5.json' assert { type: 'json' };
+import GaugeControllerABI from './constants/abis/GaugeController.json' assert { type: 'json' };
 import {
     ALIASES_ETHEREUM,
     ALIASES_OPTIMISM,
@@ -132,6 +134,7 @@ class Lending implements ILending {
         NETWORK_NAME: INetworkName;
         ALIASES: Record<string, string>;
         COINS: Record<string, string>;
+        ZERO_ADDRESS: string,
     };
 
     constructor() {
@@ -153,6 +156,7 @@ class Lending implements ILending {
             DECIMALS: {},
             NETWORK_NAME: 'ethereum',
             ALIASES: {},
+            ZERO_ADDRESS: ethers.ZeroAddress,
         };
     }
 
@@ -243,6 +247,7 @@ class Lending implements ILending {
         await this.updateFeeData();
 
         this.setContract(this.constants.ALIASES['one_way_factory'], OneWayLendingFactoryABI);
+        this.setContract(this.constants.ALIASES['gauge_controller'], GaugeControllerABI);
     }
 
     setContract(address: string, abi: any): void {
@@ -319,13 +324,21 @@ class Lending implements ILending {
             this.setContract(controllers[index], ControllerABI);
             this.setContract(monetary_policies[index], MonetaryPolicyABI);
             this.setContract(vaults[index], VaultABI);
+            this.setContract(gauges[index], GaugeABI);
             COIN_DATA[vaults[index]] = {
                 address: vaults[index],
                 decimals: 18,
                 name: "Curve Vault for " + COIN_DATA[borrowed_tokens[index]].name,
                 symbol: "cv" + COIN_DATA[borrowed_tokens[index]].symbol,
             };
+            COIN_DATA[gauges[index]] = {
+                address: gauges[index],
+                decimals: 18,
+                name: "Curve.fi " + COIN_DATA[borrowed_tokens[index]].name + " Gauge Deposit",
+                symbol: "cv" + COIN_DATA[borrowed_tokens[index]].symbol + "-gauge",
+            };
             this.constants.DECIMALS[vaults[index]] = 18;
+            this.constants.DECIMALS[gauges[index]] = 18;
             this.constants.ONE_WAY_MARKETS[`one-way-market-${index}`] = {
                 name: names[index],
                 addresses: {

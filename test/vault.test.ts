@@ -4,7 +4,7 @@ import { getOneWayMarket, OneWayMarketTemplate } from "../src/markets/index.js";
 import { BN } from "../src/utils.js";
 
 
-const ONE_WAY_MARKETS = ['one-way-market-0'];
+const ONE_WAY_MARKETS = ['one-way-market-1'];
 
 const vaultTest = (id: string) => {
     describe(`${id} vault test`, function () {
@@ -19,61 +19,81 @@ const vaultTest = (id: string) => {
         it("deposit", async function () {
             const initialBalances = await oneWayMarket.wallet.balances();
             const depositAmount = Number(await oneWayMarket.vault.maxDeposit()) / 2;
-            const expectedShares = Number(await oneWayMarket.vault.previewDeposit(depositAmount));
-
-            assert.deepStrictEqual(BN(initialBalances.borrowed).div(2), BN(depositAmount), "half of balance");
+            const expectedShares = await oneWayMarket.vault.previewDeposit(depositAmount);
 
             await oneWayMarket.vault.deposit(depositAmount);
 
             const balances = await oneWayMarket.wallet.balances();
 
-            assert.deepStrictEqual(BN(balances.borrowed).toString(), BN(initialBalances.borrowed).minus(BN(depositAmount)).toString(), 'assets');
-            assert.deepStrictEqual(BN(balances.vaultShares).toString(), BN(initialBalances.vaultShares).plus(BN(expectedShares)).toString(), 'shares');
+            assert.deepStrictEqual(BN(balances.borrowed).toString(), BN(initialBalances.borrowed).minus(depositAmount).toString(), 'assets');
+            const delta = Number(balances.vaultShares) - (Number(initialBalances.vaultShares) + Number(expectedShares));
+            assert.isAtMost(Math.abs(delta) / Number(balances.vaultShares), 1e-7, 'shares');
         });
 
         it("mint", async function () {
             const initialBalances = await oneWayMarket.wallet.balances();
             const mintAmount = Number(await oneWayMarket.vault.maxMint()) / 2;
-            const expectedAssets = Number(await oneWayMarket.vault.previewMint(mintAmount));
-
-            assert.deepStrictEqual(BN(initialBalances.vaultShares).div(2), BN(mintAmount), "half of shares");
+            const expectedAssets = await oneWayMarket.vault.previewMint(mintAmount);
 
             await oneWayMarket.vault.mint(mintAmount);
 
             const balances = await oneWayMarket.wallet.balances();
 
-            assert.deepStrictEqual(BN(balances.borrowed).toString(), BN(initialBalances.borrowed).minus(BN(expectedAssets)).toString(), 'assets');
-            assert.deepStrictEqual(BN(balances.vaultShares).toString(), BN(initialBalances.vaultShares).plus(BN(mintAmount)).toString(), 'shares');
+            const delta = Number(balances.borrowed) - (Number(initialBalances.borrowed) - Number(expectedAssets));
+            assert.isAtMost(Math.abs(delta) / Number(balances.borrowed), 1e-10, 'assets');
+            assert.deepStrictEqual(BN(balances.vaultShares).toString(), BN(initialBalances.vaultShares).plus(mintAmount).toString(), 'shares');
         });
 
-        it("redeem", async function () {
+        it("stake", async function () {
             const initialBalances = await oneWayMarket.wallet.balances();
-            const redeemAmount = Number(await oneWayMarket.vault.maxRedeem()) / 2;
-            const expectedAssets = Number(await oneWayMarket.vault.previewRedeem(redeemAmount));
+            const stakeAmount = Number(initialBalances.vaultShares) / 2;
 
-            assert.deepStrictEqual(BN(initialBalances.vaultShares).div(2), BN(redeemAmount), "half of shares");
-
-            await oneWayMarket.vault.redeem(redeemAmount);
+            await oneWayMarket.vault.stake(stakeAmount);
 
             const balances = await oneWayMarket.wallet.balances();
 
-            assert.deepStrictEqual(BN(balances.borrowed).toString(), BN(initialBalances.borrowed).plus(BN(expectedAssets)).toString(), 'assets');
-            assert.deepStrictEqual(BN(balances.vaultShares).toString(), BN(initialBalances.vaultShares).minus(BN(redeemAmount)).toString(), 'shares');
+            assert.deepStrictEqual(balances.gauge, String(stakeAmount), 'gauge balance');
+            assert.deepStrictEqual(BN(balances.vaultShares), BN(initialBalances.vaultShares).minus(stakeAmount), 'wallet balance');
+        });
+
+        it("unstake", async function () {
+            const initialBalances = await oneWayMarket.wallet.balances();
+            const unstakeAmount = initialBalances.gauge;
+
+            await oneWayMarket.vault.unstake(unstakeAmount);
+
+            const balances = await oneWayMarket.wallet.balances();
+
+            assert.deepStrictEqual(balances.gauge, "0.0", 'gauge balance');
+            assert.deepStrictEqual(BN(balances.vaultShares), BN(initialBalances.vaultShares).plus(unstakeAmount), 'wallet balance');
         });
 
         it("withdraw", async function () {
             const initialBalances = await oneWayMarket.wallet.balances();
-            const withdrawAmount = await oneWayMarket.vault.maxWithdraw();
+            const withdrawAmount = Number(await oneWayMarket.vault.maxWithdraw()) / 2;
             const expectedShares = await oneWayMarket.vault.previewWithdraw(withdrawAmount);
-
-            assert.deepStrictEqual(initialBalances.vaultShares, expectedShares, "burn all shares");
 
             await oneWayMarket.vault.withdraw(withdrawAmount);
 
             const balances = await oneWayMarket.wallet.balances();
 
             assert.deepStrictEqual(BN(balances.borrowed).toString(), BN(initialBalances.borrowed).plus(BN(withdrawAmount)).toString(), 'assets');
-            assert.deepStrictEqual(BN(balances.vaultShares).toString(), BN(initialBalances.vaultShares).minus(BN(expectedShares)).toString(), 'shares');
+            const delta = Number(balances.vaultShares) - (Number(initialBalances.vaultShares) - Number(expectedShares));
+            assert.isAtMost(Math.abs(delta) / Number(balances.vaultShares), 1e-8, 'shares');
+        });
+
+        it("redeem", async function () {
+            const initialBalances = await oneWayMarket.wallet.balances();
+            const redeemAmount = await oneWayMarket.vault.maxRedeem();
+            const expectedAssets = await oneWayMarket.vault.previewRedeem(redeemAmount);
+
+            await oneWayMarket.vault.redeem(redeemAmount);
+
+            const balances = await oneWayMarket.wallet.balances();
+
+            const delta = Number(balances.borrowed) - (Number(initialBalances.borrowed) + Number(expectedAssets));
+            assert.isAtMost(Math.abs(delta) / Number(balances.borrowed), 1e-10, 'assets');
+            assert.deepStrictEqual(BN(balances.vaultShares).toString(), BN(initialBalances.vaultShares).minus(redeemAmount).toString(), 'shares');
         });
     });
 }

@@ -296,14 +296,8 @@ import lending from "@curvefi/lending-api";
     //     lendApy: '21.473092838884015799'
     // }
     await oneWayMarket.stats.balances();
-    // ['0.0', '0.0']
-    await oneWayMarket.stats.maxMinBands();
-    // [0,0]
-    await oneWayMarket.stats.activeBand();
-    // 0
-    const liquidatingBand = await oneWayMarket.stats.liquidatingBand();
-    console.log(liquidatingBand);
-    //null
+    const { activeBand, maxBand, minBand, liquidationBand } = await oneWayMarket.stats.bandsInfo();
+    // { activeBand: 0, maxBand: 15, minBand: 0, liquidationBand: null }
     await oneWayMarket.stats.bandBalances(liquidatingBand ?? 0);
     // {
     //     borrowed: "0.0"

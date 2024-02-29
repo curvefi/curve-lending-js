@@ -126,6 +126,8 @@ export class OneWayMarketTemplate {
         rewardsOnly: () => boolean,
         totalLiquidity: () => Promise<string>,
         crvApr: (useApi?: boolean) => Promise<[baseApy: number, boostedApy: number]>,
+        claimableCrv: (address?: string) => Promise<string>,
+        claimCrv: () => Promise<string>,
         rewardTokens: (useApi?: boolean) => Promise<{token: string, symbol: string, decimals: number}[]>,
         rewardsApr: (useApi?: boolean) => Promise<IReward[]>,
         claimableRewards: (address?: string) => Promise<{token: string, symbol: string, amount: string}[]>,
@@ -140,6 +142,7 @@ export class OneWayMarketTemplate {
             stakeApprove: (vaultShares: number | string) => Promise<TGas>,
             stake: (vaultShares: number | string) => Promise<TGas>,
             unstake: (vaultShares: number | string) => Promise<TGas>,
+            claimCrv: () => Promise<TGas>,
             claimRewards: () => Promise<TGas>,
         }
     };
@@ -215,6 +218,8 @@ export class OneWayMarketTemplate {
             rewardsOnly: this.vaultRewardsOnly.bind(this),
             totalLiquidity: this.vaultTotalLiquidity.bind(this),
             crvApr: this.vaultCrvApr.bind(this),
+            claimableCrv: this.vaultClaimableCrv.bind(this),
+            claimCrv: this.vaultClaimCrv.bind(this),
             rewardTokens: this.vaultRewardTokens.bind(this),
             rewardsApr: this.vaultRewardsApr.bind(this),
             claimableRewards: this.vaultClaimableRewards.bind(this),
@@ -229,6 +234,7 @@ export class OneWayMarketTemplate {
                 stakeApprove: this.vaultStakeApproveEstimateGas.bind(this),
                 stake: this.vaultStakeEstimateGas.bind(this),
                 unstake: this.vaultUnstakeEstimateGas.bind(this),
+                claimCrv: this.vaultClaimCrvEstimateGas.bind(this),
                 claimRewards: this.vaultClaimRewardsEstimateGas.bind(this),
             },
         }
@@ -548,6 +554,33 @@ export class OneWayMarketTemplate {
         return await this._calcCrvApr();
     }
 
+    private async vaultClaimableCrv (address = ""): Promise<string> {
+        if (this.vaultRewardsOnly()) throw Error(`${this.name} has Rewards-Only Gauge. Use claimableRewards instead`);
+        address = address || lending.signerAddress;
+        if (!address) throw Error("Need to connect wallet or pass address into args");
+
+        return lending.formatUnits(await lending.contracts[this.addresses.gauge].contract.claimable_tokens(address, lending.constantOptions));
+    }
+
+    private async _vaultClaimCrv(estimateGas: boolean): Promise<string | TGas> {
+        if (this.vaultRewardsOnly()) throw Error(`${this.name} has Rewards-Only Gauge. Use claimRewards instead`);
+        const contract = lending.contracts[lending.constants.ALIASES.minter].contract;
+        const gas = await contract.mint.estimateGas(this.addresses.gauge, lending.constantOptions);
+        if (estimateGas) return smartNumber(gas);
+
+        await lending.updateFeeData();
+        const gasLimit = _mulBy1_3(DIGas(gas));
+        return (await contract.mint(this.addresses.gauge, { ...lending.options, gasLimit })).hash
+    }
+
+    private async vaultClaimCrvEstimateGas(): Promise<TGas> {
+        return await this._vaultClaimCrv(true) as TGas;
+    }
+
+    private async vaultClaimCrv(): Promise<string> {
+        return await this._vaultClaimCrv(false) as string;
+    }
+
     private vaultRewardTokens = memoize(async (useApi = true): Promise<{token: string, symbol: string, decimals: number}[]> => {
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) return []
 
@@ -655,25 +688,26 @@ export class OneWayMarketTemplate {
         return rewards
     }
 
-    private async vaultClaimRewardsEstimateGas(): Promise<TGas> {
+    private async _vaultClaimRewards(estimateGas: boolean): Promise<string | TGas> {
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
             throw Error(`claimRewards method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
         }
         const gaugeContract = lending.contracts[this.addresses.gauge].contract;
         if (!("claim_rewards()" in gaugeContract)) throw Error (`${this.name} pool doesn't have such method`);
+        const gas = await gaugeContract.claim_rewards.estimateGas(lending.constantOptions);
+        if (estimateGas) return smartNumber(gas);
 
-        return smartNumber(await gaugeContract.claim_rewards.estimateGas(lending.constantOptions));
+        await lending.updateFeeData();
+        const gasLimit = _mulBy1_3(DIGas(gas));
+        return (await gaugeContract.claim_rewards({ ...lending.options, gasLimit })).hash;
+    }
+
+    private async vaultClaimRewardsEstimateGas(): Promise<TGas> {
+        return await this._vaultClaimRewards(true) as TGas;
     }
 
     private async vaultClaimRewards(): Promise<string> {
-        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
-            throw Error(`claimRewards method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
-        }
-        const gaugeContract = lending.contracts[this.addresses.gauge].contract;
-        if (!("claim_rewards()" in gaugeContract)) throw Error (`${this.name} pool doesn't have such method`);
-
-        const gasLimit = _mulBy1_3(DIGas(await gaugeContract.claim_rewards.estimateGas(lending.constantOptions)));
-        return (await gaugeContract.claim_rewards({ ...lending.options, gasLimit })).hash;
+        return await this._vaultClaimRewards(false) as string;
     }
 
     // ---------------- STATS ----------------
@@ -1238,7 +1272,7 @@ export class OneWayMarketTemplate {
 
     public async createLoanEstimateGas(collateral: number | string, debt: number | string, range: number): Promise<TGas> {
         if (!(await this.createLoanIsApproved(collateral))) throw Error("Approval is needed for gas estimation");
-        return await this._createLoan(collateral, debt,  range, true) as number;
+        return await this._createLoan(collateral, debt,  range, true) as TGas;
     }
 
     public async createLoan(collateral: number | string, debt: number | string, range: number): Promise<string> {

@@ -9,6 +9,9 @@ import MonetaryPolicyABI from './constants/abis/MonetaryPolicy.json' assert { ty
 import VaultABI from './constants/abis/Vault.json' assert { type: 'json' };
 import GaugeABI from './constants/abis/GaugeV5.json' assert { type: 'json' };
 import GaugeControllerABI from './constants/abis/GaugeController.json' assert { type: 'json' };
+import GaugeFactoryMainnetABI from './constants/abis/GaugeFactoryMainnet.json' assert { type: 'json' };
+import GaugeFactorySidechainABI from './constants/abis/GaugeFactorySidechain.json' assert { type: 'json' };
+import MinterABI from './constants/abis/Minter.json' assert { type: 'json' };
 import {
     ALIASES_ETHEREUM,
     ALIASES_OPTIMISM,
@@ -248,6 +251,13 @@ class Lending implements ILending {
 
         this.setContract(this.constants.ALIASES['one_way_factory'], OneWayLendingFactoryABI);
         this.setContract(this.constants.ALIASES['gauge_controller'], GaugeControllerABI);
+        if (this.chainId === 1) {
+            this.setContract(this.constants.ALIASES.minter, MinterABI);
+            this.setContract(this.constants.ALIASES.gauge_factory, GaugeFactoryMainnetABI);
+        } else {
+            this.constants.ALIASES.minter = this.constants.ALIASES.gauge_factory;
+            this.setContract(this.constants.ALIASES.gauge_factory, GaugeFactorySidechainABI);
+        }
     }
 
     setContract(address: string, abi: any): void {

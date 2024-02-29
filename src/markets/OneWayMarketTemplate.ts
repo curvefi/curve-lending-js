@@ -91,9 +91,7 @@ export class OneWayMarketTemplate {
         rates: () => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
         futureRates: (dReserves: TAmount, dDebt: TAmount) => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
         balances: () => Promise<[string, string]>,
-        maxMinBands: () => Promise<[number, number]>,
-        activeBand:() => Promise<number>,
-        liquidatingBand:() => Promise<number | null>,
+        bandsInfo: () => Promise<{ activeBand: number, maxBand: number, minBand: number, liquidationBand: number | null }>
         bandBalances:(n: number) => Promise<{ borrowed: string, collateral: string }>,
         bandsBalances: () => Promise<{ [index: number]: { borrowed: string, collateral: string } }>,
         totalBorrowed: () => Promise<string>,
@@ -179,9 +177,7 @@ export class OneWayMarketTemplate {
             rates: this.statsRates.bind(this),
             futureRates: this.statsFutureRates.bind(this),
             balances: this.statsBalances.bind(this),
-            maxMinBands: this.statsMaxMinBands.bind(this),
-            activeBand: this.statsActiveBand.bind(this),
-            liquidatingBand: this.statsLiquidatingBand.bind(this),
+            bandsInfo: this.statsBandsInfo.bind(this),
             bandBalances: this.statsBandBalances.bind(this),
             bandsBalances: this.statsBandsBalances.bind(this),
             totalBorrowed: this.statsTotalBorrowed.bind(this),
@@ -742,8 +738,19 @@ export class OneWayMarketTemplate {
         ];
     }
 
-    private statsActiveBand = memoize(async (): Promise<number> => {
-        return Number(await lending.contracts[this.addresses.amm].contract.active_band())
+    private statsBandsInfo = memoize(async (): Promise<{ activeBand: number, maxBand: number, minBand: number, liquidationBand: number | null }> => {
+        const ammContract = lending.contracts[this.addresses.amm].multicallContract;
+        const calls = [
+            ammContract.active_band(),
+            ammContract.max_band(),
+            ammContract.min_band(),
+        ]
+
+        const [activeBand, maxBand, minBand] = (await lending.multicallProvider.all(calls) as bigint[]).map((_b) => Number(_b));
+        const { borrowed, collateral } = await this.statsBandBalances(activeBand);
+        let liquidationBand = null;
+        if (Number(borrowed) > 0 && Number(collateral) > 0) liquidationBand = activeBand;
+        return { activeBand, maxBand, minBand, liquidationBand }
     },
     {
         promise: true,
@@ -763,42 +770,20 @@ export class OneWayMarketTemplate {
         }
     }
 
-    private statsMaxMinBands = memoize(async (): Promise<[number, number]> => {
-        const ammContract = lending.contracts[this.addresses.amm].multicallContract;
-
-        const calls = [
-            ammContract.max_band(),
-            ammContract.min_band(),
-        ]
-
-        return (await lending.multicallProvider.all(calls) as bigint[]).map((_b) => Number(_b)) as [number, number];
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
-
-    private async statsLiquidatingBand(): Promise<number | null> {
-        const activeBand = await this.statsActiveBand();
-        const { borrowed, collateral } = await this.statsBandBalances(activeBand);
-        if (Number(borrowed) > 0 && Number(collateral) > 0) return activeBand;
-        return null
-    }
-
     private async statsBandsBalances(): Promise<{ [index: number]: { borrowed: string, collateral: string } }> {
-        const [max_band, min_band]: number[] = await this.statsMaxMinBands();
+        const { maxBand, minBand } = await this.statsBandsInfo();
 
         const ammContract = lending.contracts[this.addresses.amm].multicallContract;
         const calls = [];
-        for (let i = min_band; i <= max_band; i++) {
+        for (let i = minBand; i <= maxBand; i++) {
             calls.push(ammContract.bands_x(i), ammContract.bands_y(i));
         }
 
         const _bands: bigint[] = await lending.multicallProvider.all(calls);
 
         const bands: { [index: number]: { borrowed: string, collateral: string } } = {};
-        for (let i = min_band; i <= max_band; i++) {
-            const _i = i - min_band
+        for (let i = minBand; i <= maxBand; i++) {
+            const _i = i - minBand
             // bands_x and bands_y always return amounts with 18 decimals
             bands[i] = {
                 borrowed: formatNumber(formatUnits(_bands[2 * _i]), this.borrowed_token.decimals),

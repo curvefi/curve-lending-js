@@ -266,34 +266,49 @@ import lending from "@curvefi/lending-api";
     const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
 
     await oneWayMarket.stats.parameters();
-    //
-    {
-        A: "100"
-        admin_fee: "0.0"
-        base_price: "8595.062092132517715849"
-        fee: "0.6"
-        future_rate: "0.501252083027981"
-        liquidation_discount: "6.0"
-        loan_discount: "9.0"
-        rate: "0"
-    }
-    //
+    // {
+    //     A: "100"
+    //     admin_fee: "0.0"
+    //     base_price: "8595.062092132517715849"
+    //     fee: "0.6"
+    //     liquidation_discount: "6.0"
+    //     loan_discount: "9.0"
+    // }
+    await oneWayMarket.stats.rates();
+    // {
+    //     borrowApr: '17.8208613727056',
+    //     lendApr: '13.829407727114368717',
+    //     borrowApy: '19.507460419926105',
+    //     lendApy: '15.138248271258824725'
+    // }
+    await oneWayMarket.stats.futureRates(10000, 0);  // dReserves = 10000, dDebt = 0
+    // {
+    //     borrowApr: '14.7869386793856',
+    //     lendApr: '10.875115183120530145',
+    //     borrowApy: '15.936145855611583',
+    //     lendApy: '11.720304351866410822'
+    // }
+    await oneWayMarket.stats.futureRates(0, 10000);  // dReserves = 0, dDebt = 10000
+    // {
+    //     borrowApr: '22.979565109512',
+    //     lendApr: '19.100290524367724358',
+    //     borrowApy: '25.834284267258045',
+    //     lendApy: '21.473092838884015799'
+    // }
     await oneWayMarket.stats.balances();
-    //['0.0', '0.0']
+    // ['0.0', '0.0']
     await oneWayMarket.stats.maxMinBands();
-    //[0,0]
+    // [0,0]
     await oneWayMarket.stats.activeBand();
-    //0
+    // 0
     const liquidatingBand = await oneWayMarket.stats.liquidatingBand();
     console.log(liquidatingBand);
     //null
     await oneWayMarket.stats.bandBalances(liquidatingBand ?? 0);
-    //
-    {
-        borrowed: "0.0"
-        collateral: "0.0"
-    }
-    //
+    // {
+    //     borrowed: "0.0"
+    //     collateral: "0.0"
+    // }
     await oneWayMarket.stats.bandsBalances();
     // {
     //     '0': { borrowed: '0.0', collateral: '0.0' },
@@ -314,23 +329,19 @@ import lending from "@curvefi/lending-api";
     //     '15': { borrowed: '0.0', collateral: '0.1' }
     // }
     await oneWayMarket.stats.totalBorrowed();
-    //1000
+    // 1000
     await oneWayMarket.stats.totalDebt();
-    //1000.0
+    // 1000.0
     await oneWayMarket.stats.ammBalances();
-    //
-    {
-        borrowed: "0"
-        collateral: "0"
-    }
-    //
+    // {
+    //     borrowed: "0"
+    //     collateral: "0"
+    // }
     await oneWayMarket.stats.capAndAvailable();
-    //
-    {
-        available: "0.0"
-        cap: "0.0"
-    }
-    //
+    // {
+    //     available: "0.0"
+    //     cap: "0.0"
+    // }
 })()
 ````
 
@@ -349,14 +360,6 @@ import lending from "@curvefi/lending-api";
     //     borrowed: '1000000.0',
     //     vaultShares: '0.0',
     //     gauge: '0.0'
-    // }
-
-    await oneWayMarket.vault.rates();
-    // {
-    //     borrowApr: '19.2798458978544',
-    //     lendApr: '15.290427867246053076',
-    //     borrowApy: '21.263837251326034',
-    //     lendApy: '16.863888404234776759'
     // }
     
     // ------------ DEPOSIT ------------

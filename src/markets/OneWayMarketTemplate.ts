@@ -128,6 +128,8 @@ export class OneWayMarketTemplate {
         crvApr: (useApi?: boolean) => Promise<[baseApy: number, boostedApy: number]>,
         rewardTokens: (useApi?: boolean) => Promise<{token: string, symbol: string, decimals: number}[]>,
         rewardsApr: (useApi?: boolean) => Promise<IReward[]>,
+        claimableRewards: (address?: string) => Promise<{token: string, symbol: string, amount: string}[]>,
+        claimRewards: () => Promise<string>,
         estimateGas: {
             depositApprove: (amount: TAmount) => Promise<TGas>,
             deposit: (amount: TAmount) => Promise<TGas>,
@@ -138,6 +140,7 @@ export class OneWayMarketTemplate {
             stakeApprove: (vaultShares: number | string) => Promise<TGas>,
             stake: (vaultShares: number | string) => Promise<TGas>,
             unstake: (vaultShares: number | string) => Promise<TGas>,
+            claimRewards: () => Promise<TGas>,
         }
     };
 
@@ -214,6 +217,8 @@ export class OneWayMarketTemplate {
             crvApr: this.vaultCrvApr.bind(this),
             rewardTokens: this.vaultRewardTokens.bind(this),
             rewardsApr: this.vaultRewardsApr.bind(this),
+            claimableRewards: this.vaultClaimableRewards.bind(this),
+            claimRewards: this.vaultClaimRewards.bind(this),
             estimateGas: {
                 depositApprove: this.vaultDepositApproveEstimateGas.bind(this),
                 deposit: this.vaultDepositEstimateGas.bind(this),
@@ -224,6 +229,7 @@ export class OneWayMarketTemplate {
                 stakeApprove: this.vaultStakeApproveEstimateGas.bind(this),
                 stake: this.vaultStakeEstimateGas.bind(this),
                 unstake: this.vaultUnstakeEstimateGas.bind(this),
+                claimRewards: this.vaultClaimRewardsEstimateGas.bind(this),
             },
         }
 
@@ -625,6 +631,49 @@ export class OneWayMarketTemplate {
         }
 
         return apy
+    }
+
+    private async vaultClaimableRewards(address = ""): Promise<{token: string, symbol: string, amount: string}[]> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            throw Error(`claimableRewards method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
+        }
+        address = address || lending.signerAddress;
+        if (!address) throw Error("Need to connect wallet or pass address into args");
+
+        const gaugeContract = lending.contracts[this.addresses.gauge].contract;
+        const rewardTokens = await this.vaultRewardTokens();
+        const rewards = [];
+        for (const rewardToken of rewardTokens) {
+            const _amount = await gaugeContract.claimable_reward(address, rewardToken.token, lending.constantOptions);
+            rewards.push({
+                token: rewardToken.token,
+                symbol: rewardToken.symbol,
+                amount: lending.formatUnits(_amount, rewardToken.decimals),
+            });
+        }
+
+        return rewards
+    }
+
+    private async vaultClaimRewardsEstimateGas(): Promise<TGas> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            throw Error(`claimRewards method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
+        }
+        const gaugeContract = lending.contracts[this.addresses.gauge].contract;
+        if (!("claim_rewards()" in gaugeContract)) throw Error (`${this.name} pool doesn't have such method`);
+
+        return smartNumber(await gaugeContract.claim_rewards.estimateGas(lending.constantOptions));
+    }
+
+    private async vaultClaimRewards(): Promise<string> {
+        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
+            throw Error(`claimRewards method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
+        }
+        const gaugeContract = lending.contracts[this.addresses.gauge].contract;
+        if (!("claim_rewards()" in gaugeContract)) throw Error (`${this.name} pool doesn't have such method`);
+
+        const gasLimit = _mulBy1_3(DIGas(await gaugeContract.claim_rewards.estimateGas(lending.constantOptions)));
+        return (await gaugeContract.claim_rewards({ ...lending.options, gasLimit })).hash;
     }
 
     // ---------------- STATS ----------------

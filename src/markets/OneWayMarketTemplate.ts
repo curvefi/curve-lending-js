@@ -83,10 +83,13 @@ export class OneWayMarketTemplate {
         parameters: () => Promise<{
             fee: string, // %
             admin_fee: string, // %
-            rate: string, // %
             liquidation_discount: string, // %
             loan_discount: string, // %
+            base_price: string,
+            A: string,
         }>,
+        rates: () => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
+        futureRates: (dReserves: TAmount, dDebt: TAmount) => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
         balances: () => Promise<[string, string]>,
         maxMinBands: () => Promise<[number, number]>,
         activeBand:() => Promise<number>,
@@ -102,7 +105,6 @@ export class OneWayMarketTemplate {
         balances: (address?: string) => Promise<{ collateral: string, borrowed: string, vaultShares: string, gauge: string }>,
     };
     vault: {
-        rates: () => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
         maxDeposit: (address?: string) => Promise<string>,
         previewDeposit: (amount: TAmount) => Promise<string>,
         depositIsApproved: (borrowed: TAmount) => Promise<boolean>
@@ -174,6 +176,8 @@ export class OneWayMarketTemplate {
         }
         this.stats = {
             parameters: this.statsParameters.bind(this),
+            rates: this.statsRates.bind(this),
+            futureRates: this.statsFutureRates.bind(this),
             balances: this.statsBalances.bind(this),
             maxMinBands: this.statsMaxMinBands.bind(this),
             activeBand: this.statsActiveBand.bind(this),
@@ -189,7 +193,6 @@ export class OneWayMarketTemplate {
             balances: this.walletBalances.bind(this),
         }
         this.vault = {
-            rates: this.vaultRates.bind(this),
             maxDeposit: this.vaultMaxDeposit.bind(this),
             previewDeposit: this.vaultPreviewDeposit.bind(this),
             depositIsApproved: this.vaultDepositIsApproved.bind(this),
@@ -231,34 +234,6 @@ export class OneWayMarketTemplate {
     }
 
     // ---------------- VAULT ----------------
-
-    private _getRate = memoize(async (): Promise<bigint> => {
-        const llammaContract = lending.contracts[this.addresses.amm].contract;
-        return await llammaContract.rate();
-    },
-    {
-        promise: true,
-        maxAge: 5 * 60 * 1000, // 5m
-    });
-
-    private async vaultRates(): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
-        const _rate = await this._getRate();
-        const borrowApr =  toBN(_rate).times(365).times(86400).times(100).toString();
-        // borrowApy = e**(rate*365*86400) - 1
-        const borrowApy = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
-        let lendApr = "0";
-        let lendApy = "0";
-        const debt = await this.statsTotalDebt();
-        if (Number(debt) > 0) {
-            const { cap } = await this.statsCapAndAvailable();
-            lendApr = toBN(_rate).times(365).times(86400).times(debt).div(cap).times(100).toString();
-            // lendApy = (debt * e**(rate*365*86400) - debt) / cap
-            const debtInAYearBN = BN(debt).times(2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber());
-            lendApy = debtInAYearBN.minus(debt).div(cap).times(100).toString();
-        }
-
-        return { borrowApr, lendApr, borrowApy, lendApy }
-    }
 
     private async vaultMaxDeposit(address = ""): Promise<string> {
         address = _getAddress(address);
@@ -661,8 +636,6 @@ export class OneWayMarketTemplate {
     private statsParameters = memoize(async (): Promise<{
             fee: string, // %
             admin_fee: string, // %
-            rate: string, // %
-            future_rate: string, // %
             liquidation_discount: string, // %
             loan_discount: string, // %
             base_price: string,
@@ -670,35 +643,86 @@ export class OneWayMarketTemplate {
         }> => {
         const llammaContract = lending.contracts[this.addresses.amm].multicallContract;
         const controllerContract = lending.contracts[this.addresses.controller].multicallContract;
-        const monetaryPolicyContract = lending.contracts[this.addresses.monetary_policy].multicallContract;
 
         const calls = [
             llammaContract.fee(),
             llammaContract.admin_fee(),
-            llammaContract.rate(),
-            monetaryPolicyContract.rate(this.addresses.controller),
             controllerContract.liquidation_discount(),
             controllerContract.loan_discount(),
             llammaContract.get_base_price(),
             llammaContract.A(),
         ]
 
-        const [_fee, _admin_fee, _rate, _mp_rate, _liquidation_discount, _loan_discount, _base_price, _A]: bigint[] = await lending.multicallProvider.all(calls) as bigint[];
+        const [_fee, _admin_fee, _liquidation_discount, _loan_discount, _base_price, _A]: bigint[] = await lending.multicallProvider.all(calls) as bigint[];
         const A = formatUnits(_A, 0)
         const base_price = formatUnits(_base_price)
         const [fee, admin_fee, liquidation_discount, loan_discount] = [_fee, _admin_fee, _liquidation_discount, _loan_discount]
             .map((_x) => formatUnits(_x * BigInt(100)));
 
-        // (1+rate)**(365*86400)-1 ~= (e**(rate*365*86400))-1
-        const rate = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
-        const future_rate = String(((2.718281828459 ** (toBN(_mp_rate).times(365).times(86400)).toNumber()) - 1) * 100);
-
-        return { fee, admin_fee, rate, future_rate, liquidation_discount, loan_discount, base_price, A }
+        return { fee, admin_fee, liquidation_discount, loan_discount, base_price, A }
     },
     {
         promise: true,
         maxAge: 5 * 60 * 1000, // 5m
     });
+
+    private _getRate = memoize(async (): Promise<bigint> => {
+        const llammaContract = lending.contracts[this.addresses.amm].contract;
+        return await llammaContract.rate();
+    },
+    {
+        promise: true,
+        maxAge: 5 * 60 * 1000, // 5m
+    });
+
+    private _getFutureRate = memoize(async (_dReserves: bigint, _dDebt: bigint): Promise<bigint> => {
+        const mpContract = lending.contracts[this.addresses.monetary_policy].contract;
+        return await mpContract.future_rate(this.addresses.controller, _dReserves, _dDebt);
+    },
+    {
+        promise: true,
+        maxAge: 5 * 60 * 1000, // 5m
+    });
+
+    private async statsRates(): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
+        const _rate = await this._getRate();
+        const borrowApr =  toBN(_rate).times(365).times(86400).times(100).toString();
+        // borrowApy = e**(rate*365*86400) - 1
+        const borrowApy = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
+        let lendApr = "0";
+        let lendApy = "0";
+        const debt = await this.statsTotalDebt();
+        if (Number(debt) > 0) {
+            const { cap } = await this.statsCapAndAvailable();
+            lendApr = toBN(_rate).times(365).times(86400).times(debt).div(cap).times(100).toString();
+            // lendApy = (debt * e**(rate*365*86400) - debt) / cap
+            const debtInAYearBN = BN(debt).times(2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber());
+            lendApy = debtInAYearBN.minus(debt).div(cap).times(100).toString();
+        }
+
+        return { borrowApr, lendApr, borrowApy, lendApy }
+    }
+
+    private async statsFutureRates(dReserves: TAmount, dDebt: TAmount): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
+        const _dReserves = parseUnits(dReserves, this.borrowed_token.decimals);
+        const _dDebt = parseUnits(dDebt, this.borrowed_token.decimals);
+        const _rate = await this._getFutureRate(_dReserves, _dDebt);
+        const borrowApr =  toBN(_rate).times(365).times(86400).times(100).toString();
+        // borrowApy = e**(rate*365*86400) - 1
+        const borrowApy = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
+        let lendApr = "0";
+        let lendApy = "0";
+        const debt = Number(await this.statsTotalDebt()) + Number(dDebt);
+        if (Number(debt) > 0) {
+            const cap = Number((await this.statsCapAndAvailable()).cap) + Number(dReserves);
+            lendApr = toBN(_rate).times(365).times(86400).times(debt).div(cap).times(100).toString();
+            // lendApy = (debt * e**(rate*365*86400) - debt) / cap
+            const debtInAYearBN = BN(debt).times(2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber());
+            lendApy = debtInAYearBN.minus(debt).div(cap).times(100).toString();
+        }
+
+        return { borrowApr, lendApr, borrowApy, lendApy }
+    }
 
     private async statsBalances(): Promise<[string, string]> {
         const borrowedContract = lending.contracts[this.borrowed_token.address].multicallContract;

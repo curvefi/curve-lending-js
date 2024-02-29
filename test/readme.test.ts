@@ -125,6 +125,11 @@ const vaultTest = async () => {
 
     console.log(await oneWayMarket.wallet.balances());
 
+    console.log(await oneWayMarket.vault.claimableCrv());
+    console.log(await oneWayMarket.vault.claimCrv());
+    console.log(await oneWayMarket.vault.claimableRewards());
+    console.log(await oneWayMarket.vault.claimRewards());
+
 }
 
 const generalTest = async () => {

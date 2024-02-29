@@ -175,50 +175,39 @@ import lending from "@curvefi/lending-api";
     oneWayMarket.name
     // "market-0"
     oneWayMarket.addresses
-    //
-    {
-        amm: "0x78f7f91dce40269df106a189e47f27bab561332b"
-        borrowed_token: "0x361a5a4993493ce00f61c32d4ecca5512b82ce90"
-        collateral_token: "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
-        controller: "0xe27dda8e706f41ca0b496e6cf1b7f1e8308e6732"
-        gauge: "0x0000000000000000000000000000000000000000"
-        monetary_policy: "0xa845d0688745db0f377a6c5bf5fcde0a3a1a6aeb"
-        vault: "0x42526886adb3b20a23a5a19c04e4bf81e9febb2b"
-    }
-    //
+    // {
+    //     amm: "0x78f7f91dce40269df106a189e47f27bab561332b"
+    //     borrowed_token: "0x361a5a4993493ce00f61c32d4ecca5512b82ce90"
+    //     collateral_token: "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+    //     controller: "0xe27dda8e706f41ca0b496e6cf1b7f1e8308e6732"
+    //     gauge: "0x0000000000000000000000000000000000000000"
+    //     monetary_policy: "0xa845d0688745db0f377a6c5bf5fcde0a3a1a6aeb"
+    //     vault: "0x42526886adb3b20a23a5a19c04e4bf81e9febb2b"
+    // }
     oneWayMarket.borrowed_token
-    //
-    {
-        address: "0x361a5a4993493ce00f61c32d4ecca5512b82ce90"
-        decimals: 18
-        name: "Stake DAO Token (PoS)"
-        symbol: "SDT"
-    }
-    //
+    // {
+    //     address: "0x361a5a4993493ce00f61c32d4ecca5512b82ce90"
+    //     decimals: 18
+    //     name: "Stake DAO Token (PoS)"
+    //     symbol: "SDT"
+    // }
     oneWayMarket.collateral_token
-    //
-    {
-        address: "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
-        decimals: 18
-        name: "Wrapped Ether"
-        symbol: "WETH"
-    }
-    //
+    // {
+    //     address: "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+    //     decimals: 18
+    //     name: "Wrapped Ether"
+    //     symbol: "WETH"
+    // }
     oneWayMarket.coinAddresses
-    //
-    ["0x361a5a4993493ce00f61c32d4ecca5512b82ce90",
-    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"]
-    //
+    // ["0x361a5a4993493ce00f61c32d4ecca5512b82ce90", "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"]
     oneWayMarket.coinDecimals
-    //
-    [18,18]
-    //
+    // [18,18]
     oneWayMarket.defaultBands
-    //10
+    // 10
     oneWayMarket.maxBands
-    //50
+    // 50
     oneWayMarket.minBands
-    //4
+    // 4
 })()
 ````
 
@@ -465,7 +454,7 @@ import lending from "@curvefi/lending-api";
     await oneWayMarket.vault.previewRedeem(10000);  // Assets to receive
     // 10.021409718764999588
     await oneWayMarket.vault.redeem(10000);
-    //0x391721baa517170c23819b070532a3429ab3c7a306042615bf8e1983d035e363
+    // 0x391721baa517170c23819b070532a3429ab3c7a306042615bf8e1983d035e363
 
     await oneWayMarket.wallet.balances();
     // {
@@ -474,6 +463,17 @@ import lending from "@curvefi/lending-api";
     //     vaultShares: '9988636.505706074967248914',
     //     gauge: '0.0'
     // }
+
+    // ------------ REWARDS ------------
+
+    await oneWayMarket.vault.claimableCrv();
+    // 0.0
+    await oneWayMarket.vault.claimCrv();
+    // 0x8325bada809340d681c165ffc5bac0ba490f8350872b5d0aa82f3fe6c01205aa
+    await oneWayMarket.vault.claimableRewards();
+    // []
+    await oneWayMarket.vault.claimRewards();
+    // 0xb0906c3a2dea66d1ab6f280833f7205f46af7374f8cf9baa5429f881094140ba
 ````
 
 ### Create loan, add collateral, borrow more, repay
@@ -538,13 +538,13 @@ import lending from "@curvefi/lending-api";
     //["1073.332550295331639435","1128.647508360591547283]
     console.log(await oneWayMarket.userBandsBalances());
     //
-    {
-        202: {collateral: '0.2', borrowed: '0.0'},
-        203: {collateral: '0.2', borrowed: '0.0'},
-        204: {collateral: '0.2', borrowed: '0.0'},
-        205: {collateral: '0.2', borrowed: '0.0'},
-        206: {collateral: '0.2', borrowed: '0.0'},
-    }
+    // {
+    //     202: {collateral: '0.2', borrowed: '0.0'},
+    //     203: {collateral: '0.2', borrowed: '0.0'},
+    //     204: {collateral: '0.2', borrowed: '0.0'},
+    //     205: {collateral: '0.2', borrowed: '0.0'},
+    //     206: {collateral: '0.2', borrowed: '0.0'},
+    // }
     //
     
 

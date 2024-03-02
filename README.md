@@ -389,6 +389,13 @@ import lending from "@curvefi/lending-api";
     //     gauge: '0.0'
     // }
 
+    // ------------ UTILS ------------
+
+    await oneWayMarket.vault.convertToAssets(100000);
+    // 100.0
+    await oneWayMarket.vault.convertToShares(100);
+    // 100000.0
+
     // ------------ STAKE ------------
 
     await oneWayMarket.vault.stakeIsApproved(balances.vaultShares);
@@ -406,16 +413,6 @@ import lending from "@curvefi/lending-api";
     //     vaultShares: '0.0',
     //     gauge: '19977272.526619469933528807'
     // }
-    oneWayMarket.vault.rewardsOnly();
-    // false
-    await oneWayMarket.vault.totalLiquidity();
-    // 180638.919172
-    await oneWayMarket.vault.crvApr();
-    // [0, 0]
-    await oneWayMarket.vault.rewardTokens();
-    // []
-    await oneWayMarket.vault.rewardsApr();
-    // []
 
     // ------------ UNSTAKE ------------
 
@@ -466,6 +463,16 @@ import lending from "@curvefi/lending-api";
 
     // ------------ REWARDS ------------
 
+    oneWayMarket.vault.rewardsOnly();
+    // false
+    await oneWayMarket.vault.totalLiquidity();
+    // 180638.919172
+    await oneWayMarket.vault.crvApr();
+    // [0, 0]
+    await oneWayMarket.vault.rewardTokens();
+    // []
+    await oneWayMarket.vault.rewardsApr();
+    // []
     await oneWayMarket.vault.claimableCrv();
     // 0.0
     await oneWayMarket.vault.claimCrv();

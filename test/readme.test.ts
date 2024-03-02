@@ -82,6 +82,8 @@ const vaultTest = async () => {
 
     console.log(await oneWayMarket.wallet.balances());
 
+    // ------------ DEPOSIT ------------
+
     console.log(await oneWayMarket.vault.maxDeposit());
     console.log(await oneWayMarket.vault.previewDeposit(20000));  // Shares to receive
     console.log(await oneWayMarket.vault.depositIsApproved(20000));
@@ -89,6 +91,8 @@ const vaultTest = async () => {
     console.log(await oneWayMarket.vault.deposit(20000));
 
     console.log(await oneWayMarket.wallet.balances());
+
+    // ------------ MINT ------------
 
     console.log(await oneWayMarket.vault.maxMint());
     console.log(await oneWayMarket.vault.previewMint(20000));  // Assets to send
@@ -99,19 +103,26 @@ const vaultTest = async () => {
     let balances = await oneWayMarket.wallet.balances();
     console.log(balances);
 
+    // ------------ UTILS ------------
+
+    console.log(await oneWayMarket.vault.convertToAssets(100000));
+    console.log(await oneWayMarket.vault.convertToShares(100));
+
+    // ------------ STAKE ------------
+
     console.log(await oneWayMarket.vault.stakeIsApproved(balances.vaultShares));
     console.log(await oneWayMarket.vault.stakeApprove(balances.vaultShares));
     console.log(await oneWayMarket.vault.stake(balances.vaultShares));
     balances = await oneWayMarket.wallet.balances();
     console.log(balances);
-    console.log(oneWayMarket.vault.rewardsOnly());
-    console.log(await oneWayMarket.vault.totalLiquidity());
-    console.log(await oneWayMarket.vault.crvApr());
-    console.log(await oneWayMarket.vault.rewardTokens());
-    console.log(await oneWayMarket.vault.rewardsApr());
+
+    // ------------ UNSTAKE ------------
+
     console.log(await oneWayMarket.vault.unstake(balances.gauge));
 
     console.log(await oneWayMarket.wallet.balances());
+
+    // ------------ WITHDRAW ------------
 
     console.log(await oneWayMarket.vault.maxWithdraw());
     console.log(await oneWayMarket.vault.previewWithdraw(10000));  // Shares to send
@@ -125,6 +136,14 @@ const vaultTest = async () => {
 
     console.log(await oneWayMarket.wallet.balances());
 
+
+    // ------------ REWARDS ------------
+
+    console.log(oneWayMarket.vault.rewardsOnly());
+    console.log(await oneWayMarket.vault.totalLiquidity());
+    console.log(await oneWayMarket.vault.crvApr());
+    console.log(await oneWayMarket.vault.rewardTokens());
+    console.log(await oneWayMarket.vault.rewardsApr());
     console.log(await oneWayMarket.vault.claimableCrv());
     console.log(await oneWayMarket.vault.claimCrv());
     console.log(await oneWayMarket.vault.claimableRewards());

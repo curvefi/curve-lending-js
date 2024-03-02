@@ -119,6 +119,8 @@ export class OneWayMarketTemplate {
         maxRedeem: (address?: string) => Promise<string>,
         previewRedeem: (amount: TAmount) => Promise<string>,
         redeem: (amount: TAmount) => Promise<string>,
+        convertToShares: (assets: TAmount) => Promise<string>,
+        convertToAssets: (shares: TAmount) => Promise<string>,
         stakeIsApproved: (vaultShares: number | string) => Promise<boolean>,
         stakeApprove: (vaultShares: number | string) => Promise<string[]>,
         stake: (vaultShares: number | string) => Promise<string>,
@@ -211,6 +213,8 @@ export class OneWayMarketTemplate {
             maxRedeem: this.vaultMaxRedeem.bind(this),
             previewRedeem: this.vaultPreviewRedeem.bind(this),
             redeem: this.vaultRedeem.bind(this),
+            convertToShares: this.vaultConvertToShares.bind(this),
+            convertToAssets: this.vaultConvertToAssets.bind(this),
             stakeIsApproved: this.vaultStakeIsApproved.bind(this),
             stakeApprove: this.vaultStakeApprove.bind(this),
             stake: this.vaultStake.bind(this),
@@ -411,6 +415,22 @@ export class OneWayMarketTemplate {
 
     private async vaultRedeem(amount: TAmount): Promise<string> {
         return await this._vaultRedeem(amount, false) as string;
+    }
+
+    // ---------------- VAULT UTILS ----------------
+
+    private async vaultConvertToShares(assets: TAmount): Promise<string> {
+        const _assets = parseUnits(assets, this.borrowed_token.decimals);
+        const _shares = await lending.contracts[this.addresses.vault].contract.convertToShares(_assets);
+
+        return lending.formatUnits(_shares);
+    }
+
+    private async vaultConvertToAssets(shares: TAmount): Promise<string> {
+        const _shares = parseUnits(shares);
+        const _assets = await lending.contracts[this.addresses.vault].contract.convertToAssets(_shares);
+
+        return lending.formatUnits(_assets, this.borrowed_token.decimals);
     }
 
     // ---------------- VAULT STAKING ----------------

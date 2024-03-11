@@ -1303,7 +1303,7 @@ export class OneWayMarketTemplate {
     // ---------------- BORROW MORE ----------------
 
     public async borrowMoreMaxRecv(collateralAmount: number | string): Promise<string> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState("0x7a16fF8270133F063aAb6C9977183D9e72835428");
+        const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState();
         const _collateral = _currentCollateral + parseUnits(collateralAmount, this.collateral_token.decimals);
 
         const contract = lending.contracts[this.addresses.controller].contract;

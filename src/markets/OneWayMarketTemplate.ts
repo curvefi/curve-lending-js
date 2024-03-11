@@ -94,7 +94,6 @@ export class OneWayMarketTemplate {
         bandsInfo: () => Promise<{ activeBand: number, maxBand: number, minBand: number, liquidationBand: number | null }>
         bandBalances:(n: number) => Promise<{ borrowed: string, collateral: string }>,
         bandsBalances: () => Promise<{ [index: number]: { borrowed: string, collateral: string } }>,
-        totalBorrowed: () => Promise<string>,
         totalDebt: () => Promise<string>,
         ammBalances: () => Promise<{ borrowed: string, collateral: string }>,
         capAndAvailable: () => Promise<{ cap: string, available: string }>,

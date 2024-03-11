@@ -1128,7 +1128,7 @@ export class OneWayMarketTemplate {
         const _collateral = parseUnits(collateral, this.collateral_token.decimals);
         const contract = lending.contracts[this.addresses.controller].contract;
 
-        return formatUnits(await contract.max_borrowable(_collateral, range, lending.constantOptions), this.borrowed_token.decimals);
+        return formatUnits(await contract.max_borrowable(_collateral, range, 0, lending.constantOptions), this.borrowed_token.decimals);
     }
 
     public createLoanMaxRecvAllRanges = memoize(async (collateral: number | string): Promise<{ [index: number]: string }> => {
@@ -1136,7 +1136,7 @@ export class OneWayMarketTemplate {
 
         const calls = [];
         for (let N = this.minBands; N <= this.maxBands; N++) {
-            calls.push(lending.contracts[this.addresses.controller].multicallContract.max_borrowable(_collateral, N));
+            calls.push(lending.contracts[this.addresses.controller].multicallContract.max_borrowable(_collateral, N, 0));
         }
         const _amounts = await lending.multicallProvider.all(calls) as bigint[];
 
@@ -1308,7 +1308,7 @@ export class OneWayMarketTemplate {
         const _collateral = _currentCollateral + parseUnits(collateralAmount, this.collateral_token.decimals);
 
         const contract = lending.contracts[this.addresses.controller].contract;
-        const _debt: bigint = await contract.max_borrowable(_collateral, N, lending.constantOptions);
+        const _debt: bigint = await contract.max_borrowable(_collateral, N, _currentDebt, lending.constantOptions);
 
         return formatUnits(_debt - _currentDebt, this.borrowed_token.decimals);
     }

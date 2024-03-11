@@ -188,7 +188,6 @@ export class OneWayMarketTemplate {
             bandsInfo: this.statsBandsInfo.bind(this),
             bandBalances: this.statsBandBalances.bind(this),
             bandsBalances: this.statsBandsBalances.bind(this),
-            totalBorrowed: this.statsTotalBorrowed.bind(this),
             totalDebt: this.statsTotalDebt.bind(this),
             ammBalances: this.statsAmmBalances.bind(this),
             capAndAvailable: this.statsCapAndAvailable.bind(this),
@@ -896,18 +895,6 @@ export class OneWayMarketTemplate {
 
         return bands
     }
-
-    private statsTotalBorrowed = memoize(async (): Promise<string> => {
-        const controllerContract = lending.contracts[this.addresses.controller].multicallContract;
-        const calls = [controllerContract.minted(), controllerContract.redeemed()]
-        const [_minted, _redeemed]: bigint[] = await lending.multicallProvider.all(calls);
-
-        return toBN(_minted, this.borrowed_token.decimals).minus(toBN(_redeemed, this.borrowed_token.decimals)).toString();
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
 
     private async statsTotalDebt(): Promise<string> {
         const debt = await lending.contracts[this.addresses.controller].contract.total_debt(lending.constantOptions);

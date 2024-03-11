@@ -763,23 +763,15 @@ export class OneWayMarketTemplate {
         maxAge: 5 * 60 * 1000, // 5m
     });
 
-    private _getRate = memoize(async (): Promise<bigint> => {
+    private _getRate = async (): Promise<bigint> => {
         const llammaContract = lending.contracts[this.addresses.amm].contract;
         return await llammaContract.rate();
-    },
-    {
-        promise: true,
-        maxAge: 5 * 60 * 1000, // 5m
-    });
+    }
 
-    private _getFutureRate = memoize(async (_dReserves: bigint, _dDebt: bigint): Promise<bigint> => {
+    private _getFutureRate = async (_dReserves: bigint, _dDebt: bigint): Promise<bigint> => {
         const mpContract = lending.contracts[this.addresses.monetary_policy].contract;
         return await mpContract.future_rate(this.addresses.controller, _dReserves, _dDebt);
-    },
-    {
-        promise: true,
-        maxAge: 5 * 60 * 1000, // 5m
-    });
+    }
 
     private async statsRates(): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
         const _rate = await this._getRate();

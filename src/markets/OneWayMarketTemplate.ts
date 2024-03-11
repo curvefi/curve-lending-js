@@ -909,14 +909,10 @@ export class OneWayMarketTemplate {
         maxAge: 60 * 1000, // 1m
     });
 
-    private statsTotalDebt = memoize(async (): Promise<string> => {
+    private async statsTotalDebt(): Promise<string> {
         const debt = await lending.contracts[this.addresses.controller].contract.total_debt(lending.constantOptions);
         return formatUnits(debt, this.borrowed_token.decimals);
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
+    }
 
     private statsAmmBalances = memoize(async (): Promise<{ borrowed: string, collateral: string }> => {
         const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
@@ -940,7 +936,7 @@ export class OneWayMarketTemplate {
         maxAge: 60 * 1000, // 1m
     });
 
-    private statsCapAndAvailable = memoize(async (): Promise<{ cap: string, available: string }> => {
+    private async statsCapAndAvailable(): Promise<{ cap: string, available: string }> {
         const vaultContract = lending.contracts[this.addresses.vault].multicallContract;
         const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
 
@@ -953,11 +949,7 @@ export class OneWayMarketTemplate {
             cap: lending.formatUnits(_cap, this.borrowed_token.decimals),
             available: lending.formatUnits(_available, this.borrowed_token.decimals),
         }
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
+    }
 
     // ---------------- PRICES ----------------
 

@@ -1303,26 +1303,24 @@ export class OneWayMarketTemplate {
     // ---------------- BORROW MORE ----------------
 
     public async borrowMoreMaxRecv(collateralAmount: number | string): Promise<string> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
-        const N = await this.userRange();
+        const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState("0x7a16fF8270133F063aAb6C9977183D9e72835428");
         const _collateral = _currentCollateral + parseUnits(collateralAmount, this.collateral_token.decimals);
 
         const contract = lending.contracts[this.addresses.controller].contract;
-        const _debt: bigint = await contract.max_borrowable(_collateral, N, _currentDebt, lending.constantOptions);
+        const _debt: bigint = await contract.max_borrowable(_collateral, _N, _currentDebt, lending.constantOptions);
 
         return formatUnits(_debt - _currentDebt, this.borrowed_token.decimals);
     }
 
     private async _borrowMoreBands(collateral: number | string, debt: number | string): Promise<[bigint, bigint]> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
+        const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState();
         if (_currentDebt === BigInt(0)) throw Error(`Loan for ${lending.signerAddress} does not exist`);
 
-        const N = await this.userRange();
         const _collateral = _currentCollateral + parseUnits(collateral, this.collateral_token.decimals);
         const _debt = _currentDebt + parseUnits(debt, this.borrowed_token.decimals);
 
-        const _n1 = await this._calcN1(_collateral, _debt, N);
-        const _n2 = _n1 + BigInt(N - 1);
+        const _n1 = await this._calcN1(_collateral, _debt, Number(_N));
+        const _n2 = _n1 + _N - BigInt(1);
 
         return [_n2, _n1];
     }
@@ -1393,13 +1391,12 @@ export class OneWayMarketTemplate {
 
     private async _addCollateralBands(collateral: number | string, address = ""): Promise<[bigint, bigint]> {
         address = _getAddress(address);
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState(address);
+        const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState(address);
         if (_currentDebt === BigInt(0)) throw Error(`Loan for ${address} does not exist`);
 
-        const N = await this.userRange(address);
         const _collateral = _currentCollateral + parseUnits(collateral, this.collateral_token.decimals);
-        const _n1 = await this._calcN1(_collateral, _currentDebt, N);
-        const _n2 = _n1 + BigInt(N - 1);
+        const _n1 = await this._calcN1(_collateral, _currentDebt, Number(_N));
+        const _n2 = _n1 + _N - BigInt(1);
 
         return [_n2, _n1];
     }
@@ -1469,21 +1466,19 @@ export class OneWayMarketTemplate {
     // ---------------- REMOVE COLLATERAL ----------------
 
     public async maxRemovable(): Promise<string> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
-        const N = await this.userRange();
-        const _requiredCollateral = await lending.contracts[this.addresses.controller].contract.min_collateral(_currentDebt, N, lending.constantOptions)
+        const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState();
+        const _requiredCollateral = await lending.contracts[this.addresses.controller].contract.min_collateral(_currentDebt, _N, lending.constantOptions)
 
         return formatUnits(_currentCollateral - _requiredCollateral, this.collateral_token.decimals);
     }
 
     private async _removeCollateralBands(collateral: number | string): Promise<[bigint, bigint]> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState();
+        const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState();
         if (_currentDebt === BigInt(0)) throw Error(`Loan for ${lending.signerAddress} does not exist`);
 
-        const N = await this.userRange();
         const _collateral = _currentCollateral - parseUnits(collateral, this.collateral_token.decimals);
-        const _n1 = await this._calcN1(_collateral, _currentDebt, N);
-        const _n2 = _n1 + BigInt(N - 1);
+        const _n1 = await this._calcN1(_collateral, _currentDebt, Number(_N));
+        const _n2 = _n1 + _N - BigInt(1);
 
         return [_n2, _n1];
     }
@@ -1537,13 +1532,12 @@ export class OneWayMarketTemplate {
     // ---------------- REPAY ----------------
 
     private async _repayBands(debt: number | string, address: string): Promise<[bigint, bigint]> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt } = await this._userState(address);
+        const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState(address);
         if (_currentDebt === BigInt(0)) throw Error(`Loan for ${address} does not exist`);
 
-        const N = await this.userRange(address);
         const _debt = _currentDebt - parseUnits(debt, this.borrowed_token.decimals);
-        const _n1 = await this._calcN1(_currentCollateral, _debt, N);
-        const _n2 = _n1 + BigInt(N - 1);
+        const _n1 = await this._calcN1(_currentCollateral, _debt, Number(_N));
+        const _n2 = _n1 + _N - BigInt(1);
 
         return [_n2, _n1];
     }

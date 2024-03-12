@@ -3,7 +3,7 @@ import { lowerCaseValues } from "./utils.js";
 
 export const ALIASES_ETHEREUM = lowerCaseValues({
     "crv": "0xD533a949740bb3306d119CC777fa900bA034cd52",
-    "one_way_factory": "0xc67a44D958eeF0ff316C3a7c9E14FB96f6DedAA3",
+    "one_way_factory": "0x34024bA3b6EdaF5cdd1C24FeFe1DF5D03041F38C",
     "gauge_controller": "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB",
     "minter": '0xd061D61a4d941c39E5453435B6345Dc261C2fcE0',
     "gauge_factory": "0xabC000d88f23Bb45525E447528DBF656A9D55bf5",

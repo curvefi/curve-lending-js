@@ -311,8 +311,6 @@ import lending from "@curvefi/lending-api";
     //     '14': { borrowed: '0.0', collateral: '0.1' },
     //     '15': { borrowed: '0.0', collateral: '0.1' }
     // }
-    await oneWayMarket.stats.totalBorrowed();
-    // 1000
     await oneWayMarket.stats.totalDebt();
     // 1000.0
     await oneWayMarket.stats.ammBalances();

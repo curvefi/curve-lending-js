@@ -68,7 +68,6 @@ const statsTest = async () => {
     console.log({ activeBand, maxBand, minBand, liquidationBand });
     console.log(await oneWayMarket.stats.bandBalances(liquidationBand ?? 0));
     console.log(await oneWayMarket.stats.bandsBalances());
-    console.log(await oneWayMarket.stats.totalBorrowed());
     console.log(await oneWayMarket.stats.totalDebt());
     console.log(await oneWayMarket.stats.ammBalances());
     console.log(await oneWayMarket.stats.capAndAvailable());

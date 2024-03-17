@@ -1047,11 +1047,15 @@ export class OneWayMarketTemplate {
         return formatUnits(_health);
     }
 
-    public async userBands(address = ""): Promise<number[]> {
+    private async _userBands(address: string): Promise<bigint[]> {
         address = _getAddress(address);
         const _bands = await lending.contracts[this.addresses.amm].contract.read_user_tick_numbers(address, lending.constantOptions) as bigint[];
 
-        return _bands.map((_t) => Number(_t)).reverse();
+        return Array.from(_bands).reverse();
+    }
+
+    public async userBands(address = ""): Promise<number[]> {
+        return (await this._userBands(address)).map((_t) => Number(_t));
     }
 
     public async userRange(address = ""): Promise<number> {
@@ -1502,8 +1506,9 @@ export class OneWayMarketTemplate {
     // ---------------- REPAY ----------------
 
     private async _repayBands(debt: number | string, address: string): Promise<[bigint, bigint]> {
-        const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState(address);
+        const { _collateral: _currentCollateral, _borrowed, _debt: _currentDebt, _N } = await this._userState(address);
         if (_currentDebt === BigInt(0)) throw Error(`Loan for ${address} does not exist`);
+        if (_borrowed > BigInt(0)) return await this._userBands(address) as [bigint, bigint];
 
         const _debt = _currentDebt - parseUnits(debt, this.borrowed_token.decimals);
         const _n1 = await this._calcN1(_currentCollateral, _debt, Number(_N));

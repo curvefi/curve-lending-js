@@ -1,0 +1,52 @@
+[
+  {
+    "stateMutability": "view",
+    "type": "function",
+    "name": "max_p_base",
+    "inputs": [
+      {
+        "name": "controller",
+        "type": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ]
+  },
+  {
+    "stateMutability": "view",
+    "type": "function",
+    "name": "max_borrowable",
+    "inputs": [
+      {
+        "name": "controller",
+        "type": "address"
+      },
+      {
+        "name": "_user_collateral",
+        "type": "uint256"
+      },
+      {
+        "name": "_leverage_collateral",
+        "type": "uint256"
+      },
+      {
+        "name": "N",
+        "type": "uint256"
+      },
+      {
+        "name": "p_avg",
+        "type": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ]
+  }
+]

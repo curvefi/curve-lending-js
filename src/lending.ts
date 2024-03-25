@@ -12,6 +12,7 @@ import GaugeControllerABI from './constants/abis/GaugeController.json' assert { 
 import GaugeFactoryMainnetABI from './constants/abis/GaugeFactoryMainnet.json' assert { type: 'json' };
 import GaugeFactorySidechainABI from './constants/abis/GaugeFactorySidechain.json' assert { type: 'json' };
 import MinterABI from './constants/abis/Minter.json' assert { type: 'json' };
+import LeverageZapABI from './constants/abis/LeverageZap.json' assert { type: 'json' };
 import {
     ALIASES_ETHEREUM,
     ALIASES_OPTIMISM,
@@ -131,6 +132,7 @@ class Lending implements ILending {
     feeData: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number };
     constantOptions: { gasLimit: number };
     options: { gasPrice?: number | bigint, maxFeePerGas?: number | bigint, maxPriorityFeePerGas?: number | bigint };
+    apiKey1inch?: string;
     constants: {
         ONE_WAY_MARKETS: IDict<IOneWayMarket>,
         DECIMALS: IDict<number>;
@@ -138,6 +140,7 @@ class Lending implements ILending {
         ALIASES: Record<string, string>;
         COINS: Record<string, string>;
         ZERO_ADDRESS: string,
+        PROTOCOLS_1INCH: string,
     };
 
     constructor() {
@@ -153,6 +156,7 @@ class Lending implements ILending {
         this.feeData = {}
         this.constantOptions = { gasLimit: 12000000 }
         this.options = {};
+        this.apiKey1inch = undefined;
         this.constants = {
             ONE_WAY_MARKETS: {},
             COINS: {},
@@ -160,13 +164,27 @@ class Lending implements ILending {
             NETWORK_NAME: 'ethereum',
             ALIASES: {},
             ZERO_ADDRESS: ethers.ZeroAddress,
+            PROTOCOLS_1INCH: "UNISWAP_V1,UNISWAP_V2,SUSHI,MOONISWAP,BALANCER,COMPOUND,CURVE,CURVE_V2_SPELL_2_ASSET," +
+            "CURVE_V2_SGT_2_ASSET,CURVE_V2_THRESHOLDNETWORK_2_ASSET,CHAI,OASIS,KYBER,AAVE,IEARN,BANCOR,SWERVE," +
+            "BLACKHOLESWAP,DODO,DODO_V2,VALUELIQUID,SHELL,DEFISWAP,SAKESWAP,LUASWAP,MINISWAP,MSTABLE,PMM2," +
+            "SYNTHETIX,AAVE_V2,ST_ETH,ONE_INCH_LP,ONE_INCH_LP_1_1,LINKSWAP,S_FINANCE,PSM,POWERINDEX,XSIGMA," +
+            "SMOOTHY_FINANCE,SADDLE,KYBER_DMM,BALANCER_V2,UNISWAP_V3,SETH_WRAPPER,CURVE_V2,CURVE_V2_EURS_2_ASSET," +
+            "CURVE_V2_ETH_CRV,CURVE_V2_ETH_CVX,CONVERGENCE_X,ONE_INCH_LIMIT_ORDER,ONE_INCH_LIMIT_ORDER_V2," +
+            "ONE_INCH_LIMIT_ORDER_V3,DFX_FINANCE,FIXED_FEE_SWAP,DXSWAP,SHIBASWAP,UNIFI,PSM_PAX,WSTETH,DEFI_PLAZA," +
+            "FIXED_FEE_SWAP_V3,SYNTHETIX_WRAPPER,SYNAPSE,CURVE_V2_YFI_2_ASSET,CURVE_V2_ETH_PAL,POOLTOGETHER," +
+            "ETH_BANCOR_V3,ELASTICSWAP,BALANCER_V2_WRAPPER,FRAXSWAP,RADIOSHACK,KYBERSWAP_ELASTIC,CURVE_V2_TWO_CRYPTO," +
+            "STABLE_PLAZA,ZEROX_LIMIT_ORDER,CURVE_3CRV,KYBER_DMM_STATIC,ANGLE,ROCKET_POOL,ETHEREUM_ELK,ETHEREUM_PANCAKESWAP_V2," +
+            "SYNTHETIX_ATOMIC_SIP288,PSM_GUSD,INTEGRAL,MAINNET_SOLIDLY,NOMISWAP_STABLE,CURVE_V2_TWOCRYPTO_META,MAVERICK_V1,VERSE," +
+            "DFX_FINANCE_V2,ZK_BOB,PANCAKESWAP_V3,NOMISWAPEPCS,XFAI,CURVE_V2_TRICRYPTO_NG,PMM8_2,SUSHISWAP_V3,SFRX_ETH,SDAI," +
+            "ETHEREUM_WOMBATSWAP,PMM12,CARBON,COMPOUND_V3,DODO_V3,SMARDEX,TRADERJOE_V2_1",
         };
     }
 
     async init(
         providerType: 'JsonRpc' | 'Web3' | 'Infura' | 'Alchemy',
         providerSettings: { url?: string, privateKey?: string, batchMaxCount? : number } | { externalProvider: ethers.Eip1193Provider } | { network?: Networkish, apiKey?: string },
-        options: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number, chainId?: number } = {} // gasPrice in Gwei
+        options: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number, chainId?: number } = {}, // gasPrice in Gwei
+        apiKey1inch?: string
     ): Promise<void> {
         // @ts-ignore
         this.provider = null;
@@ -180,6 +198,7 @@ class Lending implements ILending {
         this.feeData = {}
         this.constantOptions = { gasLimit: 12000000 }
         this.options = {};
+        this.apiKey1inch = apiKey1inch;
 
         // JsonRpc provider
         if (providerType.toLowerCase() === 'JsonRpc'.toLowerCase()) {
@@ -227,8 +246,8 @@ class Lending implements ILending {
         }
 
         const network = await this.provider.getNetwork();
-        console.log("CURVE-LENDING-JS IS CONNECTED TO NETWORK:", { name: network.name.toUpperCase(), chainId: Number(network.chainId) });
         this.chainId = Number(network.chainId) === 133 || Number(network.chainId) === 31337 ? 1 : Number(network.chainId) as IChainId;
+        console.log("CURVE-LENDING-JS IS CONNECTED TO NETWORK:", { name: network.name.toUpperCase(), chainId: Number(this.chainId) });
 
         this.constants.NETWORK_NAME = NETWORK_CONSTANTS[this.chainId].NAME;
         this.constants.ALIASES = NETWORK_CONSTANTS[this.chainId].ALIASES;
@@ -251,6 +270,7 @@ class Lending implements ILending {
 
         this.setContract(this.constants.ALIASES['one_way_factory'], OneWayLendingFactoryABI);
         this.setContract(this.constants.ALIASES['gauge_controller'], GaugeControllerABI);
+        this.setContract(this.constants.ALIASES['leverage_zap'], LeverageZapABI);
         if (this.chainId === 1) {
             this.setContract(this.constants.ALIASES.minter, MinterABI);
             this.setContract(this.constants.ALIASES.gauge_factory, GaugeFactoryMainnetABI);

@@ -23,6 +23,7 @@ import {
     smartNumber,
 } from "../utils.js";
 import { IDict, TGas, TAmount, IReward } from "../interfaces.js";
+import { _getQuote1inch } from "../external-api.js";
 import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
 
 
@@ -1806,5 +1807,257 @@ export class OneWayMarketTemplate {
     public async selfLiquidate(slippage = 0.1): Promise<string> {
         await this.selfLiquidateApprove();
         return await this._liquidate(lending.signerAddress, slippage, false) as string;
+    }
+
+    // ---------------- LEVERAGE ----------------
+
+    private _checkLeverageZap(): void {
+        if (lending.constants.ALIASES.leverage_zap === "0x0000000000000000000000000000000000000000") {
+            throw Error(`There is no leverage contract on this network. ID: ${lending.chainId}`);
+        }
+    }
+
+    private async _get_k_effective_BN(N: number): Promise<BigNumber> {
+        // d_k_effective: uint256 = (1 - loan_discount) * sqrt((A-1)/A) / N
+        // k_effective = d_k_effective * sum_{0..N-1}(((A-1) / A)**k)
+        const { loan_discount, A } = await this.statsParameters();
+        const A_BN = BN(A);
+        const A_ratio_BN = A_BN.minus(1).div(A_BN);
+
+        const d_k_effective_BN = BN(100).minus(loan_discount).div(100).times(A_ratio_BN.sqrt()).div(N);
+        let S = BN(0);
+        for (let n = 0; n < N; n++) {
+            S = S.plus(A_ratio_BN.pow(n))
+        }
+
+        return d_k_effective_BN.times(S);
+    }
+
+    public async maxLeverage(N: number): Promise<string> {
+        // max_leverage = 1 / (k_effective - 1)
+        const k_effective_BN = await this._get_k_effective_BN(N);
+
+        return BN(1).div(BN(1).minus(k_effective_BN)).toString()
+    }
+
+    private async leverageCreateLoanMaxRecv(userCollateral: TAmount, range: number):
+        Promise<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }> {
+        // max_borrowable = userCollateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
+        this._checkLeverageZap();
+        this._checkRange(range);
+        const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
+        const contract = lending.contracts[lending.constants.ALIASES.leverage_zap].contract;
+
+        const oraclePriceBand = await this.oraclePriceBand();
+        let pAvgBN = BN(await this.calcTickPrice(oraclePriceBand)); // upper tick of oracle price band
+        let maxLeverageCollateralBN = BN(0);
+        let _maxLeverageCollateral = BigInt(0);
+        let maxBorrowablePrevBN = BN(0);
+        let maxBorrowableBN = BN(0);
+        let _maxBorrowable = BigInt(0);
+
+        for (let i = 0; i < 5; i++) {
+            maxBorrowablePrevBN = maxBorrowableBN;
+            _maxBorrowable = await contract.max_borrowable(this.addresses.controller, _userCollateral, _maxLeverageCollateral, range, fromBN(pAvgBN));
+            maxBorrowableBN = toBN(_maxBorrowable, this.borrowed_token.decimals);
+
+            if (maxBorrowableBN.minus(maxBorrowablePrevBN).abs().div(maxBorrowablePrevBN).lt(0.0005)) {
+                maxBorrowableBN = maxBorrowablePrevBN;
+                break;
+            }
+
+            _maxLeverageCollateral = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _maxBorrowable));
+            maxLeverageCollateralBN = toBN(_maxLeverageCollateral, this.collateral_token.decimals);
+            pAvgBN = maxBorrowableBN.div(maxLeverageCollateralBN)
+        }
+
+        return {
+            maxBorrowable: maxBorrowableBN.toString(),
+            maxTotalCollateral: maxLeverageCollateralBN.plus(userCollateral).toString(),
+            maxLeverage: maxLeverageCollateralBN.plus(userCollateral).div(userCollateral).toString(),
+            collateralAvgPrice: pAvgBN.toString(),
+        };
+    }
+
+    private leverageCreateLoanMaxRecvAllRanges = memoize(async (userCollateral: TAmount):
+        Promise<IDict<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>> => {
+        this._checkLeverageZap();
+        const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
+        const contract = lending.contracts[lending.constants.ALIASES.leverage_zap].multicallContract;
+
+        const oraclePriceBand = await this.oraclePriceBand();
+        const pAvgApproxBN = BN(await this.calcTickPrice(oraclePriceBand)); // upper tick of oracle price band
+        let pAvgBN: BigNumber | null = null;
+        const arrLength = this.maxBands - this.minBands + 1;
+        let maxLeverageCollateralBN: BigNumber[] = new Array(arrLength).fill(BN(0));
+        let _maxLeverageCollateral: bigint[] = new Array(arrLength).fill(BigInt(0));
+        let maxBorrowablePrevBN: BigNumber[] = new Array(arrLength).fill(BN(0));
+        let maxBorrowableBN: BigNumber[] = new Array(arrLength).fill(BN(0));
+        let _maxBorrowable: bigint[] = new Array(arrLength).fill(BigInt(0));
+
+
+        for (let i = 0; i < 5; i++) {
+            maxBorrowablePrevBN = maxBorrowableBN;
+            const calls = [];
+            for (let N = this.minBands; N <= this.maxBands; N++) {
+                const j = N - this.minBands;
+                calls.push(contract.max_borrowable(this.addresses.controller, _userCollateral, _maxLeverageCollateral[j], N, fromBN(pAvgBN ?? pAvgApproxBN)));
+            }
+            _maxBorrowable = await lending.multicallProvider.all(calls);
+            maxBorrowableBN = _maxBorrowable.map((_mb) => toBN(_mb, this.borrowed_token.decimals));
+
+            const deltaBN = maxBorrowableBN.map((mb, l) => mb.minus(maxBorrowablePrevBN[l]).abs().div(mb));
+            if (BigNumber.max(...deltaBN).lt(0.0005)) {
+                maxBorrowableBN = maxBorrowablePrevBN;
+                break;
+            }
+
+            if (pAvgBN === null){
+                const _y = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _maxBorrowable[0]));
+                const yBN = toBN(_y, this.collateral_token.decimals);
+                pAvgBN = maxBorrowableBN[0].div(yBN);
+            }
+
+            maxLeverageCollateralBN = maxBorrowableBN.map((mb) => mb.div(pAvgBN as BigNumber));
+            _maxLeverageCollateral = maxLeverageCollateralBN.map((mlc) => fromBN(mlc, this.collateral_token.decimals));
+        }
+
+        const res: IDict<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }> = {};
+        for (let N = this.minBands; N <= this.maxBands; N++) {
+            const j = N - this.minBands;
+            res[N] = {
+                maxBorrowable: maxBorrowableBN[j].toString(),
+                maxTotalCollateral: maxLeverageCollateralBN[j].plus(userCollateral).toString(),
+                maxLeverage: maxLeverageCollateralBN[j].plus(userCollateral).div(userCollateral).toString(),
+                collateralAvgPrice: (pAvgBN as BigNumber).toString(),
+            };
+        }
+
+        return res;
+    },
+    {
+        promise: true,
+        maxAge: 60 * 1000, // 1m
+    });
+
+    private leverageCreateLoanTotalCollateral = memoize(async (userCollateral: TAmount, debt: TAmount): Promise<string> => {
+        const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
+        const _debt = parseUnits(debt, this.borrowed_token.decimals);
+        const _leverageCollateral = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _debt));
+
+        return formatUnits(_userCollateral + _leverageCollateral, this.collateral_token.decimals);
+    },
+    {
+        promise: true,
+        maxAge: 60 * 1000, // 1m
+    });
+
+    private async leverageGetMaxRange(userCollateral: number | string, debt: number | string): Promise<number> {
+        const maxRecv = await this.leverageCreateLoanMaxRecvAllRanges(userCollateral);
+        for (let N = this.minBands; N <= this.maxBands; N++) {
+            if (BN(debt).gt(maxRecv[N].maxBorrowable)) return N - 1;
+        }
+
+        return this.maxBands;
+    }
+
+    private async _leverageCalcN1(userCollateral: TAmount, debt: TAmount, range: number): Promise<bigint> {
+        this._checkRange(range);
+        const _totalCollateral = parseUnits(await this.leverageCreateLoanTotalCollateral(userCollateral, debt), this.collateral_token.decimals);
+        const _debt = parseUnits(debt, this.borrowed_token.decimals);
+        return await lending.contracts[this.addresses.controller].contract.calculate_debt_n1(_totalCollateral, _debt, range, lending.constantOptions);
+    }
+
+    private async _leverageCalcN1AllRanges(userCollateral: number | string, debt: number | string, maxN: number): Promise<bigint[]> {
+        const _totalCollateral = parseUnits(await this.leverageCreateLoanTotalCollateral(userCollateral, debt), this.collateral_token.decimals);
+        const _debt = parseUnits(debt, this.borrowed_token.decimals);
+        const calls = [];
+        for (let N = this.minBands; N <= maxN; N++) {
+            calls.push(lending.contracts[this.addresses.controller].multicallContract.calculate_debt_n1(_totalCollateral, _debt, N));
+        }
+        return await lending.multicallProvider.all(calls) as bigint[];
+    }
+
+    private async _leverageCreateLoanBands(collateral: number | string, debt: number | string, range: number): Promise<[bigint, bigint]> {
+        const _n1 = await this._leverageCalcN1(collateral, debt, range);
+        const _n2 = _n1 + BigInt(range - 1);
+
+        return [_n2, _n1];
+    }
+
+    private async _leverageCreateLoanBandsAllRanges(collateral: number | string, debt: number | string): Promise<IDict<[bigint, bigint]>> {
+        const maxN = await this.leverageGetMaxRange(collateral, debt);
+        const _n1_arr = await this._leverageCalcN1AllRanges(collateral, debt, maxN);
+        const _n2_arr: bigint[] = [];
+        for (let N = this.minBands; N <= maxN; N++) {
+            _n2_arr.push(_n1_arr[N - this.minBands] + BigInt(N - 1));
+        }
+
+        const _bands: IDict<[bigint, bigint]> = {};
+        for (let N = this.minBands; N <= maxN; N++) {
+            _bands[N] = [_n2_arr[N - this.minBands], _n1_arr[N - this.minBands]];
+        }
+
+        return _bands;
+    }
+
+    private async leverageCreateLoanBands(collateral: number | string, debt: number | string, range: number): Promise<[number, number]> {
+        this._checkLeverageZap();
+        const [_n2, _n1] = await this._leverageCreateLoanBands(collateral, debt, range);
+
+        return [Number(_n2), Number(_n1)];
+    }
+
+    private async leverageCreateLoanBandsAllRanges(collateral: number | string, debt: number | string): Promise<IDict<[number, number] | null>> {
+        this._checkLeverageZap();
+        const _bands = await this._leverageCreateLoanBandsAllRanges(collateral, debt);
+
+        const bands: { [index: number]: [number, number] | null } = {};
+        for (let N = this.minBands; N <= this.maxBands; N++) {
+            if (_bands[N]) {
+                bands[N] = _bands[N].map(Number) as [number, number];
+            } else {
+                bands[N] = null
+            }
+        }
+
+        return bands;
+    }
+
+    private async leverageCreateLoanPrices(collateral: number | string, debt: number | string, range: number): Promise<string[]> {
+        this._checkLeverageZap();
+        const [_n2, _n1] = await this._leverageCreateLoanBands(collateral, debt, range);
+
+        return await this._getPrices(_n2, _n1);
+    }
+
+    private async leverageCreateLoanPricesAllRanges(collateral: number | string, debt: number | string): Promise<IDict<[string, string] | null>> {
+        this._checkLeverageZap();
+        const _bands = await this._leverageCreateLoanBandsAllRanges(collateral, debt);
+
+        const prices: { [index: number]: [string, string] | null } = {};
+        for (let N = this.minBands; N <= this.maxBands; N++) {
+            if (_bands[N]) {
+                prices[N] = await this._calcPrices(..._bands[N]);
+            } else {
+                prices[N] = null
+            }
+        }
+
+        return prices;
+    }
+
+    private async leverageCreateLoanHealth(collateral: number | string, debt: number | string, range: number, full = true): Promise<string> {
+        this._checkLeverageZap();
+        const address = "0x0000000000000000000000000000000000000000";
+        const totalCollateral = await this.leverageCreateLoanTotalCollateral(collateral, debt);
+        const _totalCollateral = parseUnits(totalCollateral, this.collateral_token.decimals);
+        const _debt = parseUnits(debt);
+
+        const contract = lending.contracts[this.addresses.controller].contract;
+        let _health = await contract.health_calculator(address, _totalCollateral, _debt, full, range, lending.constantOptions) as bigint;
+        _health = _health * BigInt(100);
+
+        return formatUnits(_health);
     }
 }

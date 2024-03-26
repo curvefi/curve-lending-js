@@ -8,6 +8,7 @@ import ControllerABI from './constants/abis/Controller.json' assert { type: 'jso
 import MonetaryPolicyABI from './constants/abis/MonetaryPolicy.json' assert { type: 'json' };
 import VaultABI from './constants/abis/Vault.json' assert { type: 'json' };
 import GaugeABI from './constants/abis/GaugeV5.json' assert { type: 'json' };
+import SidechainGaugeABI from './constants/abis/SidechainGauge.json' assert { type: 'json' };
 import GaugeControllerABI from './constants/abis/GaugeController.json' assert { type: 'json' };
 import GaugeFactoryMainnetABI from './constants/abis/GaugeFactoryMainnet.json' assert { type: 'json' };
 import GaugeFactorySidechainABI from './constants/abis/GaugeFactorySidechain.json' assert { type: 'json' };
@@ -273,6 +274,7 @@ class Lending implements ILending {
         this.constants.NETWORK_NAME = NETWORK_CONSTANTS[this.chainId].NAME;
         this.constants.ALIASES = NETWORK_CONSTANTS[this.chainId].ALIASES;
         this.constants.COINS = NETWORK_CONSTANTS[this.chainId].COINS;
+        this.setContract(this.constants.ALIASES.crv, ERC20ABI);
 
         this.multicallProvider = new MulticallProvider(this.chainId, this.provider);
 
@@ -375,7 +377,7 @@ class Lending implements ILending {
             this.setContract(controllers[index], ControllerABI);
             this.setContract(monetary_policies[index], MonetaryPolicyABI);
             this.setContract(vaults[index], VaultABI);
-            this.setContract(gauges[index], GaugeABI);
+            this.setContract(gauges[index], this.chainId === 1 ? GaugeABI : SidechainGaugeABI);
             COIN_DATA[vaults[index]] = {
                 address: vaults[index],
                 decimals: 18,

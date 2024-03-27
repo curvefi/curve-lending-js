@@ -1,7 +1,15 @@
 import { ethers, Networkish } from "ethers";
 import { OneWayMarketTemplate, getOneWayMarket } from "./markets/index.js";
 import { lending as _lending } from "./lending.js";
-import { getBalances, getAllowance, hasAllowance, ensureAllowanceEstimateGas, ensureAllowance, getUsdRate } from "./utils.js";
+import {
+    getBalances,
+    getAllowance,
+    hasAllowance,
+    ensureAllowanceEstimateGas,
+    ensureAllowance,
+    getUsdRate,
+    getGasPriceFromL2,
+} from "./utils.js";
 
 
 async function init (
@@ -33,6 +41,7 @@ const lending = {
     hasAllowance,
     ensureAllowance,
     getUsdRate,
+    getGasPriceFromL2,
     oneWayfactory: {
         fetchMarkets:  _lending.fetchOneWayMarkets,
         getMarketList: _lending.getOneWayMarketList,

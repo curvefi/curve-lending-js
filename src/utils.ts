@@ -454,3 +454,11 @@ export const getUsdRate = async (coin: string): Promise<number> => {
     const [coinAddress] = _getCoinAddressesNoCheck(coin);
     return await _getUsdRate(coinAddress);
 }
+
+export const getGasPriceFromL2 = (): number => {
+    if(lending.chainId === 42161) {
+        return 0.01 * 1e9; // constant 0.1 gwei
+    } else {
+        throw Error("This method exists only for L2 networks");
+    }
+}

@@ -148,6 +148,20 @@ export class OneWayMarketTemplate {
             claimRewards: () => Promise<TGas>,
         }
     };
+    leverage: {
+        maxLeverage: (N: number) => Promise<string>,
+        createLoanMaxRecv: (userCollateral: TAmount, userBorrowed: TAmount, range: number) =>
+            Promise<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>,
+        createLoanMaxRecvAllRanges: (userCollateral: TAmount, userBorrowed: TAmount) =>
+            Promise<IDict<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>>,
+        createLoanTotalCollateral: (userCollateral: TAmount, userBorrowed: TAmount, range: number) => Promise<string>,
+        getMaxRange: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<number>,
+        createLoanBands: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number) => Promise<[number, number]>,
+        createLoanBandsAllRanges: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<IDict<[number, number] | null>>,
+        createLoanPrices: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number) => Promise<string[]>,
+        createLoanPricesAllRanges: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<IDict<[string, string] | null>>,
+        createLoanHealth: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number, full?: boolean) => Promise<string>,
+    };
 
     constructor(id: string) {
         this.id = id;
@@ -240,6 +254,18 @@ export class OneWayMarketTemplate {
                 claimCrv: this.vaultClaimCrvEstimateGas.bind(this),
                 claimRewards: this.vaultClaimRewardsEstimateGas.bind(this),
             },
+        }
+        this.leverage = {
+            maxLeverage: this.maxLeverage.bind(this),
+            createLoanMaxRecv: this.leverageCreateLoanMaxRecv.bind(this),
+            createLoanMaxRecvAllRanges: this.leverageCreateLoanMaxRecvAllRanges.bind(this),
+            createLoanTotalCollateral: this.leverageCreateLoanTotalCollateral.bind(this),
+            getMaxRange: this.leverageGetMaxRange.bind(this),
+            createLoanBands: this.leverageCreateLoanBands.bind(this),
+            createLoanBandsAllRanges: this.leverageCreateLoanBandsAllRanges.bind(this),
+            createLoanPrices: this.leverageCreateLoanPrices.bind(this),
+            createLoanPricesAllRanges: this.leverageCreateLoanPricesAllRanges.bind(this),
+            createLoanHealth: this.leverageCreateLoanHealth.bind(this),
         }
 
     }
@@ -1892,10 +1918,10 @@ export class OneWayMarketTemplate {
         };
     }
 
-    // private async leverageCreateLoanMaxRecv(userCollateral: TAmount, userBorrowed: TAmount, range: number):
-    //     Promise<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }> {
-    //
-    // }
+    private async leverageCreateLoanMaxRecv(userCollateral: TAmount, userBorrowed: TAmount, range: number):
+        Promise<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }> {
+        return await this._leverageMaxRecv(userCollateral, userBorrowed, range);
+    }
 
     private leverageCreateLoanMaxRecvAllRanges = memoize(async (userCollateral: TAmount, userBorrowed: TAmount):
         Promise<IDict<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>> => {
@@ -1982,19 +2008,9 @@ export class OneWayMarketTemplate {
         maxAge: 60 * 1000, // 1m
     });
 
-    // private leverageCreateLoanTotalCollateral = memoize(async (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<string> => {
-    //     const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
-    //     const _debt = parseUnits(debt, this.borrowed_token.decimals);
-    //     const _userBorrowed = parseUnits(userBorrowed, this.borrowed_token.decimals);
-    //     // additionalCollateral = (userBorrowed / p) + leverageCollateral
-    //     const _additionalCollateral = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _debt + _userBorrowed));
-    //
-    //     return formatUnits(_userCollateral + _additionalCollateral, this.collateral_token.decimals);
-    // },
-    // {
-    //     promise: true,
-    //     maxAge: 60 * 1000, // 1m
-    // });
+    private async leverageCreateLoanTotalCollateral(userCollateral: TAmount, userBorrowed: TAmount, range: number): Promise<string> {
+        return await this._leverageTotalCollateral(userCollateral, userBorrowed, range);
+    }
 
     private async leverageGetMaxRange(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<number> {
         const maxRecv = await this.leverageCreateLoanMaxRecvAllRanges(userCollateral, userBorrowed);

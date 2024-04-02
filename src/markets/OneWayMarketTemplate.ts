@@ -631,10 +631,10 @@ export class OneWayMarketTemplate {
         }
         const tokenInfo = await lending.multicallProvider.all(tokenInfoCalls);
         for (let i = 0; i < tokens.length; i++) {
-            lending.constants.DECIMALS[tokens[i]] = tokenInfo[(i * 2) + 1] as number;
+            lending.constants.DECIMALS[tokens[i]] = Number(tokenInfo[(i * 2) + 1]);
         }
 
-        return tokens.map((token, i) => ({ token, symbol: tokenInfo[i * 2] as string, decimals: tokenInfo[(i * 2) + 1] as number }));
+        return tokens.map((token, i) => ({ token, symbol: tokenInfo[i * 2] as string, decimals: Number(tokenInfo[(i * 2) + 1]) }));
     },
     {
         promise: true,

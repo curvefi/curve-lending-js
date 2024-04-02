@@ -150,17 +150,25 @@ export class OneWayMarketTemplate {
     };
     leverage: {
         maxLeverage: (N: number) => Promise<string>,
+
         createLoanMaxRecv: (userCollateral: TAmount, userBorrowed: TAmount, range: number) =>
             Promise<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>,
         createLoanMaxRecvAllRanges: (userCollateral: TAmount, userBorrowed: TAmount) =>
             Promise<IDict<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>>,
         createLoanTotalCollateral: (userCollateral: TAmount, userBorrowed: TAmount, range: number) => Promise<string>,
-        getMaxRange: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<number>,
+        createLoanMaxRange: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<number>,
         createLoanBands: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number) => Promise<[number, number]>,
         createLoanBandsAllRanges: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<IDict<[number, number] | null>>,
         createLoanPrices: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number) => Promise<string[]>,
         createLoanPricesAllRanges: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<IDict<[string, string] | null>>,
         createLoanHealth: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number, full?: boolean) => Promise<string>,
+
+        borrowMoreMaxRecv: (userCollateral: TAmount, userBorrowed: TAmount, address?: string) =>
+            Promise<{ maxBorrowable: string, maxTotalCollateral: string, collateralAvgPrice: string }>,
+        borrowMoreTotalCollateral: (userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<string>,
+        borrowMoreBands: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, address?: string) => Promise<[number, number]>,
+        borrowMorePrices: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, address?: string) => Promise<string[]>,
+        borrowMoreHealth: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, full?: boolean, address?: string) => Promise<string>,
     };
 
     constructor(id: string) {
@@ -257,15 +265,22 @@ export class OneWayMarketTemplate {
         }
         this.leverage = {
             maxLeverage: this.maxLeverage.bind(this),
+
             createLoanMaxRecv: this.leverageCreateLoanMaxRecv.bind(this),
             createLoanMaxRecvAllRanges: this.leverageCreateLoanMaxRecvAllRanges.bind(this),
             createLoanTotalCollateral: this.leverageCreateLoanTotalCollateral.bind(this),
-            getMaxRange: this.leverageGetMaxRange.bind(this),
+            createLoanMaxRange: this.leverageCreateLoanMaxRange.bind(this),
             createLoanBands: this.leverageCreateLoanBands.bind(this),
             createLoanBandsAllRanges: this.leverageCreateLoanBandsAllRanges.bind(this),
             createLoanPrices: this.leverageCreateLoanPrices.bind(this),
             createLoanPricesAllRanges: this.leverageCreateLoanPricesAllRanges.bind(this),
             createLoanHealth: this.leverageCreateLoanHealth.bind(this),
+
+            borrowMoreMaxRecv: this.leverageBorrowMoreMaxRecv.bind(this),
+            borrowMoreTotalCollateral: this.leverageBorrowMoreTotalCollateral.bind(this),
+            borrowMoreBands: this.leverageBorrowMoreBands.bind(this),
+            borrowMorePrices: this.leverageBorrowMorePrices.bind(this),
+            borrowMoreHealth: this.leverageBorrowMoreHealth.bind(this),
         }
 
     }
@@ -1874,27 +1889,26 @@ export class OneWayMarketTemplate {
         let _stateCollateral = BigInt(0);
         let _stateDebt = BigInt(0);
         if (user) {
-            const { _collateral, _borrowed, _debt } = await this._userState();
+            const { _collateral, _borrowed, _debt } = await this._userState(user);
             if (_borrowed > BigInt(0)) throw Error(`User ${user} is already in liquidation mode`);
             _stateCollateral = _collateral;
             _stateDebt = _debt;
         }
         const _userCollateral = _stateCollateral + parseUnits(userCollateral, this.collateral_token.decimals);
-        const userCollateralBN = toBN(_userCollateral, this.collateral_token.decimals);
+        const _userBorrowed = parseUnits(userBorrowed, this.borrowed_token.decimals);
         const contract = lending.contracts[lending.constants.ALIASES.leverage_zap].contract;
 
         const oraclePriceBand = await this.oraclePriceBand();
         let pAvgBN = BN(await this.calcTickPrice(oraclePriceBand)); // upper tick of oracle price band
-        let maxLeverageCollateralBN = BN(0);
-        let _maxLeverageCollateral = BigInt(0);
         let maxBorrowablePrevBN = BN(0);
         let maxBorrowableBN = BN(0);
-        let _maxBorrowable = BigInt(0);
+        let _userEffectiveCollateral = BigInt(0);
+        let _maxLeverageCollateral = BigInt(0);
 
         for (let i = 0; i < 5; i++) {
             maxBorrowablePrevBN = maxBorrowableBN;
-            const _userEffectiveCollateral: bigint = _userCollateral + fromBN(BN(userBorrowed).div(pAvgBN), this.collateral_token.decimals);
-            _maxBorrowable = await contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral, range, fromBN(pAvgBN));
+            _userEffectiveCollateral = _userCollateral + fromBN(BN(userBorrowed).div(pAvgBN), this.collateral_token.decimals);
+            let _maxBorrowable = await contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral, range, fromBN(pAvgBN));
             _maxBorrowable -= _stateDebt;
             maxBorrowableBN = toBN(_maxBorrowable, this.borrowed_token.decimals);
 
@@ -1903,12 +1917,14 @@ export class OneWayMarketTemplate {
                 break;
             }
 
-            _maxLeverageCollateral = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _maxBorrowable));
-            maxLeverageCollateralBN = toBN(_maxLeverageCollateral, this.collateral_token.decimals);
-            pAvgBN = maxBorrowableBN.div(maxLeverageCollateralBN)
+            // additionalCollateral = (userBorrowed / p) + leverageCollateral
+            const _maxAdditionalCollateral = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _maxBorrowable + _userBorrowed));
+            pAvgBN = maxBorrowableBN.plus(userBorrowed).div(toBN(_maxAdditionalCollateral, this.collateral_token.decimals));
+            _maxLeverageCollateral = _maxAdditionalCollateral - fromBN(BN(userBorrowed).div(pAvgBN), this.collateral_token.decimals);
         }
 
-        const userEffectiveCollateralBN = userCollateralBN.plus(userCollateral).plus(BN(userBorrowed).div(pAvgBN));
+        const userEffectiveCollateralBN = toBN(_userEffectiveCollateral, this.collateral_token.decimals);
+        const maxLeverageCollateralBN = toBN(_maxLeverageCollateral, this.collateral_token.decimals);
 
         return {
             maxBorrowable: maxBorrowableBN.toString(),
@@ -1996,7 +2012,7 @@ export class OneWayMarketTemplate {
         const _additionalCollateral = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _debt + _userBorrowed));
         let _stateCollateral = BigInt(0);
         if (user) {
-            const { _collateral, _borrowed } = await this._userState();
+            const { _collateral, _borrowed } = await this._userState(user);
             if (_borrowed > BigInt(0)) throw Error(`User ${user} is already in liquidation mode`);
             _stateCollateral = _collateral;
         }
@@ -2012,7 +2028,7 @@ export class OneWayMarketTemplate {
         return await this._leverageTotalCollateral(userCollateral, userBorrowed, range);
     }
 
-    private async leverageGetMaxRange(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<number> {
+    private async leverageCreateLoanMaxRange(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<number> {
         const maxRecv = await this.leverageCreateLoanMaxRecvAllRanges(userCollateral, userBorrowed);
         for (let N = this.minBands; N <= this.maxBands; N++) {
             if (BN(debt).gt(maxRecv[N].maxBorrowable)) return N - 1;
@@ -2025,7 +2041,7 @@ export class OneWayMarketTemplate {
         this._checkRange(range);
         let _stateDebt = BigInt(0);
         if (user) {
-            const { _debt, _borrowed } = await this._userState();
+            const { _debt, _borrowed } = await this._userState(user);
             if (_borrowed > BigInt(0)) throw Error(`User ${user} is already in liquidation mode`);
             _stateDebt = _debt;
         }
@@ -2060,7 +2076,7 @@ export class OneWayMarketTemplate {
     }
 
     private async _leverageCreateLoanBandsAllRanges(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<IDict<[bigint, bigint]>> {
-        const maxN = await this.leverageGetMaxRange(userCollateral, userBorrowed, debt);
+        const maxN = await this.leverageCreateLoanMaxRange(userCollateral, userBorrowed, debt);
         const _n1_arr = await this._leverageCalcN1AllRanges(userCollateral, userBorrowed, debt, maxN);
         const _n2_arr: bigint[] = [];
         for (let N = this.minBands; N <= maxN; N++) {
@@ -2133,7 +2149,7 @@ export class OneWayMarketTemplate {
         const totalCollateral = await this._leverageTotalCollateral(userCollateral, userBorrowed, debt, user);
         const _totalCollateral = parseUnits(totalCollateral, this.collateral_token.decimals);
         if (user) {
-            const { _borrowed } = await this._userState();
+            const { _borrowed } = await this._userState(user);
             if (_borrowed > BigInt(0)) throw Error(`User ${user} is already in liquidation mode`);
         }
         const _debt = parseUnits(debt);
@@ -2147,5 +2163,46 @@ export class OneWayMarketTemplate {
 
     private async leverageCreateLoanHealth(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number, full = true): Promise<string> {
         return await this._leverageHealth(userCollateral, userBorrowed, debt, range, full);
+    }
+
+    // ---------------- LEVERAGE BORROW MORE ----------------
+
+    private async leverageBorrowMoreMaxRecv(userCollateral: TAmount, userBorrowed: TAmount, address = ""):
+        Promise<{ maxBorrowable: string, maxTotalCollateral: string, collateralAvgPrice: string }> {
+        address = _getAddress(address);
+        const { N } = await this.userState(address);
+        const { maxBorrowable, maxTotalCollateral, collateralAvgPrice } = await this._leverageMaxRecv(userCollateral, userBorrowed, Number(N), address);
+
+        return { maxBorrowable, maxTotalCollateral, collateralAvgPrice }
+    }
+
+    private async leverageBorrowMoreTotalCollateral(userCollateral: TAmount, userBorrowed: TAmount, address = ""): Promise<string> {
+        address = _getAddress(address);
+        const { N } = await this.userState(address);
+        return await this._leverageTotalCollateral(userCollateral, userBorrowed, Number(N), address);
+    }
+
+    private async leverageBorrowMoreBands(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, address = ""): Promise<[number, number]> {
+        address = _getAddress(address);
+        this._checkLeverageZap();
+        const { N } = await this.userState(address);
+        const [_n2, _n1] = await this._leverageBands(userCollateral, userBorrowed, debt, Number(N), address);
+
+        return [Number(_n2), Number(_n1)];
+    }
+
+    private async leverageBorrowMorePrices(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, address = ""): Promise<string[]> {
+        address = _getAddress(address);
+        this._checkLeverageZap();
+        const { N } = await this.userState(address);
+        const [_n2, _n1] = await this._leverageBands(userCollateral, userBorrowed, debt, Number(N), address);
+
+        return await this._getPrices(_n2, _n1);
+    }
+
+    private async leverageBorrowMoreHealth(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, full = true, address = ""): Promise<string> {
+        address = _getAddress(address);
+        const { N } = await this.userState(address);
+        return await this._leverageHealth(userCollateral, userBorrowed, debt, Number(N), full, address);
     }
 }

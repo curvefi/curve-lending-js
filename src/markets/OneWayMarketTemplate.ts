@@ -859,8 +859,8 @@ export class OneWayMarketTemplate {
 
         // bands_x and bands_y always return amounts with 18 decimals
         return {
-            borrowed: formatNumber(formatUnits(_balances[0], this.borrowed_token.decimals), this.borrowed_token.decimals),
-            collateral: formatNumber(formatUnits(_balances[1], this.collateral_token.decimals), this.collateral_token.decimals),
+            borrowed: formatNumber(formatUnits(_balances[0]), this.borrowed_token.decimals),
+            collateral: formatNumber(formatUnits(_balances[1]), this.collateral_token.decimals),
         }
     }
 
@@ -880,8 +880,8 @@ export class OneWayMarketTemplate {
             const _i = i - minBand
             // bands_x and bands_y always return amounts with 18 decimals
             bands[i] = {
-                borrowed: formatNumber(formatUnits(_bands[2 * _i], this.borrowed_token.decimals), this.borrowed_token.decimals),
-                collateral: formatNumber(formatUnits(_bands[(2 * _i) + 1], this.collateral_token.decimals), this.collateral_token.decimals),
+                borrowed: formatNumber(formatUnits(_bands[2 * _i]), this.borrowed_token.decimals),
+                collateral: formatNumber(formatUnits(_bands[(2 * _i) + 1]), this.collateral_token.decimals),
             }
         }
 

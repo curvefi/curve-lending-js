@@ -169,6 +169,13 @@ export class OneWayMarketTemplate {
         borrowMoreBands: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<[number, number]>,
         borrowMorePrices: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<string[]>,
         borrowMoreHealth: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, full?: boolean, address?: string) => Promise<string>,
+
+        repayExpected: (repayCollateral: TAmount, userBorrowed: TAmount) => Promise<string>,
+        repayIsFull: (repayCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<boolean>,
+        repayIsAvailable: (repayCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<boolean>,
+        repayBands: (repayCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<[number, number]>,
+        repayPrices: (repayCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<string[]>,
+        repayHealth: (repayCollateral: TAmount, userBorrowed: TAmount, full?: boolean, address?: string) => Promise<string>,
     };
 
     constructor(id: string) {
@@ -281,6 +288,13 @@ export class OneWayMarketTemplate {
             borrowMoreBands: this.leverageBorrowMoreBands.bind(this),
             borrowMorePrices: this.leverageBorrowMorePrices.bind(this),
             borrowMoreHealth: this.leverageBorrowMoreHealth.bind(this),
+
+            repayExpected: this.leverageRepayExpected.bind(this),
+            repayIsFull: this.leverageRepayIsFull.bind(this),
+            repayIsAvailable: this.leverageRepayIsAvailable.bind(this),
+            repayBands: this.leverageRepayBands.bind(this),
+            repayPrices: this.leverageRepayPrices.bind(this),
+            repayHealth: this.leverageRepayHealth.bind(this),
         }
 
     }
@@ -2211,5 +2225,107 @@ export class OneWayMarketTemplate {
     private async leverageBorrowMoreHealth(userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, full = true, address = ""): Promise<string> {
         address = _getAddress(address);
         return await this._leverageHealth(userCollateral, userBorrowed, dDebt, -1, full, address);
+    }
+
+    // ---------------- LEVERAGE REPAY ----------------
+
+    private leverageRepayExpected = memoize( async (repayCollateral: TAmount, userBorrowed: TAmount): Promise<string> => {
+        this._checkLeverageZap();
+        const _repayCollateral = parseUnits(repayCollateral, this.collateral_token.decimals);
+        let _borrowedExpected = BigInt(await _getQuote1inch(this.addresses.collateral_token, this.addresses.borrowed_token, _repayCollateral));
+        _borrowedExpected = _borrowedExpected + parseUnits(userBorrowed, this.borrowed_token.decimals);
+
+        return  lending.formatUnits(_borrowedExpected, this.borrowed_token.decimals)
+    },
+    {
+        promise: true,
+        maxAge: 5 * 60 * 1000, // 5m
+    });
+
+    private async leverageRepayIsFull(repayCollateral: TAmount, userBorrowed: TAmount, address = ""): Promise<boolean> {
+        this._checkLeverageZap();
+        address = _getAddress(address);
+        const { borrowed: stateBorrowed, debt } = await this.userState(address);
+        const repayExpected = await this.leverageRepayExpected(repayCollateral, userBorrowed);
+
+        return BN(stateBorrowed).plus(repayExpected).gt(debt);
+    }
+
+    private async leverageRepayIsAvailable(repayCollateral: TAmount, userBorrowed: TAmount, address = ""): Promise<boolean> {
+        // 0. const { collateral, stablecoin, debt } = await this.userState(address);
+        // 1. maxCollateral for deleverage is collateral from line above.
+        // 2. If user is underwater (stablecoin > 0), only full repayment is available:
+        //    await this.deleverageRepayStablecoins(deleverageCollateral) + stablecoin > debt
+        this._checkLeverageZap();
+        address = _getAddress(address);
+        const { collateral, borrowed, debt } = await this.userState(address);
+        // Loan does not exist
+        if (BN(debt).eq(0)) return false;
+        // Can't spend more than user has
+        if (BN(repayCollateral).gt(collateral)) return false;
+        // Only full repayment and closing the position is available if user is underwater+
+        if (BN(borrowed).gt(0)) return await this.leverageRepayIsFull(repayCollateral, userBorrowed, address);
+
+        return true;
+    }
+
+    private _leverageRepayBands = memoize( async (repayCollateral: TAmount, userBorrowed: TAmount, address: string): Promise<[bigint, bigint]> => {
+        address = _getAddress(address);
+        if (!(await this.leverageRepayIsAvailable(repayCollateral, userBorrowed, address))) return [parseUnits(0, 0), parseUnits(0, 0)];
+
+        const _repayCollateral = parseUnits(repayCollateral, this.collateral_token.decimals);
+        const { _collateral: _stateCollateral, _debt: _stateDebt, _N } = await this._userState(address);
+        if (_stateDebt == BigInt(0)) throw Error(`Loan for ${address} does not exist`);
+        if (_stateCollateral < _repayCollateral) throw Error(`Can't use more collateral than user's position has (${_repayCollateral}) > ${_stateCollateral})`);
+
+        let _n1 = parseUnits(0, 0);
+        let _n2 = parseUnits(0, 0);
+        const repayExpected = await this.leverageRepayExpected(repayCollateral, userBorrowed);
+        const _repayExpected = parseUnits(repayExpected, this.borrowed_token.decimals);
+        try {
+            _n1 = await lending.contracts[this.addresses.controller].contract.calculate_debt_n1(_stateCollateral - _repayCollateral, _stateDebt - _repayExpected, _N);
+            _n2 = _n1 + (_N - BigInt(1));
+        } catch (e) {
+            console.log("Full repayment");
+        }
+
+        return [_n2, _n1];
+    },
+    {
+        promise: true,
+        maxAge: 5 * 60 * 1000, // 5m
+    });
+
+    private async leverageRepayBands(repayCollateral: TAmount, userBorrowed: TAmount, address = ""): Promise<[number, number]> {
+        this._checkLeverageZap();
+        const [_n2, _n1] = await this._leverageRepayBands(repayCollateral, userBorrowed, address);
+
+        return [Number(_n2), Number(_n1)];
+    }
+
+    private async leverageRepayPrices(repayCollateral: TAmount, userBorrowed: TAmount, address = ""): Promise<string[]> {
+        this._checkLeverageZap();
+        const [_n2, _n1] = await this._leverageRepayBands(repayCollateral, userBorrowed, address);
+
+        return await this._getPrices(_n2, _n1);
+    }
+
+    private async leverageRepayHealth(repayCollateral: TAmount, userBorrowed: TAmount, full = true, address = ""): Promise<string> {
+        this._checkLeverageZap();
+        address = _getAddress(address);
+        const { _borrowed: _stateBorrowed, _debt, _N } = await this._userState(address);
+        if (_stateBorrowed > BigInt(0)) return "0.0";
+        if (!(await this.leverageRepayIsAvailable(repayCollateral, userBorrowed, address))) return "0.0";
+
+        const repayExpected = await this.leverageRepayExpected(repayCollateral, userBorrowed);
+        const _dCollateral = parseUnits(repayCollateral, this.collateral_token.decimals) * BigInt(-1);
+        const _dDebt = parseUnits(repayExpected, this.borrowed_token.decimals) * BigInt(-1);
+
+        if (_debt + _dDebt <= BigInt(0)) return "0.0";
+        const contract = lending.contracts[this.addresses.controller].contract;
+        let _health = await contract.health_calculator(address, _dCollateral, _dDebt, full, _N, lending.constantOptions) as bigint;
+        _health = _health * BigInt(100);
+
+        return lending.formatUnits(_health);
     }
 }

@@ -122,3 +122,10 @@ export interface IReward {
     symbol: string,
     apy: number
 }
+
+export type T1inchRouteStep = {
+    name: string,
+    part: number,
+    fromTokenAddress: string,
+    toTokenAddress: string,
+}[]

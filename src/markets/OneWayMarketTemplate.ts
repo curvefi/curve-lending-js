@@ -2197,24 +2197,23 @@ export class OneWayMarketTemplate {
     private async _leverageHealth(
         userCollateral: TAmount,
         userBorrowed: TAmount,
-        debt: TAmount,
+        dDebt: TAmount,
         range: number,
         full: boolean,
         user = lending.constants.ZERO_ADDRESS
     ): Promise<string> {
         this._checkLeverageZap();
         if (range > 0) this._checkRange(range);
-        const totalCollateral = await this._leverageTotalCollateral(userCollateral, userBorrowed, debt, user);
+        const totalCollateral = await this._leverageTotalCollateral(userCollateral, userBorrowed, dDebt, user);
         const _totalCollateral = parseUnits(totalCollateral, this.collateral_token.decimals);
-        if (user) {
-            const { _borrowed, _N } = await this._userState(user);
-            if (_borrowed > BigInt(0)) throw Error(`User ${user} is already in liquidation mode`);
-            if (range < 0) range = Number(lending.formatUnits(_N, 0));
-        }
-        const _debt = parseUnits(debt);
+        const { _borrowed, _collateral: _stateCollateral, _N } = await this._userState(user);
+        if (_borrowed > BigInt(0)) throw Error(`User ${user} is already in liquidation mode`);
+        if (range < 0) range = Number(lending.formatUnits(_N, 0));
+        const _dCollateral = _totalCollateral - _stateCollateral;
+        const _dDebt = parseUnits(dDebt, this.collateral_token.decimals);
 
         const contract = lending.contracts[this.addresses.controller].contract;
-        let _health = await contract.health_calculator(user, _totalCollateral, _debt, full, range, lending.constantOptions) as bigint;
+        let _health = await contract.health_calculator(user, _dCollateral, _dDebt, full, range, lending.constantOptions) as bigint;
         _health = _health * BigInt(100);
 
         return formatUnits(_health);

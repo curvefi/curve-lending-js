@@ -155,7 +155,7 @@ export class OneWayMarketTemplate {
             Promise<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>,
         createLoanMaxRecvAllRanges: (userCollateral: TAmount, userBorrowed: TAmount) =>
             Promise<IDict<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>>,
-        createLoanTotalCollateral: (userCollateral: TAmount, userBorrowed: TAmount, range: number) => Promise<string>,
+        createLoanTotalCollateral: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<string>,
         createLoanMaxRange: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<number>,
         createLoanBands: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number) => Promise<[number, number]>,
         createLoanBandsAllRanges: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<IDict<[number, number] | null>>,
@@ -164,7 +164,7 @@ export class OneWayMarketTemplate {
         createLoanHealth: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number, full?: boolean) => Promise<string>,
         createLoanIsApproved: (userCollateral: TAmount, userBorrowed: TAmount) => Promise<boolean>,
         createLoanApprove: (userCollateral: TAmount, userBorrowed: TAmount) => Promise<string[]>,
-        createLoan: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number, slippage: number) => Promise<string>,
+        createLoan: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number, slippage?: number) => Promise<string>,
 
         borrowMoreMaxRecv: (userCollateral: TAmount, userBorrowed: TAmount, address?: string) =>
             Promise<{ maxBorrowable: string, maxTotalCollateral: string, collateralAvgPrice: string }>,
@@ -2084,8 +2084,8 @@ export class OneWayMarketTemplate {
         maxAge: 60 * 1000, // 1m
     });
 
-    private async leverageCreateLoanTotalCollateral(userCollateral: TAmount, userBorrowed: TAmount, range: number): Promise<string> {
-        return await this._leverageTotalCollateral(userCollateral, userBorrowed, range);
+    private async leverageCreateLoanTotalCollateral(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<string> {
+        return await this._leverageTotalCollateral(userCollateral, userBorrowed, debt);
     }
 
     private async leverageCreateLoanMaxRange(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<number> {

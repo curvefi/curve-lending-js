@@ -69,8 +69,8 @@ const generalTest = (id: string) => {
 
             const collateralAmount = 0.5;
             const borrowedAmount = 1000;
-            const maxRecv = await oneWayMarket.leverage.borrowMoreMaxRecv(collateralAmount, borrowedAmount);
-            const debtAmount = (Number(maxRecv.maxBorrowable) / 2).toFixed(18);
+            const { maxDebt } = await oneWayMarket.leverage.borrowMoreMaxRecv(collateralAmount, borrowedAmount);
+            const debtAmount = (Number(maxDebt) / 2).toFixed(18);
             const borrowMoreBands = await oneWayMarket.leverage.borrowMoreBands(collateralAmount, borrowedAmount, debtAmount);
             const borrowMorePrices = await oneWayMarket.leverage.borrowMorePrices(collateralAmount, borrowedAmount, debtAmount);
             const borrowMoreFullHealth = await oneWayMarket.leverage.borrowMoreHealth(collateralAmount, borrowedAmount, debtAmount);

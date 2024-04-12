@@ -115,7 +115,7 @@ const generalTest = (id: string) => {
             const repayPrices = await oneWayMarket.leverage.repayPrices(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayFullHealth = await oneWayMarket.leverage.repayHealth(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayHealth = await oneWayMarket.leverage.repayHealth(stateCollateralAmount, collateralAmount, borrowedAmount, false);
-            const { totalBorrowed } = await oneWayMarket.leverage.repayTotalBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount);
+            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount);
 
             await oneWayMarket.leverage.repay(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
 

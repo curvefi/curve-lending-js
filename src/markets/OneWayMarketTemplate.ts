@@ -201,8 +201,8 @@ export class OneWayMarketTemplate {
         borrowMoreApprove: (userCollateral: TAmount, userBorrowed: TAmount) => Promise<string[]>,
         borrowMore: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, slippage?: number) => Promise<string>,
 
-        repayTotalBorrowed: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount) =>
-            Promise<{ borrowedFromStateCollateral: string, userBorrowedFromCollateral: string, userBorrowed: string, totalBorrowed: string }>,
+        repayExpectedBorrowed: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount) =>
+            Promise<{ totalBorrowed: string, borrowedFromStateCollateral: string, borrowedFromUserCollateral: string, userBorrowed: string }>,
         repayIsFull: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<boolean>,
         repayIsAvailable: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<boolean>,
         repayBands: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<[number, number]>,
@@ -341,7 +341,7 @@ export class OneWayMarketTemplate {
             borrowMoreApprove: this.leverageCreateLoanApprove.bind(this),
             borrowMore: this.leverageBorrowMore.bind(this),
 
-            repayTotalBorrowed: this.leverageRepayTotalBorrowed.bind(this),
+            repayExpectedBorrowed: this.leverageRepayExpectedBorrowed.bind(this),
             repayIsFull: this.leverageRepayIsFull.bind(this),
             repayIsAvailable: this.leverageRepayIsAvailable.bind(this),
             repayBands: this.leverageRepayBands.bind(this),
@@ -2105,7 +2105,7 @@ export class OneWayMarketTemplate {
     });
 
     private _leverageExpectedCollateral = memoize(async (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, user?: string):
-        Promise<{ _userCollateral: bigint, _collateralFromUserBorrowed: bigint, _collateralFromDebt: bigint, _totalCollateral: bigint, _futureStateCollateral: bigint }> => {
+        Promise<{ _futureStateCollateral: bigint, _totalCollateral: bigint, _userCollateral: bigint, _collateralFromUserBorrowed: bigint, _collateralFromDebt: bigint }> => {
         const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
         const _debt = parseUnits(debt, this.borrowed_token.decimals);
         const _userBorrowed = parseUnits(userBorrowed, this.borrowed_token.decimals);
@@ -2122,7 +2122,7 @@ export class OneWayMarketTemplate {
         const _totalCollateral = _userCollateral + _additionalCollateral;
         const _futureStateCollateral = _stateCollateral + _totalCollateral;
 
-        return { _userCollateral, _collateralFromUserBorrowed, _collateralFromDebt, _totalCollateral, _futureStateCollateral };
+        return { _futureStateCollateral, _totalCollateral, _userCollateral, _collateralFromUserBorrowed, _collateralFromDebt };
     },
     {
         promise: true,
@@ -2130,14 +2130,14 @@ export class OneWayMarketTemplate {
     });
 
     private async leverageCreateLoanExpectedCollateral(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount):
-        Promise<{ userCollateral: string, collateralFromUserBorrowed: string, collateralFromDebt: string, totalCollateral: string, leverage: string }> {
-        const { _userCollateral, _collateralFromUserBorrowed, _collateralFromDebt, _totalCollateral } =
+        Promise<{ totalCollateral: string, userCollateral: string, collateralFromUserBorrowed: string, collateralFromDebt: string, leverage: string }> {
+        const { _totalCollateral, _userCollateral, _collateralFromUserBorrowed, _collateralFromDebt } =
             await this._leverageExpectedCollateral(userCollateral, userBorrowed, debt);
         return {
+            totalCollateral: formatUnits(_totalCollateral, this.collateral_token.decimals),
             userCollateral: formatUnits(_userCollateral, this.collateral_token.decimals),
             collateralFromUserBorrowed: formatUnits(_collateralFromUserBorrowed, this.collateral_token.decimals),
             collateralFromDebt: formatUnits(_collateralFromDebt, this.collateral_token.decimals),
-            totalCollateral: formatUnits(_totalCollateral, this.collateral_token.decimals),
             leverage: toBN(_collateralFromDebt, this.collateral_token.decimals).div(toBN(_userCollateral + _collateralFromUserBorrowed, this.collateral_token.decimals)).toString(),
         }
     }
@@ -2429,15 +2429,15 @@ export class OneWayMarketTemplate {
     }
 
     private async leverageBorrowMoreExpectedCollateral(userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address = ""):
-        Promise<{ userCollateral: string, collateralFromUserBorrowed: string, collateralFromDebt: string, totalCollateral: string }> {
+        Promise<{ totalCollateral: string, userCollateral: string, collateralFromUserBorrowed: string, collateralFromDebt: string }> {
         address = _getAddress(address);
-        const { _userCollateral, _collateralFromUserBorrowed, _collateralFromDebt, _totalCollateral } =
+        const { _totalCollateral, _userCollateral, _collateralFromUserBorrowed, _collateralFromDebt } =
                 await this._leverageExpectedCollateral(userCollateral, userBorrowed, dDebt, address);
         return {
+            totalCollateral: formatUnits(_totalCollateral, this.collateral_token.decimals),
             userCollateral: formatUnits(_userCollateral, this.collateral_token.decimals),
             collateralFromUserBorrowed: formatUnits(_collateralFromUserBorrowed, this.collateral_token.decimals),
             collateralFromDebt: formatUnits(_collateralFromDebt, this.collateral_token.decimals),
-            totalCollateral: formatUnits(_totalCollateral, this.collateral_token.decimals),
         }
     }
 
@@ -2512,21 +2512,21 @@ export class OneWayMarketTemplate {
 
     // ---------------- LEVERAGE REPAY ----------------
 
-    private leverageRepayTotalBorrowed = memoize( async (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount):
-        Promise<{ borrowedFromStateCollateral: string, userBorrowedFromCollateral: string, userBorrowed: string, totalBorrowed: string }> => {
+    private leverageRepayExpectedBorrowed = memoize( async (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount):
+        Promise<{ totalBorrowed: string, borrowedFromStateCollateral: string, borrowedFromUserCollateral: string, userBorrowed: string }> => {
         this._checkLeverageZap();
         const _stateCollateral = parseUnits(stateCollateral, this.collateral_token.decimals);
         const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
         const _borrowedExpected = BigInt(await _getQuote1inch(this.addresses.collateral_token, this.addresses.borrowed_token, _stateCollateral + _userCollateral));
         const _borrowedFromStateCollateral = _stateCollateral * BigInt(10**18) / (_stateCollateral + _userCollateral) * _borrowedExpected / BigInt(10**18);
-        const _userBorrowedFromCollateral = _borrowedExpected - _borrowedFromStateCollateral;
+        const _borrowedFromUserCollateral = _borrowedExpected - _borrowedFromStateCollateral;
         const _totalBorrowed = _borrowedExpected + parseUnits(userBorrowed, this.borrowed_token.decimals);
 
         return {
-            borrowedFromStateCollateral: formatUnits(_borrowedFromStateCollateral, this.borrowed_token.decimals),
-            userBorrowedFromCollateral: formatUnits(_userBorrowedFromCollateral, this.borrowed_token.decimals),
-            userBorrowed: String(userBorrowed),
             totalBorrowed: formatUnits(_totalBorrowed, this.borrowed_token.decimals),
+            borrowedFromStateCollateral: formatUnits(_borrowedFromStateCollateral, this.borrowed_token.decimals),
+            borrowedFromUserCollateral: formatUnits(_borrowedFromUserCollateral, this.borrowed_token.decimals),
+            userBorrowed: formatNumber(userBorrowed, this.borrowed_token.decimals),
         }
     },
     {
@@ -2538,7 +2538,7 @@ export class OneWayMarketTemplate {
         this._checkLeverageZap();
         address = _getAddress(address);
         const { borrowed: stateBorrowed, debt } = await this.userState(address);
-        const { totalBorrowed } = await this.leverageRepayTotalBorrowed(stateCollateral, userCollateral, userBorrowed);
+        const { totalBorrowed } = await this.leverageRepayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed);
 
         return BN(stateBorrowed).plus(totalBorrowed).gt(debt);
     }
@@ -2572,7 +2572,7 @@ export class OneWayMarketTemplate {
 
         let _n1 = parseUnits(0, 0);
         let _n2 = parseUnits(0, 0);
-        const { totalBorrowed } = await this.leverageRepayTotalBorrowed(stateCollateral, userCollateral, userBorrowed);
+        const { totalBorrowed } = await this.leverageRepayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed);
         const _repayExpected = parseUnits(totalBorrowed, this.borrowed_token.decimals);
         try {
             _n1 = await lending.contracts[this.addresses.controller].contract.calculate_debt_n1(_stateCollateral - _stateRepayCollateral, _stateDebt - _repayExpected, _N);
@@ -2609,7 +2609,7 @@ export class OneWayMarketTemplate {
         if (_stateBorrowed > BigInt(0)) return "0.0";
         if (!(await this.leverageRepayIsAvailable(stateCollateral, userCollateral, userBorrowed, address))) return "0.0";
 
-        const { totalBorrowed } = await this.leverageRepayTotalBorrowed(stateCollateral, userCollateral, userBorrowed);
+        const { totalBorrowed } = await this.leverageRepayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed);
         const _dCollateral = parseUnits(stateCollateral, this.collateral_token.decimals) * BigInt(-1);
         const _dDebt = parseUnits(totalBorrowed, this.borrowed_token.decimals) * BigInt(-1);
 

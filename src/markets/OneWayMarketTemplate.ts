@@ -154,15 +154,23 @@ export class OneWayMarketTemplate {
         createLoanMaxRecv: (userCollateral: TAmount, userBorrowed: TAmount, range: number) =>
             Promise<{
                 maxDebt: string,
-                collateralFromMaxDebt: string,
+                maxTotalCollateral: string,
                 userCollateral: string,
                 collateralFromUserBorrowed: string,
-                maxTotalCollateral: string,
+                collateralFromMaxDebt: string,
                 maxLeverage: string,
                 avgPrice: string,
             }>,
         createLoanMaxRecvAllRanges: (userCollateral: TAmount, userBorrowed: TAmount) =>
-            Promise<IDict<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>>,
+            Promise<IDict<{
+                maxDebt: string,
+                maxTotalCollateral: string,
+                userCollateral: string,
+                collateralFromUserBorrowed: string,
+                collateralFromMaxDebt: string,
+                maxLeverage: string,
+                avgPrice: string,
+            }>>,
         createLoanTotalCollateral: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) =>
             Promise<{ stateCollateral: string, userCollateral: string, userCollateralFromBorrowed: string, leverageCollateral: string, totalCollateral: string }>,
         createLoanMaxRange: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<number>,
@@ -1960,10 +1968,10 @@ export class OneWayMarketTemplate {
     private async leverageCreateLoanMaxRecv(userCollateral: TAmount, userBorrowed: TAmount, range: number):
         Promise<{
             maxDebt: string,
-            collateralFromMaxDebt: string,
+            maxTotalCollateral: string,
             userCollateral: string,
             collateralFromUserBorrowed: string,
-            maxTotalCollateral: string,
+            collateralFromMaxDebt: string,
             maxLeverage: string,
             avgPrice: string,
         }> {
@@ -2003,18 +2011,26 @@ export class OneWayMarketTemplate {
         const maxLeverageCollateralBN = toBN(_maxLeverageCollateral, this.collateral_token.decimals);
 
         return {
-            maxDebt: maxBorrowableBN.toString(),
-            collateralFromMaxDebt: formatNumber(maxLeverageCollateralBN.toString(), this.collateral_token.decimals),
-            userCollateral: String(userCollateral),
-            collateralFromUserBorrowed: formatNumber(BN(userBorrowed).div(pAvgBN).toString(), this.collateral_token.decimals),
+            maxDebt: formatNumber(maxBorrowableBN.toString(), this.borrowed_token.decimals),
             maxTotalCollateral: formatNumber(maxLeverageCollateralBN.plus(userEffectiveCollateralBN).toString(), this.collateral_token.decimals),
+            userCollateral: formatNumber(userCollateral, this.collateral_token.decimals),
+            collateralFromUserBorrowed: formatNumber(BN(userBorrowed).div(pAvgBN).toString(), this.collateral_token.decimals),
+            collateralFromMaxDebt: formatNumber(maxLeverageCollateralBN.toString(), this.collateral_token.decimals),
             maxLeverage: maxLeverageCollateralBN.plus(userEffectiveCollateralBN).div(userEffectiveCollateralBN).toString(),
             avgPrice: pAvgBN.toString(),
         };
     }
 
     private leverageCreateLoanMaxRecvAllRanges = memoize(async (userCollateral: TAmount, userBorrowed: TAmount):
-        Promise<IDict<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>> => {
+        Promise<IDict<{
+            maxDebt: string,
+            maxTotalCollateral: string,
+            userCollateral: string,
+            collateralFromUserBorrowed: string,
+            collateralFromMaxDebt: string,
+            maxLeverage: string,
+            avgPrice: string,
+        }>> => {
         this._checkLeverageZap();
         const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
         const contract = lending.contracts[lending.constants.ALIASES.leverage_zap].multicallContract;
@@ -2028,7 +2044,6 @@ export class OneWayMarketTemplate {
         let maxBorrowablePrevBN: BigNumber[] = new Array(arrLength).fill(BN(0));
         let maxBorrowableBN: BigNumber[] = new Array(arrLength).fill(BN(0));
         let _maxBorrowable: bigint[] = new Array(arrLength).fill(BigInt(0));
-
 
         for (let i = 0; i < 5; i++) {
             const pBN = pAvgBN ?? pAvgApproxBN;
@@ -2060,14 +2075,25 @@ export class OneWayMarketTemplate {
 
         const userEffectiveCollateralBN = BN(userCollateral).plus(BN(userBorrowed).div(pAvgBN as BigNumber));
 
-        const res: IDict<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }> = {};
+        const res: IDict<{
+            maxDebt: string,
+            maxTotalCollateral: string,
+            userCollateral: string,
+            collateralFromUserBorrowed: string,
+            collateralFromMaxDebt: string,
+            maxLeverage: string,
+            avgPrice: string,
+        }> = {};
         for (let N = this.minBands; N <= this.maxBands; N++) {
             const j = N - this.minBands;
             res[N] = {
-                maxBorrowable: maxBorrowableBN[j].toString(),
-                maxTotalCollateral: maxLeverageCollateralBN[j].plus(userEffectiveCollateralBN).toString(),
+                maxDebt: formatNumber(maxBorrowableBN[j].toString(), this.borrowed_token.decimals),
+                maxTotalCollateral: formatNumber(maxLeverageCollateralBN[j].plus(userEffectiveCollateralBN).toString(), this.collateral_token.decimals),
+                userCollateral: formatNumber(userCollateral, this.collateral_token.decimals),
+                collateralFromUserBorrowed: formatNumber(BN(userBorrowed).div(pAvgBN as BigNumber).toString(), this.collateral_token.decimals),
+                collateralFromMaxDebt: formatNumber(maxLeverageCollateralBN[j].toString(), this.collateral_token.decimals),
                 maxLeverage: maxLeverageCollateralBN[j].plus(userEffectiveCollateralBN).div(userEffectiveCollateralBN).toString(),
-                collateralAvgPrice: (pAvgBN as BigNumber).toString(),
+                avgPrice: (pAvgBN as BigNumber).toString(),
             };
         }
 
@@ -2118,7 +2144,7 @@ export class OneWayMarketTemplate {
     private async leverageCreateLoanMaxRange(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<number> {
         const maxRecv = await this.leverageCreateLoanMaxRecvAllRanges(userCollateral, userBorrowed);
         for (let N = this.minBands; N <= this.maxBands; N++) {
-            if (BN(debt).gt(maxRecv[N].maxBorrowable)) return N - 1;
+            if (BN(debt).gt(maxRecv[N].maxDebt)) return N - 1;
         }
 
         return this.maxBands;

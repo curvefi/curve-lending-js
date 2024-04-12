@@ -29,13 +29,13 @@ const generalTest = (id: string) => {
             const collateralAmount = 0.5;
             const borrowedAmount = 1000;
             const N = 10;
-            const maxRecv = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
-            const debtAmount = (Number(maxRecv.maxBorrowable) / 2).toFixed(18);
+            const { maxDebt } = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
+            const debtAmount = (Number(maxDebt) / 2).toFixed(18);
             const createLoanBands = await oneWayMarket.leverage.createLoanBands(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanPrices = await oneWayMarket.leverage.createLoanPrices(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanFullHealth = await oneWayMarket.leverage.createLoanHealth(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanHealth = await oneWayMarket.leverage.createLoanHealth(collateralAmount, borrowedAmount, debtAmount, N, false);
-            const { totalCollateral } = await oneWayMarket.leverage.createLoanTotalCollateral(collateralAmount, borrowedAmount, debtAmount);
+            const { totalCollateral } = await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount);
 
             await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
 
@@ -75,7 +75,7 @@ const generalTest = (id: string) => {
             const borrowMorePrices = await oneWayMarket.leverage.borrowMorePrices(collateralAmount, borrowedAmount, debtAmount);
             const borrowMoreFullHealth = await oneWayMarket.leverage.borrowMoreHealth(collateralAmount, borrowedAmount, debtAmount);
             const borrowMoreHealth = await oneWayMarket.leverage.borrowMoreHealth(collateralAmount, borrowedAmount, debtAmount, false);
-            const { totalCollateral } = await oneWayMarket.leverage.borrowMoreTotalCollateral(collateralAmount, borrowedAmount, debtAmount);
+            const { totalCollateral } = await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount);
 
             await oneWayMarket.leverage.borrowMore(collateralAmount, borrowedAmount, debtAmount,1);
 
@@ -94,7 +94,8 @@ const generalTest = (id: string) => {
             assert.approximately(Number(borrowMoreHealth), Number(health), 0.1, 'health');
             assert.equal(Number(balances.collateral), Number(initialBalances.collateral) - Number(collateralAmount), 'wallet collateral');
             assert.equal(Number(balances.borrowed), Number(initialBalances.borrowed) - borrowedAmount, 'wallet stablecoin');
-            assert.isAtMost(Math.abs(Number(state.collateral) - Number(totalCollateral)) / Number(totalCollateral), 1e-3, 'state collateral');
+            const collateralDiff = Number(state.collateral) - Number(initialState.collateral);
+            assert.isAtMost(Math.abs(collateralDiff - Number(totalCollateral)) / Number(totalCollateral), 1e-3, 'state collateral');
             assert.approximately(Number(state.debt), Number(initialState.debt) + Number(debtAmount), 1e-3, 'state debt');
         });
 

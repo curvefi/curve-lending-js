@@ -2416,7 +2416,7 @@ export class OneWayMarketTemplate {
 
         if (maxBorrowableBN.eq(0)) _userEffectiveCollateral = BigInt(0);
         const _maxTotalCollateral = _userEffectiveCollateral + _maxLeverageCollateral
-        const _maxBorrowable = await controllerContract.max_borrowable(_maxTotalCollateral, _N, _stateDebt, lending.constantOptions) - _stateDebt;
+        const _maxBorrowable = await controllerContract.max_borrowable(_stateCollateral + _maxTotalCollateral, _N, _stateDebt, lending.constantOptions) - _stateDebt;
 
         return {
             maxDebt: formatUnits(_maxBorrowable, this.borrowed_token.decimals),

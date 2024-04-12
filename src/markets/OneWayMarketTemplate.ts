@@ -152,7 +152,15 @@ export class OneWayMarketTemplate {
         maxLeverage: (N: number) => Promise<string>,
 
         createLoanMaxRecv: (userCollateral: TAmount, userBorrowed: TAmount, range: number) =>
-            Promise<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>,
+            Promise<{
+                maxDebt: string,
+                collateralFromMaxDebt: string,
+                userCollateral: string,
+                collateralFromUserBorrowed: string,
+                maxTotalCollateral: string,
+                maxLeverage: string,
+                avgPrice: string,
+            }>,
         createLoanMaxRecvAllRanges: (userCollateral: TAmount, userBorrowed: TAmount) =>
             Promise<IDict<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }>>,
         createLoanTotalCollateral: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) =>
@@ -1950,7 +1958,15 @@ export class OneWayMarketTemplate {
     }
 
     private async leverageCreateLoanMaxRecv(userCollateral: TAmount, userBorrowed: TAmount, range: number):
-        Promise<{ maxBorrowable: string, maxTotalCollateral: string, maxLeverage: string, collateralAvgPrice: string }> {
+        Promise<{
+            maxDebt: string,
+            collateralFromMaxDebt: string,
+            userCollateral: string,
+            collateralFromUserBorrowed: string,
+            maxTotalCollateral: string,
+            maxLeverage: string,
+            avgPrice: string,
+        }> {
         // max_borrowable = userCollateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
         this._checkLeverageZap();
         if (range > 0) this._checkRange(range);
@@ -1987,10 +2003,13 @@ export class OneWayMarketTemplate {
         const maxLeverageCollateralBN = toBN(_maxLeverageCollateral, this.collateral_token.decimals);
 
         return {
-            maxBorrowable: maxBorrowableBN.toString(),
-            maxTotalCollateral: maxLeverageCollateralBN.plus(userEffectiveCollateralBN).toString(),
+            maxDebt: maxBorrowableBN.toString(),
+            collateralFromMaxDebt: formatNumber(maxLeverageCollateralBN.toString(), this.collateral_token.decimals),
+            userCollateral: String(userCollateral),
+            collateralFromUserBorrowed: formatNumber(BN(userBorrowed).div(pAvgBN).toString(), this.collateral_token.decimals),
+            maxTotalCollateral: formatNumber(maxLeverageCollateralBN.plus(userEffectiveCollateralBN).toString(), this.collateral_token.decimals),
             maxLeverage: maxLeverageCollateralBN.plus(userEffectiveCollateralBN).div(userEffectiveCollateralBN).toString(),
-            collateralAvgPrice: pAvgBN.toString(),
+            avgPrice: pAvgBN.toString(),
         };
     }
 

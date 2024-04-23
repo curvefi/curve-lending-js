@@ -2399,7 +2399,8 @@ export class OneWayMarketTemplate {
         for (let i = 0; i < 5; i++) {
             maxBorrowablePrevBN = maxBorrowableBN;
             _userEffectiveCollateral = _userCollateral + fromBN(BN(userBorrowed).div(pAvgBN), this.collateral_token.decimals);
-            const _maxBorrowable = await contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral, _N, fromBN(pAvgBN));
+            let _maxBorrowable = await contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral, _N, fromBN(pAvgBN));
+            _maxBorrowable = _maxBorrowable * BigInt(999) / BigInt(1000);  // Revert happens if I don't do this and try to borrow max
             if (_maxBorrowable === BigInt(0)) break;
             maxBorrowableBN = toBN(_maxBorrowable, this.borrowed_token.decimals);
 
@@ -2517,9 +2518,14 @@ export class OneWayMarketTemplate {
         this._checkLeverageZap();
         const _stateCollateral = parseUnits(stateCollateral, this.collateral_token.decimals);
         const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
-        const _borrowedExpected = BigInt(await _getQuote1inch(this.addresses.collateral_token, this.addresses.borrowed_token, _stateCollateral + _userCollateral));
-        const _borrowedFromStateCollateral = _stateCollateral * BigInt(10**18) / (_stateCollateral + _userCollateral) * _borrowedExpected / BigInt(10**18);
-        const _borrowedFromUserCollateral = _borrowedExpected - _borrowedFromStateCollateral;
+        let _borrowedExpected = BigInt(0);
+        let _borrowedFromStateCollateral = BigInt(0);
+        let _borrowedFromUserCollateral = BigInt(0);
+        if (_stateCollateral + _userCollateral > BigInt(0)) {
+            _borrowedExpected = BigInt(await _getQuote1inch(this.addresses.collateral_token, this.addresses.borrowed_token, _stateCollateral + _userCollateral));
+            _borrowedFromStateCollateral = _stateCollateral * BigInt(10 ** 18) / (_stateCollateral + _userCollateral) * _borrowedExpected / BigInt(10 ** 18);
+            _borrowedFromUserCollateral = _borrowedExpected - _borrowedFromStateCollateral;
+        }
         const _totalBorrowed = _borrowedExpected + parseUnits(userBorrowed, this.borrowed_token.decimals);
 
         return {
@@ -2655,9 +2661,12 @@ export class OneWayMarketTemplate {
     ): Promise<string | TGas>  {
         if (!(await this.userLoanExists())) throw Error("Loan does not exist");
         const _stateCollateral = parseUnits(stateCollateral, this.collateral_token.decimals);
-        const _userCollateral = parseUnits(userCollateral, this.borrowed_token.decimals);
+        const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
         const _userBorrowed = parseUnits(userBorrowed, this.borrowed_token.decimals);
-        const calldata = await _getCalldata1inch(this.addresses.collateral_token, this.addresses.borrowed_token, _stateCollateral + _userCollateral, slippage);
+        let calldata = "0x";
+        if (_stateCollateral + _userCollateral > BigInt(0)) {
+            calldata = await _getCalldata1inch(this.addresses.collateral_token, this.addresses.borrowed_token, _stateCollateral + _userCollateral, slippage);
+        }
         const contract = lending.contracts[this.addresses.controller].contract;
         const gas = await contract.repay_extended.estimateGas(
             lending.constants.ALIASES.leverage_zap,

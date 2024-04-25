@@ -8,7 +8,7 @@ import { BN } from "../src/utils.js";
 const ONE_WAY_MARKETS = ['one-way-market-0'];
 
 const generalTest = (id: string) => {
-    describe(`${id} leverage test`, function () {
+    describe(`${id} leverage repay test`, function () {
         let oneWayMarket: OneWayMarketTemplate;
 
         before(async function () {
@@ -184,7 +184,7 @@ const generalTest = (id: string) => {
             assert.approximately(Number(repayHealth), Number(health), 0.1, 'health');
             assert.equal(Number(balances.collateral), Number(initialBalances.collateral) - Number(collateralAmount), 'wallet collateral');
             assert.equal(Number(balances.borrowed), Number(initialBalances.borrowed) - borrowedAmount, 'wallet borrowed');
-            assert.equal(Number(state.collateral), Number(initialState.collateral) - Number(stateCollateralAmount), 'state collateral');
+            assert.deepStrictEqual(BN(state.collateral), BN(initialState.collateral).minus(stateCollateralAmount), 'state collateral');
             const debtDiff = Number(initialState.debt) - Number(state.debt);
             assert.isAtMost(Math.abs(debtDiff - Number(totalBorrowed)) / Number(totalBorrowed), 0.01, 'state debt');
         });
@@ -221,7 +221,7 @@ const generalTest = (id: string) => {
     })
 }
 
-describe('Leverage test', async function () {
+describe('Leverage repay test', async function () {
     this.timeout(180000);
 
     before(async function () {

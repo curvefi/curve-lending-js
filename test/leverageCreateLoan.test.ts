@@ -30,7 +30,7 @@ const generalTest = (id: string) => {
             const borrowedAmount = 0;
             const N = 10;
             const { maxDebt } = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
-            const debtAmount = (Number(maxDebt) * 1.003).toFixed(oneWayMarket.borrowed_token.decimals);
+            const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
 
             try {
                 await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
@@ -55,7 +55,7 @@ const generalTest = (id: string) => {
             const borrowedAmount = 1000;
             const N = 10;
             const { maxDebt } = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
-            const debtAmount = (Number(maxDebt) * 1.003).toFixed(oneWayMarket.borrowed_token.decimals);
+            const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
 
             try {
                 await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
@@ -80,7 +80,7 @@ const generalTest = (id: string) => {
             const borrowedAmount = 1000;
             const N = 10;
             const { maxDebt } = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
-            const debtAmount = (Number(maxDebt) * 1.003).toFixed(oneWayMarket.borrowed_token.decimals);
+            const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
 
             try {
                 await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);

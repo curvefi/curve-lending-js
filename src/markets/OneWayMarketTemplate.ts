@@ -212,6 +212,7 @@ export class OneWayMarketTemplate {
         repayHealth: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, full?: boolean, address?: string) => Promise<string>,
         repayIsApproved: (userCollateral: TAmount, userBorrowed: TAmount) => Promise<boolean>,
         repayApprove: (userCollateral: TAmount, userBorrowed: TAmount) => Promise<string[]>,
+        repayRoute: (stateCollateral: TAmount, userCollateral: TAmount, slippage?: number) => Promise<I1inchRoute[]>,
         repay: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, slippage?: number) => Promise<string>,
 
         estimateGas: {
@@ -353,6 +354,7 @@ export class OneWayMarketTemplate {
             repayHealth: this.leverageRepayHealth.bind(this),
             repayIsApproved: this.leverageRepayIsApproved.bind(this),
             repayApprove: this.leverageRepayApprove.bind(this),
+            repayRoute: this.leverageRepayRoute.bind(this),
             repay: this.leverageRepay.bind(this),
 
             estimateGas: {
@@ -2669,6 +2671,13 @@ export class OneWayMarketTemplate {
             [userCollateral, userBorrowed],
             lending.constants.ALIASES.leverage_zap
         );
+    }
+
+    private async leverageRepayRoute(stateCollateral: TAmount, userCollateral: TAmount, slippage = 0.1): Promise<I1inchRoute[]> {
+        const _stateCollateral = parseUnits(stateCollateral, this.collateral_token.decimals);
+        const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
+
+        return await _getRoute1inch(this.addresses.collateral_token, this.addresses.borrowed_token, _stateCollateral + _userCollateral, slippage);
     }
 
     private async _leverageRepay(

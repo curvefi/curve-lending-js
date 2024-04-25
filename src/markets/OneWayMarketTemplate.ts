@@ -200,6 +200,7 @@ export class OneWayMarketTemplate {
         borrowMoreHealth: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, full?: boolean, address?: string) => Promise<string>,
         borrowMoreIsApproved: (userCollateral: TAmount, userBorrowed: TAmount) => Promise<boolean>,
         borrowMoreApprove: (userCollateral: TAmount, userBorrowed: TAmount) => Promise<string[]>,
+        borrowMoreRoute: (userBorrowed: TAmount, debt: TAmount, slippage?: number) => Promise<I1inchRoute[]>,
         borrowMore: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, slippage?: number) => Promise<string>,
 
         repayExpectedBorrowed: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount) =>
@@ -341,6 +342,7 @@ export class OneWayMarketTemplate {
             borrowMoreHealth: this.leverageBorrowMoreHealth.bind(this),
             borrowMoreIsApproved: this.leverageCreateLoanIsApproved.bind(this),
             borrowMoreApprove: this.leverageCreateLoanApprove.bind(this),
+            borrowMoreRoute: this.leverageBorrowMoreRoute.bind(this),
             borrowMore: this.leverageBorrowMore.bind(this),
 
             repayExpectedBorrowed: this.leverageRepayExpectedBorrowed.bind(this),
@@ -2471,6 +2473,13 @@ export class OneWayMarketTemplate {
     private async leverageBorrowMoreHealth(userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, full = true, address = ""): Promise<string> {
         address = _getAddress(address);
         return await this._leverageHealth(userCollateral, userBorrowed, dDebt, -1, full, address);
+    }
+
+    private async leverageBorrowMoreRoute(userBorrowed: TAmount, debt: TAmount, slippage = 0.1): Promise<I1inchRoute[]> {
+        const _userBorrowed = parseUnits(userBorrowed, this.borrowed_token.decimals);
+        const _debt = parseUnits(debt, this.borrowed_token.decimals);
+
+        return await _getRoute1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _debt + _userBorrowed, slippage);
     }
 
     private async _leverageBorrowMore(

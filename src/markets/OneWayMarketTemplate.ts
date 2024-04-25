@@ -2140,7 +2140,8 @@ export class OneWayMarketTemplate {
             userCollateral: formatUnits(_userCollateral, this.collateral_token.decimals),
             collateralFromUserBorrowed: formatUnits(_collateralFromUserBorrowed, this.collateral_token.decimals),
             collateralFromDebt: formatUnits(_collateralFromDebt, this.collateral_token.decimals),
-            leverage: toBN(_collateralFromDebt, this.collateral_token.decimals).div(toBN(_userCollateral + _collateralFromUserBorrowed, this.collateral_token.decimals)).toString(),
+            leverage: toBN(_collateralFromDebt + _userCollateral + _collateralFromUserBorrowed, this.collateral_token.decimals)
+                .div(toBN(_userCollateral + _collateralFromUserBorrowed, this.collateral_token.decimals)).toString(),
         }
     }
 

@@ -129,3 +129,8 @@ export type T1inchRouteStep = {
     fromTokenAddress: string,
     toTokenAddress: string,
 }[]
+
+export interface I1inchRoute {
+    part: number,
+    hops: T1inchRouteStep[],
+}

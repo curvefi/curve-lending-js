@@ -22,8 +22,8 @@ import {
     DIGas,
     smartNumber,
 } from "../utils.js";
-import { IDict, TGas, TAmount, IReward } from "../interfaces.js";
-import { _getQuote1inch, _getCalldata1inch } from "../external-api.js";
+import { IDict, TGas, TAmount, IReward, I1inchRoute } from "../interfaces.js";
+import { _getQuote1inch, _getCalldata1inch, _getRoute1inch } from "../external-api.js";
 import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
 
 
@@ -181,6 +181,7 @@ export class OneWayMarketTemplate {
         createLoanHealth: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number, full?: boolean) => Promise<string>,
         createLoanIsApproved: (userCollateral: TAmount, userBorrowed: TAmount) => Promise<boolean>,
         createLoanApprove: (userCollateral: TAmount, userBorrowed: TAmount) => Promise<string[]>,
+        createLoanRoute: (userBorrowed: TAmount, debt: TAmount, slippage?: number) => Promise<I1inchRoute[]>,
         createLoan: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number, slippage?: number) => Promise<string>,
 
         borrowMoreMaxRecv: (userCollateral: TAmount, userBorrowed: TAmount, address?: string) =>
@@ -330,6 +331,7 @@ export class OneWayMarketTemplate {
             createLoanHealth: this.leverageCreateLoanHealth.bind(this),
             createLoanIsApproved: this.leverageCreateLoanIsApproved.bind(this),
             createLoanApprove: this.leverageCreateLoanApprove.bind(this),
+            createLoanRoute: this.leverageCreateLoanRoute.bind(this),
             createLoan: this.leverageCreateLoan.bind(this),
 
             borrowMoreMaxRecv: this.leverageBorrowMoreMaxRecv.bind(this),
@@ -2312,6 +2314,13 @@ export class OneWayMarketTemplate {
             [this.borrowed_token.address], [userBorrowed], lending.constants.ALIASES.leverage_zap);
 
         return [...collateralApproveTx, ...borrowedApproveTx]
+    }
+
+    private async leverageCreateLoanRoute(userBorrowed: TAmount, debt: TAmount, slippage = 0.1): Promise<I1inchRoute[]> {
+        const _userBorrowed = parseUnits(userBorrowed, this.borrowed_token.decimals);
+        const _debt = parseUnits(debt, this.borrowed_token.decimals);
+
+        return await _getRoute1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _debt + _userBorrowed, slippage);
     }
 
     private async _leverageCreateLoan(

@@ -1,7 +1,7 @@
 import axios from "axios";
 import memoize from "memoizee";
 import { lending } from "./lending.js";
-import { IExtendedPoolDataFromApi, INetworkName, IPoolFactory, T1inchRouteStep } from "./interfaces";
+import { IExtendedPoolDataFromApi, INetworkName, IPoolFactory, I1inchRoute } from "./interfaces";
 
 
 export const _getPoolsFromApi = memoize(
@@ -63,7 +63,7 @@ export const _getQuote1inch = memoize(
 )
 
 const _getSwapData1inch = memoize(
-    async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<{ tx: { data: string }, protocols: T1inchRouteStep[][] }> => {
+    async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<{ tx: { data: string }, protocols: I1inchRoute[] }> => {
         if (_amount === BigInt(0)) throw Error("Amount must be > 0");
         const url = `https://api.1inch.dev/swap/v6.0/${lending.chainId}/swap?src=${fromToken}&dst=${toToken}&amount=${_amount}&from=${lending.constants.ALIASES.leverage_zap}&slippage=${slippage}&protocols=${lending.constants.PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true&disableEstimate=true`;
         const response = await axios.get(
@@ -84,12 +84,12 @@ const _getSwapData1inch = memoize(
     }
 )
 
-export const _getCalldata1inch = async (fromToken: string, toToken: string, _amount: bigint, slippage: number) => {
+export const _getCalldata1inch = async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<string> => {
     const data = await _getSwapData1inch(fromToken, toToken, _amount, slippage);
     return data.tx.data;
 }
 
-export const _getRoute1inch = async (fromToken: string, toToken: string, _amount: bigint, slippage: number) => {
+export const _getRoute1inch = async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<I1inchRoute[]> => {
     const data = await _getSwapData1inch(fromToken, toToken, _amount, slippage);
     return data.protocols;
 }

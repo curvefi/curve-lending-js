@@ -455,10 +455,38 @@ export const getUsdRate = async (coin: string): Promise<number> => {
     return await _getUsdRate(coinAddress);
 }
 
-export const getGasPriceFromL2 = (): number => {
+export const getBaseFeeByLastBlock = async ()  => {
+    const provider = lending.provider;
+
+    try {
+        const block = await provider.getBlock('latest');
+        if(!block) {
+            return 0.01
+        }
+
+        return Number(block.baseFeePerGas) / (10**9);
+    } catch (error: any) {
+        throw new Error(error)
+    }
+}
+
+export const getGasPriceFromL2 = async (): Promise<number> => {
     if(lending.chainId === 42161) {
-        return 0.01 * 1e9; // constant 0.1 gwei
+        return await getBaseFeeByLastBlock()
     } else {
-        throw Error("This method exists only for L2 networks");
+        throw Error("This method exists only for ARBITRUM network");
+    }
+}
+
+export const getGasInfoForL2 = async (): Promise<Record<string, number>> => {
+    if(lending.chainId === 42161) {
+        const baseFee = await getBaseFeeByLastBlock()
+
+        return  {
+            maxFeePerGas: Number(((baseFee * 1.1) + 0.01).toFixed(2)),
+            maxPriorityFeePerGas: 0.01,
+        }
+    } else {
+        throw Error("This method exists only for ARBITRUM network");
     }
 }

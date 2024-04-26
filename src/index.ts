@@ -9,6 +9,7 @@ import {
     ensureAllowance,
     getUsdRate,
     getGasPriceFromL2,
+    getGasInfoForL2,
 } from "./utils.js";
 
 
@@ -42,6 +43,7 @@ const lending = {
     ensureAllowance,
     getUsdRate,
     getGasPriceFromL2,
+    getGasInfoForL2,
     oneWayfactory: {
         fetchMarkets:  _lending.fetchOneWayMarkets,
         getMarketList: _lending.getOneWayMarketList,

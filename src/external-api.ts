@@ -44,11 +44,11 @@ export const _getUserCollateral = memoize(
 export const _getQuote1inch = memoize(
     async (fromToken: string, toToken: string, _amount: bigint): Promise<string> => {
         if (_amount === BigInt(0)) return "0.0";
-        const url = `https://api.1inch.dev/swap/v6.0/${lending.chainId}/quote?src=${fromToken}&dst=${toToken}&amount=${_amount}&protocols=${lending.constants.PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true`;
+        const url = `https://prices.curve.fi/1inch/swap/v6.0/${lending.chainId}/quote?src=${fromToken}&dst=${toToken}&amount=${_amount}&protocols=${lending.constants.PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true`;
         const response = await axios.get(
             url,
             {
-                headers: {"accept": "application/json", "Authorization": `Bearer ${lending.apiKey1inch}`},
+                headers: {"accept": "application/json"},
                 validateStatus: () => true,
             });
         if (response.status !== 200) {
@@ -66,11 +66,11 @@ export const _getQuote1inch = memoize(
 const _getSwapData1inch = memoize(
     async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<{ tx: { data: string }, protocols: I1inchRoute[] }> => {
         if (_amount === BigInt(0)) throw Error("Amount must be > 0");
-        const url = `https://api.1inch.dev/swap/v6.0/${lending.chainId}/swap?src=${fromToken}&dst=${toToken}&amount=${_amount}&from=${lending.constants.ALIASES.leverage_zap}&slippage=${slippage}&protocols=${lending.constants.PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true&disableEstimate=true`;
+        const url = `https://prices.curve.fi/1inch/swap/v6.0/${lending.chainId}/swap?src=${fromToken}&dst=${toToken}&amount=${_amount}&from=${lending.constants.ALIASES.leverage_zap}&slippage=${slippage}&protocols=${lending.constants.PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true&disableEstimate=true`;
         const response = await axios.get(
             url,
             {
-                headers: {"accept": "application/json", "Authorization": `Bearer ${lending.apiKey1inch}`},
+                headers: {"accept": "application/json"},
                 validateStatus: () => true,
             });
         if (response.status !== 200) {

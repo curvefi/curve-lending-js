@@ -135,7 +135,6 @@ class Lending implements ILending {
     feeData: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number };
     constantOptions: { gasLimit: number };
     options: { gasPrice?: number | bigint, maxFeePerGas?: number | bigint, maxPriorityFeePerGas?: number | bigint };
-    apiKey1inch?: string;
     constants: {
         ONE_WAY_MARKETS: IDict<IOneWayMarket>,
         DECIMALS: IDict<number>;
@@ -159,7 +158,6 @@ class Lending implements ILending {
         this.feeData = {}
         this.constantOptions = { gasLimit: 12000000 }
         this.options = {};
-        this.apiKey1inch = undefined;
         this.constants = {
             ONE_WAY_MARKETS: {},
             COINS: {},
@@ -175,7 +173,6 @@ class Lending implements ILending {
         providerType: 'JsonRpc' | 'Web3' | 'Infura' | 'Alchemy',
         providerSettings: { url?: string, privateKey?: string, batchMaxCount? : number } | { externalProvider: ethers.Eip1193Provider } | { network?: Networkish, apiKey?: string },
         options: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number, chainId?: number } = {}, // gasPrice in Gwei
-        apiKey1inch?: string
     ): Promise<void> {
         // @ts-ignore
         this.provider = null;
@@ -189,7 +186,6 @@ class Lending implements ILending {
         this.feeData = {}
         this.constantOptions = { gasLimit: 12000000 }
         this.options = {};
-        this.apiKey1inch = apiKey1inch;
         this.constants = {
             ONE_WAY_MARKETS: {},
             COINS: {},

@@ -1,6 +1,5 @@
 import { assert } from "chai";
 import lending from "../src/index.js";
-import { API_KEY_1INCH } from "./rpcUrls.test.js";
 import { getOneWayMarket, OneWayMarketTemplate } from "../src/markets/index.js";
 
 
@@ -232,7 +231,7 @@ describe('Leverage borrowMore test', async function () {
     this.timeout(180000);
 
     before(async function () {
-        await lending.init('JsonRpc', {},{ gasPrice: 0 }, API_KEY_1INCH);
+        await lending.init('JsonRpc', {},{ gasPrice: 0 });
         await lending.oneWayfactory.fetchMarkets();
     });
 

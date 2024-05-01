@@ -1,4 +1,3 @@
-import { API_KEY_1INCH } from "./rpcUrls.test.js";
 import lending from "../src/index.js";
 
 const generalMethodsTest = async () => {
@@ -334,7 +333,7 @@ const selfLiquidationTest = async () => {
 }
 
 const leverageTest = async () => {
-    await lending.init('JsonRpc', {}, {}, API_KEY_1INCH);
+    await lending.init('JsonRpc', {}, {});
     await lending.oneWayfactory.fetchMarkets();
 
     const oneWayMarket = lending.getOneWayMarket('one-way-market-0');
@@ -442,7 +441,7 @@ const leverageTest = async () => {
 }
 
 const leverageAllRangesTest = async () => {
-    await lending.init('JsonRpc', {}, {}, API_KEY_1INCH);
+    await lending.init('JsonRpc', {}, {});
     await lending.oneWayfactory.fetchMarkets();
 
     const oneWayMarket = lending.getOneWayMarket('one-way-market-0');

@@ -66,7 +66,7 @@ export const _getQuote1inch = memoize(
 const _getSwapData1inch = memoize(
     async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<{ tx: { data: string }, protocols: I1inchRoute[] }> => {
         if (_amount === BigInt(0)) throw Error("Amount must be > 0");
-        const url = `https://prices.curve.fi/1inch/swap/v6.0/${lending.chainId}/swap?src=${fromToken}&dst=${toToken}&amount=${_amount}&from=${lending.constants.ALIASES.leverage_zap}&slippage=${slippage}&protocols=${lending.constants.PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true&disableEstimate=true`;
+        const url = `https://prices.curve.fi/1inch/swap/v6.0/${lending.chainId}/swap?src=${fromToken}&dst=${toToken}&amount=${_amount}&from_=${lending.constants.ALIASES.leverage_zap}&slippage=${slippage}&protocols=${lending.constants.PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true&disableEstimate=true`;
         const response = await axios.get(
             url,
             {

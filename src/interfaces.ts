@@ -134,3 +134,10 @@ export interface I1inchRoute {
     part: number,
     hops: T1inchRouteStep[],
 }
+
+export interface I1inchSwapData {
+    tx: { data: string },
+    dstAmount: string,
+    protocols: I1inchRoute[],
+    slippage: number,
+}

@@ -918,7 +918,7 @@ import lending from "@curvefi/lending-api";
     //     maxLeverage: '7.25291100528992828612',
     //     avgPrice: '3172.3757757003568790858'
     // }
-    await oneWayMarket.leverage.createLoanExpectedCollateral(userCollateral, userBorrowed, debt);
+    await oneWayMarket.leverage.createLoanExpectedCollateral(userCollateral, userBorrowed, debt, slippage);
     // {
     //     totalCollateral: '1.946422996710829',
     //     userCollateral: '1.0',
@@ -944,7 +944,7 @@ import lending from "@curvefi/lending-api";
     //     '0xd5491d9f1e9d8ac84b03867494e35b25efad151c597d2fa4211d7bf5d540c98e',
     //     '0x93565f37ec5be902a824714a30bddc25cf9cd9ed39b4c0e8de61fab44af5bc8c'
     // ]
-    await oneWayMarket.leverage.createLoanRoute(userBorrowed, debt, slippage);
+    await oneWayMarket.leverage.createLoanRoute(userBorrowed, debt);
     // [
     //     { 
     //         part: 100,
@@ -1021,7 +1021,7 @@ import lending from "@curvefi/lending-api";
     //     collateralFromMaxDebt: '22.962457277119938834',
     //     avgPrice: '3172.55402418338331369083'
     // }
-    await oneWayMarket.leverage.borrowMoreExpectedCollateral(userCollateral, userBorrowed, debt);
+    await oneWayMarket.leverage.borrowMoreExpectedCollateral(userCollateral, userBorrowed, debt, slippage);
     // {
     //     totalCollateral: '5.783452104143246413',
     //     userCollateral: '2.0',
@@ -1041,7 +1041,7 @@ import lending from "@curvefi/lending-api";
     // true
     await oneWayMarket.leverage.borrowMoreApprove(userCollateral, userBorrowed);
     // []
-    await oneWayMarket.leverage.borrowMoreRoute(userBorrowed, debt, slippage);
+    await oneWayMarket.leverage.borrowMoreRoute(userBorrowed, debt);
     // [
     //     {
     //         part: 50,
@@ -1151,7 +1151,7 @@ import lending from "@curvefi/lending-api";
     const stateCollateral = 2;
     userCollateral = 1;
     userBorrowed = 1500;
-    await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed);
+    await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed, slippage);
     // {
     //     totalBorrowed: '10998.882838599741571472',
     //     borrowedFromStateCollateral: '6332.588559066494374648',
@@ -1177,7 +1177,7 @@ import lending from "@curvefi/lending-api";
     // false
     await oneWayMarket.leverage.repayApprove(userCollateral, userBorrowed);
     // ['0xd8a8d3b3f67395e1a4f4d4f95b041edcaf1c9f7bab5eb8a8a767467678295498']
-    await oneWayMarket.leverage.repayRoute(stateCollateral, userCollateral, slippage);
+    await oneWayMarket.leverage.repayRoute(stateCollateral, userCollateral);
     // [
     //     {
     //         part: 10,

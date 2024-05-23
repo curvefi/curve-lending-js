@@ -23,7 +23,7 @@ import {
     smartNumber,
 } from "../utils.js";
 import { IDict, TGas, TAmount, IReward, I1inchRoute } from "../interfaces.js";
-import { _getQuote1inch, _getCalldata1inch, _getRoute1inch } from "../external-api.js";
+import { _getExpected1inch, _getCalldata1inch, _getRoute1inch } from "../external-api.js";
 import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
 
 
@@ -2008,7 +2008,7 @@ export class OneWayMarketTemplate {
             }
 
             // additionalCollateral = (userBorrowed / p) + leverageCollateral
-            const _maxAdditionalCollateral = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _maxBorrowable + _userBorrowed));
+            const _maxAdditionalCollateral = BigInt(await _getExpected1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _maxBorrowable + _userBorrowed));
             pAvgBN = maxBorrowableBN.plus(userBorrowed).div(toBN(_maxAdditionalCollateral, this.collateral_token.decimals));
             _maxLeverageCollateral = _maxAdditionalCollateral - fromBN(BN(userBorrowed).div(pAvgBN), this.collateral_token.decimals);
         }
@@ -2070,7 +2070,7 @@ export class OneWayMarketTemplate {
             }
 
             if (pAvgBN === null){
-                const _y = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _maxBorrowable[0]));
+                const _y = BigInt(await _getExpected1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _maxBorrowable[0]));
                 const yBN = toBN(_y, this.collateral_token.decimals);
                 pAvgBN = maxBorrowableBN[0].div(yBN);
             }
@@ -2117,7 +2117,7 @@ export class OneWayMarketTemplate {
         const _debt = parseUnits(debt, this.borrowed_token.decimals);
         const _userBorrowed = parseUnits(userBorrowed, this.borrowed_token.decimals);
         // additionalCollateral = (userBorrowed / p) + leverageCollateral
-        const _additionalCollateral = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _debt + _userBorrowed));
+        const _additionalCollateral = BigInt(await _getExpected1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _debt + _userBorrowed));
         const _collateralFromDebt = _debt * BigInt(10**18) / (_debt + _userBorrowed) * _additionalCollateral / BigInt(10**18);
         const _collateralFromUserBorrowed = _additionalCollateral - _collateralFromDebt;
         let _stateCollateral = BigInt(0);
@@ -2427,7 +2427,7 @@ export class OneWayMarketTemplate {
             }
 
             // additionalCollateral = (userBorrowed / p) + leverageCollateral
-            const _maxAdditionalCollateral = BigInt(await _getQuote1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _maxBorrowable + _userBorrowed));
+            const _maxAdditionalCollateral = BigInt(await _getExpected1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _maxBorrowable + _userBorrowed));
             pAvgBN = maxBorrowableBN.plus(userBorrowed).div(toBN(_maxAdditionalCollateral, this.collateral_token.decimals));
             _maxLeverageCollateral = _maxAdditionalCollateral - fromBN(BN(userBorrowed).div(pAvgBN), this.collateral_token.decimals);
         }
@@ -2547,7 +2547,7 @@ export class OneWayMarketTemplate {
         let _borrowedFromStateCollateral = BigInt(0);
         let _borrowedFromUserCollateral = BigInt(0);
         if (_stateCollateral + _userCollateral > BigInt(0)) {
-            _borrowedExpected = BigInt(await _getQuote1inch(this.addresses.collateral_token, this.addresses.borrowed_token, _stateCollateral + _userCollateral));
+            _borrowedExpected = BigInt(await _getExpected1inch(this.addresses.collateral_token, this.addresses.borrowed_token, _stateCollateral + _userCollateral));
             _borrowedFromStateCollateral = _stateCollateral * BigInt(10 ** 18) / (_stateCollateral + _userCollateral) * _borrowedExpected / BigInt(10 ** 18);
             _borrowedFromUserCollateral = _borrowedExpected - _borrowedFromStateCollateral;
         }

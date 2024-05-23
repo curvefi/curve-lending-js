@@ -41,7 +41,7 @@ export const _getUserCollateral = memoize(
     }
 )
 
-export const _getQuote1inch = memoize(
+export const _getExpected1inch = memoize(
     async (fromToken: string, toToken: string, _amount: bigint): Promise<string> => {
         if (_amount === BigInt(0)) return "0.0";
         const url = `https://prices.curve.fi/1inch/swap/v6.0/${lending.chainId}/quote?src=${fromToken}&dst=${toToken}&amount=${_amount}&protocols=${lending.constants.PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true`;

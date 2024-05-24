@@ -32,13 +32,14 @@ const generalTest = (id: string) => {
             const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
 
             try {
+                await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
                 await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
                 throw Error("Did not revert");
             } catch (e) {
                 // @ts-ignore
-                assert.notEqual(e.message, "Did not revert");
+                assert.notEqual(e.message, "Did not revert", e.message);
                 // @ts-ignore
-                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'));
+                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'), e.message);
             }
         });
 
@@ -57,13 +58,14 @@ const generalTest = (id: string) => {
             const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
 
             try {
+                await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
                 await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
                 throw Error("Did not revert");
             } catch (e) {
                 // @ts-ignore
-                assert.notEqual(e.message, "Did not revert");
+                assert.notEqual(e.message, "Did not revert", e.message);
                 // @ts-ignore
-                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'));
+                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'), e.message);
             }
         });
 
@@ -82,13 +84,14 @@ const generalTest = (id: string) => {
             const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
 
             try {
+                await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
                 await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
                 throw Error("Did not revert");
             } catch (e) {
                 // @ts-ignore
-                assert.notEqual(e.message, "Did not revert");
+                assert.notEqual(e.message, "Did not revert", e.message);
                 // @ts-ignore
-                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'));
+                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'), e.message);
             }
         });
 
@@ -105,11 +108,11 @@ const generalTest = (id: string) => {
             const N = 10;
             const { maxDebt } = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
             const debtAmount = (Number(maxDebt) / 2).toFixed(oneWayMarket.borrowed_token.decimals);
+            const { totalCollateral } = await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
             const createLoanBands = await oneWayMarket.leverage.createLoanBands(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanPrices = await oneWayMarket.leverage.createLoanPrices(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanFullHealth = await oneWayMarket.leverage.createLoanHealth(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanHealth = await oneWayMarket.leverage.createLoanHealth(collateralAmount, borrowedAmount, debtAmount, N, false);
-            const { totalCollateral } = await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount);
 
             await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
 
@@ -147,11 +150,11 @@ const generalTest = (id: string) => {
             const N = 10;
             const { maxDebt } = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
             const debtAmount = (Number(maxDebt) / 2).toFixed(oneWayMarket.borrowed_token.decimals);
+            const { totalCollateral } = await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
             const createLoanBands = await oneWayMarket.leverage.createLoanBands(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanPrices = await oneWayMarket.leverage.createLoanPrices(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanFullHealth = await oneWayMarket.leverage.createLoanHealth(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanHealth = await oneWayMarket.leverage.createLoanHealth(collateralAmount, borrowedAmount, debtAmount, N, false);
-            const { totalCollateral } = await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount);
 
             await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
 
@@ -188,11 +191,11 @@ const generalTest = (id: string) => {
             const borrowedAmount = 1000;
             const N = 10;
             const { maxDebt: debtAmount } = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
+            const { totalCollateral } = await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
             const createLoanBands = await oneWayMarket.leverage.createLoanBands(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanPrices = await oneWayMarket.leverage.createLoanPrices(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanFullHealth = await oneWayMarket.leverage.createLoanHealth(collateralAmount, borrowedAmount, debtAmount, N);
             const createLoanHealth = await oneWayMarket.leverage.createLoanHealth(collateralAmount, borrowedAmount, debtAmount, N, false);
-            const { totalCollateral } = await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount);
 
             await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
 

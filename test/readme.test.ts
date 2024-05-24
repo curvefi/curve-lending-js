@@ -370,7 +370,7 @@ const leverageTest = async () => {
         console.log(r.hops);
     }
 
-    console.log(await oneWayMarket.leverage.createLoan(userCollateral, userBorrowed, debt, range));
+    console.log(await oneWayMarket.leverage.createLoan(userCollateral, userBorrowed, debt, range, slippage));
 
     console.log(await oneWayMarket.wallet.balances());
     console.log(await oneWayMarket.userState());
@@ -410,7 +410,7 @@ const leverageTest = async () => {
 
     console.log("\n- Repay -\n")
 
-    const stateCollateral = 2;
+    const stateCollateral = 1;
     userCollateral = 1;
     userBorrowed = 1500;
     console.log(await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed, slippage));

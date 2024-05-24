@@ -1955,6 +1955,9 @@ export class OneWayMarketTemplate {
         if (lending.constants.ALIASES.leverage_zap === lending.constants.ZERO_ADDRESS) {
             throw Error(`There is no leverage contract on this network. ID: ${lending.chainId}`);
         }
+        if (!this.hasLeverage()) {
+            throw Error("This market does not support leverage");
+        }
     }
 
     private async _get_k_effective_BN(N: number): Promise<BigNumber> {

@@ -355,6 +355,7 @@ const leverageTest = async () => {
     console.log(await oneWayMarket.leverage.maxLeverage(range));
     console.log(await oneWayMarket.leverage.createLoanMaxRecv(userCollateral, userBorrowed, range));
     console.log(await oneWayMarket.leverage.createLoanExpectedCollateral(userCollateral, userBorrowed, debt, slippage));
+    console.log(await oneWayMarket.leverage.createLoanPriceImpact(userCollateral, userBorrowed, debt));
     console.log(await oneWayMarket.leverage.createLoanMaxRange(userCollateral, userBorrowed, debt));
     console.log(await oneWayMarket.leverage.createLoanBands(userCollateral, userBorrowed, debt, range));
     console.log(await oneWayMarket.leverage.createLoanPrices(userCollateral, userBorrowed, debt, range));
@@ -386,6 +387,7 @@ const leverageTest = async () => {
     debt = 10000;
     console.log(await oneWayMarket.leverage.borrowMoreMaxRecv(userCollateral, userBorrowed));
     console.log(await oneWayMarket.leverage.borrowMoreExpectedCollateral(userCollateral, userBorrowed, debt, slippage));
+    console.log(await oneWayMarket.leverage.borrowMorePriceImpact(userCollateral, userBorrowed, debt));
     console.log(await oneWayMarket.leverage.borrowMoreBands(userCollateral, userBorrowed, debt));
     console.log(await oneWayMarket.leverage.borrowMorePrices(userCollateral, userBorrowed, debt));
     console.log(await oneWayMarket.leverage.borrowMoreHealth(userCollateral, userBorrowed, debt, true));
@@ -414,6 +416,7 @@ const leverageTest = async () => {
     userCollateral = 1;
     userBorrowed = 1500;
     console.log(await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed, slippage));
+    console.log(await oneWayMarket.leverage.repayPriceImpact(stateCollateral, userCollateral, userBorrowed));
     console.log(await oneWayMarket.leverage.repayIsFull(stateCollateral, userCollateral, userBorrowed));
     console.log(await oneWayMarket.leverage.repayIsAvailable(stateCollateral, userCollateral, userBorrowed));
     console.log(await oneWayMarket.leverage.repayBands(stateCollateral, userCollateral, userBorrowed));

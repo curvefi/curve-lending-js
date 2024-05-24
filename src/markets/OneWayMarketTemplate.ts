@@ -176,6 +176,7 @@ export class OneWayMarketTemplate {
             }>>,
         createLoanExpectedCollateral: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, slippage?: number) =>
             Promise<{ totalCollateral: string, userCollateral: string, collateralFromUserBorrowed: string, collateralFromDebt: string, leverage: string, avgPrice: string }>,
+        createLoanPriceImpact: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<string>,
         createLoanMaxRange: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<number>,
         createLoanBands: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number) => Promise<[number, number]>,
         createLoanBandsAllRanges: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<IDict<[number, number] | null>>,
@@ -198,6 +199,7 @@ export class OneWayMarketTemplate {
             }>,
         borrowMoreExpectedCollateral: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, slippage?: number, address?: string) =>
             Promise<{ totalCollateral: string, userCollateral: string, collateralFromUserBorrowed: string, collateralFromDebt: string, avgPrice: string }>,
+        borrowMorePriceImpact: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<string>,
         borrowMoreBands: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<[number, number]>,
         borrowMorePrices: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<string[]>,
         borrowMoreHealth: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, full?: boolean, address?: string) => Promise<string>,
@@ -208,6 +210,7 @@ export class OneWayMarketTemplate {
 
         repayExpectedBorrowed: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, slippage?: number) =>
             Promise<{ totalBorrowed: string, borrowedFromStateCollateral: string, borrowedFromUserCollateral: string, userBorrowed: string, avgPrice: string }>,
+        repayPriceImpact: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount) => Promise<string>,
         repayIsFull: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<boolean>,
         repayIsAvailable: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<boolean>,
         repayBands: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<[number, number]>,
@@ -330,6 +333,7 @@ export class OneWayMarketTemplate {
             createLoanMaxRecv: this.leverageCreateLoanMaxRecv.bind(this),
             createLoanMaxRecvAllRanges: this.leverageCreateLoanMaxRecvAllRanges.bind(this),
             createLoanExpectedCollateral: this.leverageCreateLoanExpectedCollateral.bind(this),
+            createLoanPriceImpact: this.leverageCreateLoanPriceImpact.bind(this),
             createLoanMaxRange: this.leverageCreateLoanMaxRange.bind(this),
             createLoanBands: this.leverageCreateLoanBands.bind(this),
             createLoanBandsAllRanges: this.leverageCreateLoanBandsAllRanges.bind(this),
@@ -343,6 +347,7 @@ export class OneWayMarketTemplate {
 
             borrowMoreMaxRecv: this.leverageBorrowMoreMaxRecv.bind(this),
             borrowMoreExpectedCollateral: this.leverageBorrowMoreExpectedCollateral.bind(this),
+            borrowMorePriceImpact: this.leverageBorrowMorePriceImpact.bind(this),
             borrowMoreBands: this.leverageBorrowMoreBands.bind(this),
             borrowMorePrices: this.leverageBorrowMorePrices.bind(this),
             borrowMoreHealth: this.leverageBorrowMoreHealth.bind(this),
@@ -352,6 +357,7 @@ export class OneWayMarketTemplate {
             borrowMore: this.leverageBorrowMore.bind(this),
 
             repayExpectedBorrowed: this.leverageRepayExpectedBorrowed.bind(this),
+            repayPriceImpact: this.leverageRepayPriceImpact.bind(this),
             repayIsFull: this.leverageRepayIsFull.bind(this),
             repayIsAvailable: this.leverageRepayIsAvailable.bind(this),
             repayBands: this.leverageRepayBands.bind(this),
@@ -1084,10 +1090,14 @@ export class OneWayMarketTemplate {
         maxAge: 86400 * 1000, // 1d
     });
 
-    public async oraclePrice(): Promise<string> {
+    public oraclePrice = memoize(async (): Promise<string> => {
         const _price = await lending.contracts[this.addresses.amm].contract.price_oracle(lending.constantOptions) as bigint;
         return formatUnits(_price);
-    }
+    },
+    {
+        promise: true,
+        maxAge: 60 * 1000, // 1m
+    });
 
     public async oraclePriceBand(): Promise<number> {
         const oraclePriceBN = BN(await this.oraclePrice());
@@ -2179,6 +2189,14 @@ export class OneWayMarketTemplate {
         }
     }
 
+    private async leverageCreateLoanPriceImpact(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<string> {
+        const { avgPrice } = await this._leverageExpectedCollateral(userCollateral, userBorrowed, debt);
+        const oraclePrice = await this.oraclePrice();
+        if (BN(avgPrice).lt(oraclePrice)) return "0";
+
+        return BN(avgPrice).minus(oraclePrice).div(oraclePrice).times(100).toString();
+    }
+
     private async leverageCreateLoanMaxRange(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<number> {
         const maxRecv = await this.leverageCreateLoanMaxRecvAllRanges(userCollateral, userBorrowed);
         for (let N = this.minBands; N <= this.maxBands; N++) {
@@ -2491,6 +2509,14 @@ export class OneWayMarketTemplate {
         }
     }
 
+    private async leverageBorrowMorePriceImpact(userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address = ""): Promise<string> {
+        const { avgPrice } = await this._leverageExpectedCollateral(userCollateral, userBorrowed, dDebt, address);
+        const oraclePrice = await this.oraclePrice();
+        if (BN(avgPrice).lt(oraclePrice)) return "0";
+
+        return BN(avgPrice).minus(oraclePrice).div(oraclePrice).times(100).toString();
+    }
+
     private async leverageBorrowMoreBands(userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address = ""): Promise<[number, number]> {
         address = _getAddress(address);
         this._checkLeverageZap();
@@ -2608,6 +2634,14 @@ export class OneWayMarketTemplate {
             avgPrice,
         }
     };
+
+    private async leverageRepayPriceImpact(stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount): Promise<string> {
+        const { avgPrice } = this._leverageRepayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed);
+        const oraclePrice = await this.oraclePrice();
+        if (BN(avgPrice).lt(oraclePrice)) return "0";
+
+        return BN(avgPrice).minus(oraclePrice).div(oraclePrice).times(100).toString();
+    }
 
     private async leverageRepayIsFull(stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address = ""): Promise<boolean> {
         this._checkLeverageZap();

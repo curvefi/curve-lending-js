@@ -927,6 +927,8 @@ import lending from "@curvefi/lending-api";
     //     leverage: '1.4796358613861877'
     //     avgPrice: '3169.8299919022623523421'
     // }
+    await oneWayMarket.leverage.createLoanPriceImpact(userCollateral, userBorrowed, debt);
+    // 0.08944411854377342 %
     await oneWayMarket.leverage.createLoanMaxRange(userCollateral, userBorrowed, debt);
     // 50
     await oneWayMarket.leverage.createLoanBands(userCollateral, userBorrowed, debt, range);
@@ -1031,6 +1033,8 @@ import lending from "@curvefi/lending-api";
     //     collateralFromDebt: '3.152876753452705342'
     //     avgPrice: '3171.70659749038129067231'
     // }
+    await oneWayMarket.leverage.borrowMorePriceImpact(userCollateral, userBorrowed, debt);
+    // 0.010784277354269765 %
     await oneWayMarket.leverage.borrowMoreBands(userCollateral, userBorrowed, debt);
     // [ 47, 38 ]
     await oneWayMarket.leverage.borrowMorePrices(userCollateral, userBorrowed, debt);
@@ -1163,7 +1167,8 @@ import lending from "@curvefi/lending-api";
     //     avgPrice: '3166.29427953324743125312'
     // }
 
-
+    await oneWayMarket.leverage.repayPriceImpact(stateCollateral, userCollateral, userBorrowed);
+    // 0.013150142802201724 %
     await oneWayMarket.leverage.repayIsFull(stateCollateral, userCollateral, userBorrowed);
     // false
     await oneWayMarket.leverage.repayIsAvailable(stateCollateral, userCollateral, userBorrowed);

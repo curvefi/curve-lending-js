@@ -2304,7 +2304,7 @@ export class OneWayMarketTemplate {
         const { _borrowed, _N } = await this._userState(user);
         if (_borrowed > BigInt(0)) throw Error(`User ${user} is already in liquidation mode`);
         if (range < 0) range = Number(lending.formatUnits(_N, 0));
-        const _dDebt = parseUnits(dDebt, this.collateral_token.decimals);
+        const _dDebt = parseUnits(dDebt, this.borrowed_token.decimals);
 
         const contract = lending.contracts[this.addresses.controller].contract;
         let _health = await contract.health_calculator(user, _totalCollateral, _dDebt, full, range, lending.constantOptions) as bigint;

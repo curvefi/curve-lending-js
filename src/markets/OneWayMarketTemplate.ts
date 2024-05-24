@@ -150,6 +150,8 @@ export class OneWayMarketTemplate {
         }
     };
     leverage: {
+        hasLeverage: () => boolean,
+
         maxLeverage: (N: number) => Promise<string>,
 
         createLoanMaxRecv: (userCollateral: TAmount, userBorrowed: TAmount, range: number) =>
@@ -321,6 +323,8 @@ export class OneWayMarketTemplate {
             },
         }
         this.leverage = {
+            hasLeverage: this.hasLeverage.bind(this),
+
             maxLeverage: this.maxLeverage.bind(this),
 
             createLoanMaxRecv: this.leverageCreateLoanMaxRecv.bind(this),
@@ -371,6 +375,8 @@ export class OneWayMarketTemplate {
         }
 
     }
+
+    private _getMarketId = (): number => Number(this.id.split("-").slice(-1)[0]);
 
     // ---------------- VAULT ----------------
 
@@ -1943,6 +1949,8 @@ export class OneWayMarketTemplate {
 
     // ---------------- LEVERAGE CREATE LOAN ----------------
 
+    private hasLeverage = (): boolean => this._getMarketId() >= Number(lending.constants.ALIASES["leverage_markets_start_id"]);
+
     private _checkLeverageZap(): void {
         if (lending.constants.ALIASES.leverage_zap === lending.constants.ZERO_ADDRESS) {
             throw Error(`There is no leverage contract on this network. ID: ${lending.chainId}`);
@@ -2369,7 +2377,7 @@ export class OneWayMarketTemplate {
             _debt,
             range,
             lending.constants.ALIASES.leverage_zap,
-            [0, parseUnits(this.id.split("-").slice(-1)[0], 0), _userBorrowed],
+            [0, parseUnits(this._getMarketId(), 0), _userBorrowed],
             swapData.tx.data,
             { ...lending.constantOptions }
         );
@@ -2382,7 +2390,7 @@ export class OneWayMarketTemplate {
             _debt,
             range,
             lending.constants.ALIASES.leverage_zap,
-            [0, parseUnits(this.id.split("-").slice(-1)[0], 0), _userBorrowed],
+            [0, parseUnits(this._getMarketId(), 0), _userBorrowed],
             swapData.tx.data,
             { ...lending.options, gasLimit }
         )).hash
@@ -2526,7 +2534,7 @@ export class OneWayMarketTemplate {
             _userCollateral,
             _debt,
             lending.constants.ALIASES.leverage_zap,
-            [0, parseUnits(this.id.split("-").slice(-1)[0], 0), _userBorrowed],
+            [0, parseUnits(this._getMarketId(), 0), _userBorrowed],
             swapData.tx.data,
             { ...lending.constantOptions }
         );
@@ -2539,7 +2547,7 @@ export class OneWayMarketTemplate {
             _userCollateral,
             _debt,
             lending.constants.ALIASES.leverage_zap,
-            [0, parseUnits(this.id.split("-").slice(-1)[0], 0), _userBorrowed],
+            [0, parseUnits(this._getMarketId(), 0), _userBorrowed],
             swapData.tx.data,
             { ...lending.options, gasLimit }
         )).hash
@@ -2736,7 +2744,7 @@ export class OneWayMarketTemplate {
         const contract = lending.contracts[this.addresses.controller].contract;
         const gas = await contract.repay_extended.estimateGas(
             lending.constants.ALIASES.leverage_zap,
-            [0, parseUnits(this.id.split("-").slice(-1)[0], 0), _userCollateral, _userBorrowed],
+            [0, parseUnits(this._getMarketId(), 0), _userCollateral, _userBorrowed],
             calldata,
             { ...lending.constantOptions }
         );
@@ -2747,7 +2755,7 @@ export class OneWayMarketTemplate {
 
         return (await contract.repay_extended(
             lending.constants.ALIASES.leverage_zap,
-            [0, parseUnits(this.id.split("-").slice(-1)[0], 0), _userCollateral, _userBorrowed],
+            [0, parseUnits(this._getMarketId(), 0), _userCollateral, _userBorrowed],
             calldata,
             { ...lending.options, gasLimit }
         )).hash

@@ -2112,7 +2112,7 @@ export class OneWayMarketTemplate {
     });
 
     private _setSwapDataToCache = async (inputCoinAddress: string, outputCoinAddress: string, _amount: bigint, slippage: number) => {
-        const swapData = await _getSwapData1inch(this.addresses.borrowed_token, this.addresses.collateral_token, _amount, slippage);
+        const swapData = await _getSwapData1inch(inputCoinAddress, outputCoinAddress, _amount, slippage);
         const key = `${inputCoinAddress}-${_amount}`;
         this.swapDataCache[key] = { ...swapData, slippage };
     }

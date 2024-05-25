@@ -7,7 +7,8 @@ export const ALIASES_ETHEREUM = lowerCaseValues({
     "gauge_controller": "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB",
     "minter": '0xd061D61a4d941c39E5453435B6345Dc261C2fcE0',
     "gauge_factory": "0xabC000d88f23Bb45525E447528DBF656A9D55bf5",
-    "leverage_zap": "0x0000000000000000000000000000000000000000",
+    "leverage_zap": "0x3294514B78Df4Bb90132567fcf8E5e99f390B687",
+    "leverage_markets_start_id": "9",
 });
 
 export const ALIASES_POLYGON = lowerCaseValues({
@@ -36,11 +37,13 @@ export const ALIASES_AVALANCHE = lowerCaseValues({
 
 export const ALIASES_ARBITRUM = lowerCaseValues({
     "crv": "0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978",
-    // "one_way_factory": "0xcaEC110C784c9DF37240a8Ce096D352A75922DeA",  // REAL
-    "one_way_factory": "0xb3adda9b28f0f117FD5b6eFE7f0a0cd662Dba5D6",  // TEST
+    "one_way_factory": "0xcaEC110C784c9DF37240a8Ce096D352A75922DeA",  // REAL
+    // "one_way_factory": "0xb3adda9b28f0f117FD5b6eFE7f0a0cd662Dba5D6",  // TEST
     "gauge_controller": "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB",
     "gauge_factory": "0xabC000d88f23Bb45525E447528DBF656A9D55bf5",
-    "leverage_zap": "0xA233e77AE47bf839Fd1c1d30f9EAa0584737376a",  // TEST
+    "leverage_zap": "0x0000000000000000000000000000000000000000",  // REAL
+    // "leverage_zap": "0xA233e77AE47bf839Fd1c1d30f9EAa0584737376a",  // TEST
+    "leverage_markets_start_id": "",
 });
 
 export const ALIASES_OPTIMISM = lowerCaseValues({

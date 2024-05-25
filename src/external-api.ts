@@ -1,7 +1,7 @@
 import axios from "axios";
 import memoize from "memoizee";
 import { lending } from "./lending.js";
-import { IExtendedPoolDataFromApi, INetworkName, IPoolFactory, I1inchRoute } from "./interfaces";
+import { IExtendedPoolDataFromApi, INetworkName, IPoolFactory, I1inchRoute, I1inchSwapData } from "./interfaces";
 
 
 export const _getPoolsFromApi = memoize(
@@ -41,7 +41,7 @@ export const _getUserCollateral = memoize(
     }
 )
 
-export const _getQuote1inch = memoize(
+export const _getExpected1inch = memoize(
     async (fromToken: string, toToken: string, _amount: bigint): Promise<string> => {
         if (_amount === BigInt(0)) return "0.0";
         const url = `https://prices.curve.fi/1inch/swap/v6.0/${lending.chainId}/quote?src=${fromToken}&dst=${toToken}&amount=${_amount}&protocols=${lending.constants.PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true`;
@@ -59,12 +59,12 @@ export const _getQuote1inch = memoize(
     },
     {
         promise: true,
-        maxAge: 5 * 1000, // 5s
+        maxAge: 10 * 1000, // 10s
     }
 )
 
-const _getSwapData1inch = memoize(
-    async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<{ tx: { data: string }, protocols: I1inchRoute[] }> => {
+export const _getSwapData1inch = memoize(
+    async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<I1inchSwapData> => {
         if (_amount === BigInt(0)) throw Error("Amount must be > 0");
         const url = `https://prices.curve.fi/1inch/swap/v6.0/${lending.chainId}/swap?src=${fromToken}&dst=${toToken}&amount=${_amount}&from_=${lending.constants.ALIASES.leverage_zap}&slippage=${slippage}&protocols=${lending.constants.PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true&disableEstimate=true`;
         const response = await axios.get(
@@ -81,16 +81,6 @@ const _getSwapData1inch = memoize(
     },
     {
         promise: true,
-        maxAge: 5 * 1000, // 5s
+        maxAge: 10 * 1000, // 10s
     }
 )
-
-export const _getCalldata1inch = async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<string> => {
-    const data = await _getSwapData1inch(fromToken, toToken, _amount, slippage);
-    return data.tx.data;
-}
-
-export const _getRoute1inch = async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<I1inchRoute[]> => {
-    const data = await _getSwapData1inch(fromToken, toToken, _amount, slippage);
-    return data.protocols;
-}

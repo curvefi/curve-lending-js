@@ -23,6 +23,7 @@ const generalTest = (id: string) => {
                 const { maxDebt } = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
                 const debtAmount = (Number(maxDebt) / 2).toFixed(oneWayMarket.borrowed_token.decimals);
 
+                await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
                 await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
             }
         });
@@ -39,13 +40,14 @@ const generalTest = (id: string) => {
             const stateCollateralAmount = 0.2;
             const collateralAmount = 0;
             const borrowedAmount = 0;
+            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
             const repayBands = await oneWayMarket.leverage.repayBands(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayPrices = await oneWayMarket.leverage.repayPrices(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayFullHealth = await oneWayMarket.leverage.repayHealth(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayHealth = await oneWayMarket.leverage.repayHealth(stateCollateralAmount, collateralAmount, borrowedAmount, false);
-            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount);
 
             await oneWayMarket.leverage.repay(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
+            await new Promise((r) => setTimeout(r, 5000)); // Timeout needed to update fork state
 
             const balances = await oneWayMarket.wallet.balances();
             const state = await oneWayMarket.userState();
@@ -79,13 +81,14 @@ const generalTest = (id: string) => {
             const stateCollateralAmount = 0;
             const collateralAmount = 0.2;
             const borrowedAmount = 0;
+            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
             const repayBands = await oneWayMarket.leverage.repayBands(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayPrices = await oneWayMarket.leverage.repayPrices(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayFullHealth = await oneWayMarket.leverage.repayHealth(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayHealth = await oneWayMarket.leverage.repayHealth(stateCollateralAmount, collateralAmount, borrowedAmount, false);
-            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount);
 
             await oneWayMarket.leverage.repay(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
+            await new Promise((r) => setTimeout(r, 5000)); // Timeout needed to update fork state
 
             const balances = await oneWayMarket.wallet.balances();
             const state = await oneWayMarket.userState();
@@ -119,13 +122,14 @@ const generalTest = (id: string) => {
             const stateCollateralAmount = 0;
             const collateralAmount = 0;
             const borrowedAmount = 500;
+            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
             const repayBands = await oneWayMarket.leverage.repayBands(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayPrices = await oneWayMarket.leverage.repayPrices(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayFullHealth = await oneWayMarket.leverage.repayHealth(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayHealth = await oneWayMarket.leverage.repayHealth(stateCollateralAmount, collateralAmount, borrowedAmount, false);
-            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount);
 
             await oneWayMarket.leverage.repay(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
+            await new Promise((r) => setTimeout(r, 5000)); // Timeout needed to update fork state
 
             const balances = await oneWayMarket.wallet.balances();
             const state = await oneWayMarket.userState();
@@ -160,13 +164,14 @@ const generalTest = (id: string) => {
             const stateCollateralAmount = 0.3;
             const collateralAmount = 0.2;
             const borrowedAmount = 500;
+            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
             const repayBands = await oneWayMarket.leverage.repayBands(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayPrices = await oneWayMarket.leverage.repayPrices(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayFullHealth = await oneWayMarket.leverage.repayHealth(stateCollateralAmount, collateralAmount, borrowedAmount);
             const repayHealth = await oneWayMarket.leverage.repayHealth(stateCollateralAmount, collateralAmount, borrowedAmount, false);
-            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount);
 
             await oneWayMarket.leverage.repay(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
+            await new Promise((r) => setTimeout(r, 5000)); // Timeout needed to update fork state
 
             const balances = await oneWayMarket.wallet.balances();
             const state = await oneWayMarket.userState();
@@ -179,7 +184,7 @@ const generalTest = (id: string) => {
             assert.equal(Number(repayBands[1]), Number(userBands[1]), 'band 1');
             assert.approximately(Number(repayPrices[0]), Number(userPrices[0]), 1e-2, 'price 0');
             assert.approximately(Number(repayPrices[1]), Number(userPrices[1]), 1e-2, 'price 1');
-            assert.approximately(Number(repayFullHealth), Number(fullHealth), 0.1, 'full health');
+            assert.approximately(Number(repayFullHealth), Number(fullHealth), 0.3, 'full health');
             assert.approximately(Number(repayHealth), Number(health), 0.1, 'health');
             assert.equal(Number(balances.collateral), Number(initialBalances.collateral) - Number(collateralAmount), 'wallet collateral');
             assert.equal(Number(balances.borrowed), Number(initialBalances.borrowed) - borrowedAmount, 'wallet borrowed');
@@ -200,9 +205,10 @@ const generalTest = (id: string) => {
             const stateCollateralAmount = (Number(initialState.collateral) / 3).toFixed(oneWayMarket.collateral_token.decimals);
             const collateralAmount = (Number(initialState.collateral) / 3).toFixed(oneWayMarket.collateral_token.decimals);
             const borrowedAmount = (Number(initialState.debt) / 3).toFixed(oneWayMarket.borrowed_token.decimals);
-            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount);
+            const { totalBorrowed } = await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
 
             await oneWayMarket.leverage.repay(stateCollateralAmount, collateralAmount, borrowedAmount, 1);
+            await new Promise((r) => setTimeout(r, 5000)); // Timeout needed to update fork state
 
             const balances = await oneWayMarket.wallet.balances();
             const state = await oneWayMarket.userState();

@@ -22,6 +22,7 @@ const generalTest = (id: string) => {
                 const { maxDebt } = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
                 const debtAmount = (Number(maxDebt) / 2).toFixed(oneWayMarket.borrowed_token.decimals);
 
+                await oneWayMarket.leverage.createLoanExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
                 await oneWayMarket.leverage.createLoan(collateralAmount, borrowedAmount, debtAmount, N, 1);
             }
         });
@@ -40,13 +41,14 @@ const generalTest = (id: string) => {
             const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
 
             try {
+                await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
                 await oneWayMarket.leverage.borrowMore(collateralAmount, borrowedAmount, debtAmount,1);
                 throw Error("Did not revert");
             } catch (e) {
                 // @ts-ignore
-                assert.notEqual(e.message, "Did not revert");
+                assert.notEqual(e.message, "Did not revert", e.message);
                 // @ts-ignore
-                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'));
+                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'), e.message);
             }
         });
 
@@ -64,13 +66,14 @@ const generalTest = (id: string) => {
             const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
 
             try {
+                await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
                 await oneWayMarket.leverage.borrowMore(collateralAmount, borrowedAmount, debtAmount,1);
                 throw Error("Did not revert");
             } catch (e) {
                 // @ts-ignore
-                assert.notEqual(e.message, "Did not revert");
+                assert.notEqual(e.message, "Did not revert", e.message);
                 // @ts-ignore
-                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'));
+                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'), e.message);
             }
         });
 
@@ -88,13 +91,14 @@ const generalTest = (id: string) => {
             const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
 
             try {
+                await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
                 await oneWayMarket.leverage.borrowMore(collateralAmount, borrowedAmount, debtAmount,1);
                 throw Error("Did not revert");
             } catch (e) {
                 // @ts-ignore
-                assert.notEqual(e.message, "Did not revert");
+                assert.notEqual(e.message, "Did not revert", e.message);
                 // @ts-ignore
-                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'));
+                assert.isTrue(e.message.startsWith('execution reverted: "Debt too high"'), e.message);
             }
         });
 
@@ -111,11 +115,11 @@ const generalTest = (id: string) => {
             const borrowedAmount = 0;
             const { maxDebt } = await oneWayMarket.leverage.borrowMoreMaxRecv(collateralAmount, borrowedAmount);
             const debtAmount = (Number(maxDebt) / 2).toFixed(oneWayMarket.borrowed_token.decimals);
+            const { totalCollateral } = await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
             const borrowMoreBands = await oneWayMarket.leverage.borrowMoreBands(collateralAmount, borrowedAmount, debtAmount);
             const borrowMorePrices = await oneWayMarket.leverage.borrowMorePrices(collateralAmount, borrowedAmount, debtAmount);
             const borrowMoreFullHealth = await oneWayMarket.leverage.borrowMoreHealth(collateralAmount, borrowedAmount, debtAmount);
             const borrowMoreHealth = await oneWayMarket.leverage.borrowMoreHealth(collateralAmount, borrowedAmount, debtAmount, false);
-            const { totalCollateral } = await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount);
 
             await oneWayMarket.leverage.borrowMore(collateralAmount, borrowedAmount, debtAmount,1);
 
@@ -153,11 +157,11 @@ const generalTest = (id: string) => {
             const borrowedAmount = 1000;
             const { maxDebt } = await oneWayMarket.leverage.borrowMoreMaxRecv(collateralAmount, borrowedAmount);
             const debtAmount = (Number(maxDebt) / 2).toFixed(oneWayMarket.borrowed_token.decimals);
+            const { totalCollateral } = await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
             const borrowMoreBands = await oneWayMarket.leverage.borrowMoreBands(collateralAmount, borrowedAmount, debtAmount);
             const borrowMorePrices = await oneWayMarket.leverage.borrowMorePrices(collateralAmount, borrowedAmount, debtAmount);
             const borrowMoreFullHealth = await oneWayMarket.leverage.borrowMoreHealth(collateralAmount, borrowedAmount, debtAmount);
             const borrowMoreHealth = await oneWayMarket.leverage.borrowMoreHealth(collateralAmount, borrowedAmount, debtAmount, false);
-            const { totalCollateral } = await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount);
 
             await oneWayMarket.leverage.borrowMore(collateralAmount, borrowedAmount, debtAmount,1);
 
@@ -196,11 +200,11 @@ const generalTest = (id: string) => {
             const { maxDebt } = await oneWayMarket.leverage.borrowMoreMaxRecv(collateralAmount, borrowedAmount);
             // const debtAmount = (Number(maxDebt) * 0.999).toFixed(oneWayMarket.borrowed_token.decimals);
             const debtAmount = maxDebt;
+            const { totalCollateral } = await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
             const borrowMoreBands = await oneWayMarket.leverage.borrowMoreBands(collateralAmount, borrowedAmount, debtAmount);
             const borrowMorePrices = await oneWayMarket.leverage.borrowMorePrices(collateralAmount, borrowedAmount, debtAmount);
             const borrowMoreFullHealth = await oneWayMarket.leverage.borrowMoreHealth(collateralAmount, borrowedAmount, debtAmount);
             const borrowMoreHealth = await oneWayMarket.leverage.borrowMoreHealth(collateralAmount, borrowedAmount, debtAmount, false);
-            const { totalCollateral } = await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount);
 
             await oneWayMarket.leverage.borrowMore(collateralAmount, borrowedAmount, debtAmount,1);
 

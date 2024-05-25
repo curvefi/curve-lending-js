@@ -1959,7 +1959,10 @@ export class OneWayMarketTemplate {
 
     // ---------------- LEVERAGE CREATE LOAN ----------------
 
-    private hasLeverage = (): boolean => this._getMarketId() >= Number(lending.constants.ALIASES["leverage_markets_start_id"]);
+    private hasLeverage = (): boolean => {
+        return lending.constants.ALIASES.leverage_zap !== lending.constants.ZERO_ADDRESS &&
+            this._getMarketId() >= Number(lending.constants.ALIASES["leverage_markets_start_id"]);
+    }
 
     private _checkLeverageZap(): void {
         if (lending.constants.ALIASES.leverage_zap === lending.constants.ZERO_ADDRESS) {

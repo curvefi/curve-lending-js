@@ -1374,13 +1374,12 @@ export class OneWayMarketTemplate {
         return pricesAllRanges;
     }
 
-    public async createLoanHealth(collateral: number | string, debt: number | string, range: number, full = true, address = ""): Promise<string> {
-        address = _getAddress(address);
+    public async createLoanHealth(collateral: number | string, debt: number | string, range: number, full = true): Promise<string> {
         const _collateral = parseUnits(collateral, this.collateral_token.decimals);
         const _debt = parseUnits(debt, this.borrowed_token.decimals);
 
         const contract = lending.contracts[this.addresses.controller].contract;
-        let _health = await contract.health_calculator(address, _collateral, _debt, full, range, lending.constantOptions) as bigint;
+        let _health = await contract.health_calculator(lending.constants.ZERO_ADDRESS, _collateral, _debt, full, range, lending.constantOptions) as bigint;
         _health = _health * BigInt(100);
 
         return formatUnits(_health);
@@ -2020,7 +2019,8 @@ export class OneWayMarketTemplate {
         for (let i = 0; i < 5; i++) {
             maxBorrowablePrevBN = maxBorrowableBN;
             _userEffectiveCollateral = _userCollateral + fromBN(BN(userBorrowed).div(pAvgBN), this.collateral_token.decimals);
-            const _maxBorrowable = await contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral, range, fromBN(pAvgBN));
+            let _maxBorrowable = await contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral, range, fromBN(pAvgBN));
+            _maxBorrowable = _maxBorrowable * BigInt(998) / BigInt(1000)
             if (_maxBorrowable === BigInt(0)) break;
             maxBorrowableBN = toBN(_maxBorrowable, this.borrowed_token.decimals);
 
@@ -2082,7 +2082,7 @@ export class OneWayMarketTemplate {
                 const j = N - this.minBands;
                 calls.push(contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral[j], N, fromBN(pBN)));
             }
-            _maxBorrowable = await lending.multicallProvider.all(calls);
+            _maxBorrowable = (await lending.multicallProvider.all(calls) as bigint[]).map((_mb) => _mb * BigInt(998) / BigInt(1000));
             maxBorrowableBN = _maxBorrowable.map((_mb) => toBN(_mb, this.borrowed_token.decimals));
 
             const deltaBN = maxBorrowableBN.map((mb, l) => mb.minus(maxBorrowablePrevBN[l]).abs().div(mb));
@@ -2470,7 +2470,7 @@ export class OneWayMarketTemplate {
             maxBorrowablePrevBN = maxBorrowableBN;
             _userEffectiveCollateral = _userCollateral + fromBN(BN(userBorrowed).div(pAvgBN), this.collateral_token.decimals);
             let _maxBorrowable = await contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral, _N, fromBN(pAvgBN));
-            _maxBorrowable = _maxBorrowable * BigInt(999) / BigInt(1000);  // Revert happens if I don't do this and try to borrow max
+            _maxBorrowable = _maxBorrowable * BigInt(998) / BigInt(1000);
             if (_maxBorrowable === BigInt(0)) break;
             maxBorrowableBN = toBN(_maxBorrowable, this.borrowed_token.decimals);
 
@@ -2487,7 +2487,8 @@ export class OneWayMarketTemplate {
 
         if (maxBorrowableBN.eq(0)) _userEffectiveCollateral = BigInt(0);
         const _maxTotalCollateral = _userEffectiveCollateral + _maxLeverageCollateral
-        const _maxBorrowable = await controllerContract.max_borrowable(_stateCollateral + _maxTotalCollateral, _N, _stateDebt, lending.constantOptions) - _stateDebt;
+        let _maxBorrowable = await controllerContract.max_borrowable(_stateCollateral + _maxTotalCollateral, _N, _stateDebt, lending.constantOptions) - _stateDebt;
+        _maxBorrowable = _maxBorrowable * BigInt(998) / BigInt(1000);
 
         return {
             maxDebt: formatUnits(_maxBorrowable, this.borrowed_token.decimals),

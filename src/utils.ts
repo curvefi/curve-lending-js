@@ -14,7 +14,8 @@ export const MAX_ACTIVE_BAND = BigInt("57896044618658097711785492504343953926634
 
 export const createCall = (contract: ICurveContract, name: string, params: any[]): Call => {
     const _abi = contract.abi;
-    const func = _abi.find((f: JsonFragment) => f.name === name)
+    const _name = name.split('-')[0];
+    const func = _abi.find((f: JsonFragment) => f.name === _name)
     const inputs = func?.inputs || [];
     const outputs = func?.outputs || [];
 
@@ -22,7 +23,7 @@ export const createCall = (contract: ICurveContract, name: string, params: any[]
         contract: {
             address: contract.address,
         },
-        name,
+        name: _name,
         inputs,
         outputs,
         params,

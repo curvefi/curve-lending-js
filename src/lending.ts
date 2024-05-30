@@ -47,6 +47,7 @@ import {
     COINS_BSC,
 } from "./constants/coins.js";
 import { createCall, handleMultiCallResponse} from "./utils.js";
+import {cacheKey, cacheStats} from "./cache";
 
 export const NETWORK_CONSTANTS: { [index: number]: any } = {
     1: {
@@ -172,7 +173,7 @@ class Lending implements ILending {
     async init(
         providerType: 'JsonRpc' | 'Web3' | 'Infura' | 'Alchemy',
         providerSettings: { url?: string, privateKey?: string, batchMaxCount? : number } | { externalProvider: ethers.Eip1193Provider } | { network?: Networkish, apiKey?: string },
-        options: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number, chainId?: number } = {}, // gasPrice in Gwei
+        options: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number, chainId?: number } = {} // gasPrice in Gwei
     ): Promise<void> {
         // @ts-ignore
         this.provider = null;
@@ -340,6 +341,35 @@ class Lending implements ILending {
 
     }
 
+    fetchStats = async (amms: string[], controllers: string[], vaults: string[], borrowed_tokens: string[], collateral_tokens: string[]) => {
+        const calls: Call[] = [];
+        const marketCount = controllers.length;
+
+        for (let i = 0; i < marketCount; i++) {
+            calls.push(createCall(this.contracts[controllers[i]],'total_debt', []))
+            calls.push(createCall(this.contracts[vaults[i]],'totalAssets', [controllers[i]]))
+            calls.push(createCall(this.contracts[borrowed_tokens[i]],'balanceOf', [controllers[i]]))
+            calls.push(createCall(this.contracts[amms[i]],'rate', []))
+            calls.push(createCall(this.contracts[borrowed_tokens[i]],'balanceOf', [amms[i]]))
+            calls.push(createCall(this.contracts[amms[i]],'admin_fees_x', []))
+            calls.push(createCall(this.contracts[amms[i]],'admin_fees_y', []))
+            calls.push(createCall(this.contracts[collateral_tokens[i]],'balanceOf', [amms[i]]))
+        }
+
+        const res = await this.multicallProvider.all(calls);
+
+        for (let i = 0; i < marketCount; i++) {
+            cacheStats.set(cacheKey(controllers[i], 'total_debt'), res[(i*8) + 0]);
+            cacheStats.set(cacheKey(vaults[i], 'totalAssets', controllers[i]), res[(i*8) + 1]);
+            cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', controllers[i]), res[(i*8) + 2]);
+            cacheStats.set(cacheKey(amms[i], 'rate'), res[(i*8) + 3]);
+            cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', amms[i]), res[(i*8) + 4]);
+            cacheStats.set(cacheKey(amms[i], 'admin_fees_x'), res[(i*8) + 5]);
+            cacheStats.set(cacheKey(amms[i], 'admin_fees_y'), res[(i*8) + 6]);
+            cacheStats.set(cacheKey(collateral_tokens[i], 'balanceOf', amms[i]), res[(i*8) + 7]);
+        }
+    }
+
     fetchOneWayMarkets = async () => {
         const {names, amms, controllers, borrowed_tokens, collateral_tokens, monetary_policies, vaults, gauges} = await this.getFactoryMarketData()
         const COIN_DATA = await this.getCoins(collateral_tokens, borrowed_tokens);
@@ -382,6 +412,8 @@ class Lending implements ILending {
                 collateral_token: COIN_DATA[collateral_tokens[index]],
             }
         })
+
+        await this.fetchStats(amms, controllers, vaults, borrowed_tokens, collateral_tokens);
     }
 
     formatUnits(value: BigNumberish, unit?: string | Numeric): string {

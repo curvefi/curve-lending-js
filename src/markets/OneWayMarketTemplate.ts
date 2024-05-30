@@ -25,6 +25,7 @@ import {
 import {IDict, TGas, TAmount, IReward, I1inchRoute, I1inchSwapData} from "../interfaces.js";
 import {_getExpected1inch, _getSwapData1inch} from "../external-api.js";
 import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
+import {cacheKey, cacheStats} from "../cache";
 
 
 const DAY = 86400;
@@ -904,9 +905,15 @@ export class OneWayMarketTemplate {
         maxAge: 5 * 60 * 1000, // 5m
     });
 
-    private _getRate = async (): Promise<bigint> => {
-        const llammaContract = lending.contracts[this.addresses.amm].contract;
-        return await llammaContract.rate();
+    private _getRate = async (isGetter = true): Promise<bigint> => {
+        let _rate;
+        if(isGetter) {
+            _rate = cacheStats.get(cacheKey(this.addresses.amm, 'rate'));
+        } else {
+            _rate = await lending.contracts[this.addresses.amm].contract.rate(lending.constantOptions);
+            cacheStats.set(cacheKey(this.addresses.controller, 'rate'), _rate);
+        }
+        return _rate;
     }
 
     private _getFutureRate = async (_dReserves: bigint, _dDebt: bigint): Promise<bigint> => {
@@ -914,16 +921,16 @@ export class OneWayMarketTemplate {
         return await mpContract.future_rate(this.addresses.controller, _dReserves, _dDebt);
     }
 
-    private async statsRates(): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
-        const _rate = await this._getRate();
+    private async statsRates(isGetter = true): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
+        const _rate = await this._getRate(isGetter);
         const borrowApr =  toBN(_rate).times(365).times(86400).times(100).toString();
         // borrowApy = e**(rate*365*86400) - 1
         const borrowApy = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
         let lendApr = "0";
         let lendApy = "0";
-        const debt = await this.statsTotalDebt();
+        const debt = await this.statsTotalDebt(isGetter);
         if (Number(debt) > 0) {
-            const { cap } = await this.statsCapAndAvailable();
+            const { cap } = await this.statsCapAndAvailable(isGetter);
             lendApr = toBN(_rate).times(365).times(86400).times(debt).div(cap).times(100).toString();
             // lendApy = (debt * e**(rate*365*86400) - debt) / cap
             const debtInAYearBN = BN(debt).times(2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber());
@@ -1028,41 +1035,66 @@ export class OneWayMarketTemplate {
         return bands
     }
 
-    private async statsTotalDebt(): Promise<string> {
-        const debt = await lending.contracts[this.addresses.controller].contract.total_debt(lending.constantOptions);
-        return formatUnits(debt, this.borrowed_token.decimals);
+    private async statsTotalDebt(isGetter = true): Promise<string> {
+        let _debt;
+        if(isGetter) {
+            _debt = cacheStats.get(cacheKey(this.addresses.controller, 'total_debt'));
+        } else {
+            _debt = await lending.contracts[this.addresses.controller].contract.total_debt(lending.constantOptions);
+            cacheStats.set(cacheKey(this.addresses.controller, 'total_debt'), _debt);
+        }
+
+        return formatUnits(_debt, this.borrowed_token.decimals);
     }
 
-    private statsAmmBalances = memoize(async (): Promise<{ borrowed: string, collateral: string }> => {
+    private statsAmmBalances = async (isGetter = true): Promise<{ borrowed: string, collateral: string }> => {
         const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
         const collateralContract = lending.contracts[this.addresses.collateral_token].multicallContract;
         const ammContract = lending.contracts[this.addresses.amm].multicallContract;
 
-        const [_balance_x, _fee_x, _balance_y, _fee_y]: bigint[] = await lending.multicallProvider.all([
-            borrowedContract.balanceOf(this.addresses.amm),
-            ammContract.admin_fees_x(),
-            collateralContract.balanceOf(this.addresses.amm),
-            ammContract.admin_fees_y(),
-        ]);
+        let _balance_x, _fee_x, _balance_y, _fee_y;
+        if(isGetter) {
+            [_balance_x, _fee_x, _balance_y, _fee_y] = [
+                cacheStats.get(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.amm)),
+                cacheStats.get(cacheKey(this.addresses.amm, 'admin_fees_x')),
+                cacheStats.get(cacheKey(this.addresses.collateral_token, 'balanceOf', this.addresses.amm)),
+                cacheStats.get(cacheKey(this.addresses.amm, 'admin_fees_y')),
+            ]
+        } else {
+            const [_balance_x, _fee_x, _balance_y, _fee_y]: bigint[] = await lending.multicallProvider.all([
+                borrowedContract.balanceOf(this.addresses.amm),
+                ammContract.admin_fees_x(),
+                collateralContract.balanceOf(this.addresses.amm),
+                ammContract.admin_fees_y(),
+            ]);
+            cacheStats.set(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.amm), _balance_x);
+            cacheStats.set(cacheKey(this.addresses.amm, 'admin_fees_x'), _fee_x);
+            cacheStats.set(cacheKey(this.addresses.collateral_token, 'balanceOf', this.addresses.amm), _balance_y);
+            cacheStats.set(cacheKey(this.addresses.amm, 'admin_fees_y'), _fee_y);
+        }
 
         return {
             borrowed: toBN(_balance_x, this.borrowed_token.decimals).minus(toBN(_fee_x, this.borrowed_token.decimals)).toString(),
             collateral: toBN(_balance_y, this.collateral_token.decimals).minus(toBN(_fee_y, this.collateral_token.decimals)).toString(),
         }
-    },
-    {
-        promise: true,
-        maxAge: 60 * 1000, // 1m
-    });
+    }
 
-    private async statsCapAndAvailable(): Promise<{ cap: string, available: string }> {
+    private async statsCapAndAvailable(isGetter = true): Promise<{ cap: string, available: string }> {
         const vaultContract = lending.contracts[this.addresses.vault].multicallContract;
         const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
 
-        const [_cap, _available]: bigint[] = await lending.multicallProvider.all([
-            vaultContract.totalAssets(this.addresses.controller),
-            borrowedContract.balanceOf(this.addresses.controller),
-        ]);
+        let _cap, _available;
+        if(isGetter) {
+            _cap = cacheStats.get(cacheKey(this.addresses.controller, 'totalAssets'));
+            _available = cacheStats.get(cacheKey(this.addresses.controller, 'balanceOf'));
+        } else {
+            [_cap, _available] =await lending.multicallProvider.all([
+                vaultContract.totalAssets(this.addresses.controller),
+                borrowedContract.balanceOf(this.addresses.controller),
+            ]);
+            cacheStats.set(cacheKey(this.addresses.controller, 'totalAssets'), _cap);
+            cacheStats.set(cacheKey(this.addresses.controller, 'balanceOf'), _available);
+        }
 
         return {
             cap: lending.formatUnits(_cap, this.borrowed_token.decimals),

@@ -2022,7 +2022,7 @@ export class OneWayMarketTemplate {
             _userEffectiveCollateral = _userCollateral + fromBN(BN(userBorrowed).div(pAvgBN), this.collateral_token.decimals);
             const _maxBorrowable = await contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral, range, fromBN(pAvgBN));
             if (_maxBorrowable === BigInt(0)) break;
-            maxBorrowableBN = toBN(_maxBorrowable, this.borrowed_token.decimals);
+            maxBorrowableBN = toBN(_maxBorrowable, this.borrowed_token.decimals).times(0.998);
 
             if (maxBorrowableBN.minus(maxBorrowablePrevBN).abs().div(maxBorrowablePrevBN).lt(0.0005)) {
                 maxBorrowableBN = maxBorrowablePrevBN;
@@ -2083,7 +2083,7 @@ export class OneWayMarketTemplate {
                 calls.push(contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral[j], N, fromBN(pBN)));
             }
             _maxBorrowable = await lending.multicallProvider.all(calls);
-            maxBorrowableBN = _maxBorrowable.map((_mb) => toBN(_mb, this.borrowed_token.decimals));
+            maxBorrowableBN = _maxBorrowable.map((_mb) => toBN(_mb, this.borrowed_token.decimals).times(0.998));
 
             const deltaBN = maxBorrowableBN.map((mb, l) => mb.minus(maxBorrowablePrevBN[l]).abs().div(mb));
             if (BigNumber.max(...deltaBN).lt(0.0005)) {
@@ -2472,7 +2472,7 @@ export class OneWayMarketTemplate {
             let _maxBorrowable = await contract.max_borrowable(this.addresses.controller, _userEffectiveCollateral, _maxLeverageCollateral, _N, fromBN(pAvgBN));
             _maxBorrowable = _maxBorrowable * BigInt(999) / BigInt(1000);  // Revert happens if I don't do this and try to borrow max
             if (_maxBorrowable === BigInt(0)) break;
-            maxBorrowableBN = toBN(_maxBorrowable, this.borrowed_token.decimals);
+            maxBorrowableBN = toBN(_maxBorrowable, this.borrowed_token.decimals).times(0.998);
 
             if (maxBorrowableBN.minus(maxBorrowablePrevBN).abs().div(maxBorrowablePrevBN).lt(0.0005)) {
                 maxBorrowableBN = maxBorrowablePrevBN;

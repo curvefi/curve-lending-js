@@ -1374,13 +1374,12 @@ export class OneWayMarketTemplate {
         return pricesAllRanges;
     }
 
-    public async createLoanHealth(collateral: number | string, debt: number | string, range: number, full = true, address = ""): Promise<string> {
-        address = _getAddress(address);
+    public async createLoanHealth(collateral: number | string, debt: number | string, range: number, full = true): Promise<string> {
         const _collateral = parseUnits(collateral, this.collateral_token.decimals);
         const _debt = parseUnits(debt, this.borrowed_token.decimals);
 
         const contract = lending.contracts[this.addresses.controller].contract;
-        let _health = await contract.health_calculator(address, _collateral, _debt, full, range, lending.constantOptions) as bigint;
+        let _health = await contract.health_calculator(lending.constants.ZERO_ADDRESS, _collateral, _debt, full, range, lending.constantOptions) as bigint;
         _health = _health * BigInt(100);
 
         return formatUnits(_health);

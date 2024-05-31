@@ -1085,15 +1085,15 @@ export class OneWayMarketTemplate {
 
         let _cap, _available;
         if(isGetter) {
-            _cap = cacheStats.get(cacheKey(this.addresses.controller, 'totalAssets'));
-            _available = cacheStats.get(cacheKey(this.addresses.controller, 'balanceOf'));
+            _cap = cacheStats.get(cacheKey(this.addresses.vault, 'totalAssets', this.addresses.controller));
+            _available = cacheStats.get(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.controller));
         } else {
             [_cap, _available] =await lending.multicallProvider.all([
                 vaultContract.totalAssets(this.addresses.controller),
                 borrowedContract.balanceOf(this.addresses.controller),
             ]);
-            cacheStats.set(cacheKey(this.addresses.controller, 'totalAssets'), _cap);
-            cacheStats.set(cacheKey(this.addresses.controller, 'balanceOf'), _available);
+            cacheStats.set(cacheKey(this.addresses.vault, 'totalAssets', this.addresses.controller), _cap);
+            cacheStats.set(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.controller), _available);
         }
 
         return {

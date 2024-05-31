@@ -43,6 +43,7 @@ const lending = {
     getUsdRate,
     getGasPriceFromL2,
     getGasInfoForL2,
+    fetchStats: _lending.fetchStats,
     oneWayfactory: {
         fetchMarkets:  _lending.fetchOneWayMarkets,
         getMarketList: _lending.getOneWayMarketList,

@@ -91,15 +91,15 @@ export class OneWayMarketTemplate {
             base_price: string,
             A: string,
         }>,
-        rates: () => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
+        rates: (isGetter?: boolean) => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
         futureRates: (dReserves: TAmount, dDebt: TAmount) => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
         balances: () => Promise<[string, string]>,
         bandsInfo: () => Promise<{ activeBand: number, maxBand: number, minBand: number, liquidationBand: number | null }>
         bandBalances:(n: number) => Promise<{ borrowed: string, collateral: string }>,
         bandsBalances: () => Promise<{ [index: number]: { borrowed: string, collateral: string } }>,
-        totalDebt: () => Promise<string>,
-        ammBalances: () => Promise<{ borrowed: string, collateral: string }>,
-        capAndAvailable: () => Promise<{ cap: string, available: string }>,
+        totalDebt: (isGetter?: boolean) => Promise<string>,
+        ammBalances: (isGetter?: boolean) => Promise<{ borrowed: string, collateral: string }>,
+        capAndAvailable: (isGetter?: boolean) => Promise<{ cap: string, available: string }>,
     };
     wallet: {
         balances: (address?: string) => Promise<{ collateral: string, borrowed: string, vaultShares: string, gauge: string }>,

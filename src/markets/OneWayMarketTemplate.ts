@@ -1061,7 +1061,7 @@ export class OneWayMarketTemplate {
                 cacheStats.get(cacheKey(this.addresses.amm, 'admin_fees_y')),
             ]
         } else {
-            const [_balance_x, _fee_x, _balance_y, _fee_y]: bigint[] = await lending.multicallProvider.all([
+            [_balance_x, _fee_x, _balance_y, _fee_y] = await lending.multicallProvider.all([
                 borrowedContract.balanceOf(this.addresses.amm),
                 ammContract.admin_fees_x(),
                 collateralContract.balanceOf(this.addresses.amm),

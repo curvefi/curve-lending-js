@@ -342,6 +342,8 @@ class Lending implements ILending {
     }
 
     fetchStats = async (amms: string[], controllers: string[], vaults: string[], borrowed_tokens: string[], collateral_tokens: string[]) => {
+        cacheStats.clear();
+
         const calls: Call[] = [];
         const marketCount = controllers.length;
 

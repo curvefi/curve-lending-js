@@ -37,13 +37,11 @@ export const ALIASES_AVALANCHE = lowerCaseValues({
 
 export const ALIASES_ARBITRUM = lowerCaseValues({
     "crv": "0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978",
-    "one_way_factory": "0xcaEC110C784c9DF37240a8Ce096D352A75922DeA",  // REAL
-    // "one_way_factory": "0xb3adda9b28f0f117FD5b6eFE7f0a0cd662Dba5D6",  // TEST
+    "one_way_factory": "0xcaEC110C784c9DF37240a8Ce096D352A75922DeA",
     "gauge_controller": "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB",
     "gauge_factory": "0xabC000d88f23Bb45525E447528DBF656A9D55bf5",
-    "leverage_zap": "0x0000000000000000000000000000000000000000",  // REAL
-    // "leverage_zap": "0xA233e77AE47bf839Fd1c1d30f9EAa0584737376a",  // TEST
-    "leverage_markets_start_id": "",
+    "leverage_zap": "0x61C404B60ee9c5fB09F70F9A645DD38fE5b3A956",
+    "leverage_markets_start_id": "9",
 });
 
 export const ALIASES_OPTIMISM = lowerCaseValues({

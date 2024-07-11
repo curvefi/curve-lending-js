@@ -25,7 +25,7 @@ import {
 import {IDict, TGas, TAmount, IReward, I1inchRoute, I1inchSwapData} from "../interfaces.js";
 import {_getExpected1inch, _getSwapData1inch} from "../external-api.js";
 import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
-import {cacheKey, cacheStats} from "../cache";
+import {cacheKey, cacheStats} from "../cache/index.js";
 
 
 const DAY = 86400;

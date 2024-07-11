@@ -1,6 +1,6 @@
 import { ethers, Contract, Networkish, BigNumberish, Numeric } from "ethers";
 import { Provider as MulticallProvider, Contract as MulticallContract, Call } from 'ethcall';
-import { IChainId, ILending, IDict, INetworkName, ICurveContract, IOneWayMarket, ICoin } from "./interfaces";
+import { IChainId, ILending, IDict, INetworkName, ICurveContract, IOneWayMarket, ICoin } from "./interfaces.js";
 import OneWayLendingFactoryABI from "./constants/abis/OneWayLendingFactoryABI.json" assert { type: 'json' };
 import ERC20ABI from './constants/abis/ERC20.json' assert { type: 'json' };
 import LlammaABI from './constants/abis/Llamma.json' assert { type: 'json' };
@@ -47,7 +47,7 @@ import {
     COINS_BSC,
 } from "./constants/coins.js";
 import { createCall, handleMultiCallResponse} from "./utils.js";
-import {cacheKey, cacheStats} from "./cache";
+import {cacheKey, cacheStats} from "./cache/index.js";
 
 export const NETWORK_CONSTANTS: { [index: number]: any } = {
     1: {

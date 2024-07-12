@@ -3,7 +3,7 @@ import { ethers,  BigNumberish, Numeric } from "ethers";
 import { Call } from "ethcall";
 import BigNumber from 'bignumber.js';
 import {ICurveContract, IDict, TGas} from "./interfaces.js";
-import { _getAllPoolsFromApi } from "./external-api.js";
+import { _getUsdPricesFromApi } from "./external-api.js";
 import { lending } from "./lending.js";
 import {JsonFragment} from "ethers/lib.esm";
 
@@ -290,85 +290,6 @@ export const ensureAllowance = async (coins: string[], amounts: (number | string
 
     return await _ensureAllowance(coinAddresses, _amounts, spender, isMax)
 }
-
-export const _getUsdPricesFromApi = async (): Promise<IDict<number>> => {
-    const network = lending.constants.NETWORK_NAME;
-    const allTypesExtendedPoolData = await _getAllPoolsFromApi(network);
-    const priceDict: IDict<Record<string, number>[]> = {};
-    const priceDictByMaxTvl: IDict<number> = {};
-
-    for (const extendedPoolData of allTypesExtendedPoolData) {
-        for (const pool of extendedPoolData.poolData) {
-            const lpTokenAddress = pool.lpTokenAddress ?? pool.address;
-            const totalSupply = pool.totalSupply / (10 ** 18);
-            if(lpTokenAddress.toLowerCase() in priceDict) {
-                priceDict[lpTokenAddress.toLowerCase()].push({
-                    price: pool.usdTotal && totalSupply ? pool.usdTotal / totalSupply : 0,
-                    tvl: pool.usdTotal,
-                })
-            } else {
-                priceDict[lpTokenAddress.toLowerCase()] = []
-                priceDict[lpTokenAddress.toLowerCase()].push({
-                    price: pool.usdTotal && totalSupply ? pool.usdTotal / totalSupply : 0,
-                    tvl: pool.usdTotal,
-                })
-            }
-
-            for (const coin of pool.coins) {
-                if (typeof coin.usdPrice === "number") {
-                    if(coin.address.toLowerCase() in priceDict) {
-                        priceDict[coin.address.toLowerCase()].push({
-                            price: coin.usdPrice,
-                            tvl: pool.usdTotal,
-                        })
-                    } else {
-                        priceDict[coin.address.toLowerCase()] = []
-                        priceDict[coin.address.toLowerCase()].push({
-                            price: coin.usdPrice,
-                            tvl: pool.usdTotal,
-                        })
-                    }
-                }
-            }
-
-            for (const coin of pool.gaugeRewards ?? []) {
-                if (typeof coin.tokenPrice === "number") {
-                    if(coin.tokenAddress.toLowerCase() in priceDict) {
-                        priceDict[coin.tokenAddress.toLowerCase()].push({
-                            price: coin.tokenPrice,
-                            tvl: pool.usdTotal,
-                        });
-                    } else {
-                        priceDict[coin.tokenAddress.toLowerCase()] = []
-                        priceDict[coin.tokenAddress.toLowerCase()].push({
-                            price: coin.tokenPrice,
-                            tvl: pool.usdTotal,
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    for(const address in priceDict) {
-        if(priceDict[address].length > 0) {
-            const maxTvlItem = priceDict[address].reduce((prev, current) => {
-                if (+current.tvl > +prev.tvl) {
-                    return current;
-                } else {
-                    return prev;
-                }
-            });
-            priceDictByMaxTvl[address] = maxTvlItem.price
-        } else {
-            priceDictByMaxTvl[address] = 0
-        }
-
-    }
-
-    return priceDictByMaxTvl
-}
-
 
 const _usdRatesCache: IDict<{ rate: number, time: number }> = {}
 export const _getUsdRate = async (assetId: string): Promise<number> => {

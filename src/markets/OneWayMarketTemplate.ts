@@ -23,7 +23,7 @@ import {
     smartNumber,
 } from "../utils.js";
 import {IDict, TGas, TAmount, IReward, I1inchRoute, I1inchSwapData} from "../interfaces.js";
-import {_getExpected1inch, _getSwapData1inch} from "../external-api.js";
+import { _getExpected1inch, _getSwapData1inch, _getSpotPrice1inch } from "../external-api.js";
 import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
 import {cacheKey, cacheStats} from "../cache/index.js";
 
@@ -177,7 +177,7 @@ export class OneWayMarketTemplate {
             }>>,
         createLoanExpectedCollateral: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, slippage?: number) =>
             Promise<{ totalCollateral: string, userCollateral: string, collateralFromUserBorrowed: string, collateralFromDebt: string, leverage: string, avgPrice: string }>,
-        createLoanPriceImpact: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<string>,
+        createLoanPriceImpact: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<string | undefined>,
         createLoanMaxRange: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<number>,
         createLoanBands: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number) => Promise<[number, number]>,
         createLoanBandsAllRanges: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<IDict<[number, number] | null>>,
@@ -2222,13 +2222,14 @@ export class OneWayMarketTemplate {
         }
     }
 
-    private async leverageCreateLoanPriceImpact(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<string> {
+    private async leverageCreateLoanPriceImpact(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<string | undefined> {
         this._checkLeverageZap();
         const { avgPrice } = await this._leverageExpectedCollateral(userCollateral, userBorrowed, debt);
-        const oraclePrice = await this.oraclePrice();
-        if (BN(avgPrice).lt(oraclePrice)) return "0";
+        const spotPrice = await _getSpotPrice1inch(this.borrowed_token.address, this.collateral_token.address);
+        if (spotPrice === undefined) return undefined;
+        if (BN(avgPrice).lt(spotPrice)) return "0";
 
-        return BN(avgPrice).minus(oraclePrice).div(oraclePrice).times(100).toString();
+        return BN(avgPrice).minus(spotPrice).div(spotPrice).times(100).toString();
     }
 
     private async leverageCreateLoanMaxRange(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<number> {
@@ -2550,13 +2551,14 @@ export class OneWayMarketTemplate {
         }
     }
 
-    private async leverageBorrowMorePriceImpact(userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address = ""): Promise<string> {
+    private async leverageBorrowMorePriceImpact(userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address = ""): Promise<string | undefined> {
         this._checkLeverageZap();
         const { avgPrice } = await this._leverageExpectedCollateral(userCollateral, userBorrowed, dDebt, address);
-        const oraclePrice = await this.oraclePrice();
-        if (BN(avgPrice).lt(oraclePrice)) return "0";
+        const spotPrice = await _getSpotPrice1inch(this.borrowed_token.address, this.collateral_token.address);
+        if (spotPrice === undefined) return undefined;
+        if (BN(avgPrice).lt(spotPrice)) return "0";
 
-        return BN(avgPrice).minus(oraclePrice).div(oraclePrice).times(100).toString();
+        return BN(avgPrice).minus(spotPrice).div(spotPrice).times(100).toString();
     }
 
     private async leverageBorrowMoreBands(userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address = ""): Promise<[number, number]> {
@@ -2679,13 +2681,14 @@ export class OneWayMarketTemplate {
         }
     };
 
-    private async leverageRepayPriceImpact(stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount): Promise<string> {
+    private async leverageRepayPriceImpact(stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount): Promise<string | undefined> {
         this._checkLeverageZap();
         const { avgPrice } = this._leverageRepayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed);
-        const oraclePrice = await this.oraclePrice();
-        if (BN(avgPrice).lt(oraclePrice)) return "0";
+        const spotPrice = await _getSpotPrice1inch(this.borrowed_token.address, this.collateral_token.address);
+        if (spotPrice === undefined) return undefined;
+        if (BN(avgPrice).lt(spotPrice)) return "0";
 
-        return BN(avgPrice).minus(oraclePrice).div(oraclePrice).times(100).toString();
+        return BN(avgPrice).minus(spotPrice).div(spotPrice).times(100).toString();
     }
 
     private async leverageRepayIsFull(stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address = ""): Promise<boolean> {

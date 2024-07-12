@@ -200,7 +200,7 @@ export class OneWayMarketTemplate {
             }>,
         borrowMoreExpectedCollateral: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, slippage?: number, address?: string) =>
             Promise<{ totalCollateral: string, userCollateral: string, collateralFromUserBorrowed: string, collateralFromDebt: string, avgPrice: string }>,
-        borrowMorePriceImpact: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<string>,
+        borrowMorePriceImpact: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<string | undefined>,
         borrowMoreBands: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<[number, number]>,
         borrowMorePrices: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<string[]>,
         borrowMoreHealth: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, full?: boolean, address?: string) => Promise<string>,
@@ -211,7 +211,7 @@ export class OneWayMarketTemplate {
 
         repayExpectedBorrowed: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, slippage?: number) =>
             Promise<{ totalBorrowed: string, borrowedFromStateCollateral: string, borrowedFromUserCollateral: string, userBorrowed: string, avgPrice: string }>,
-        repayPriceImpact: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount) => Promise<string>,
+        repayPriceImpact: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount) => Promise<string | undefined>,
         repayIsFull: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<boolean>,
         repayIsAvailable: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<boolean>,
         repayBands: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<[number, number]>,
@@ -2686,9 +2686,9 @@ export class OneWayMarketTemplate {
         const { avgPrice } = this._leverageRepayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed);
         const spotPrice = await _getSpotPrice1inch(this.borrowed_token.address, this.collateral_token.address);
         if (spotPrice === undefined) return undefined;
-        if (BN(avgPrice).lt(spotPrice)) return "0";
+        if (BN(spotPrice).lt(avgPrice)) return "0";
 
-        return BN(avgPrice).minus(spotPrice).div(spotPrice).times(100).toString();
+        return BN(spotPrice).minus(avgPrice).div(spotPrice).times(100).toString();
     }
 
     private async leverageRepayIsFull(stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address = ""): Promise<boolean> {

@@ -109,10 +109,10 @@ export const _getUsdPricesFromApi = async (): Promise<IDict<number>> => {
 }
 
 export const _getUserCollateral = memoize(
-    async (network: INetworkName, controller: string, user: string, collateralDecimals = 18): Promise<string> => {
+    async (network: INetworkName, controller: string, user: string): Promise<string> => {
         const url = `https://prices.curve.fi/v1/lending/collateral_events/${network}/${controller}/${user}`;
         const response = await axios.get(url, { validateStatus: () => true });
-        return lending.formatUnits(lending.parseUnits(response.data.total_collateral ?? "0.0", 0), collateralDecimals);
+        return response.data.total_deposit;
     },
     {
         promise: true,

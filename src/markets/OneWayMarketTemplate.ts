@@ -23,7 +23,7 @@ import {
     smartNumber,
 } from "../utils.js";
 import {IDict, TGas, TAmount, IReward, I1inchRoute, I1inchSwapData} from "../interfaces.js";
-import { _getExpected1inch, _getSwapData1inch, _getSpotPrice1inch } from "../external-api.js";
+import { _getExpected1inch, _getSwapData1inch, _getSpotPrice1inch, _getUserCollateral } from "../external-api.js";
 import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
 import {cacheKey, cacheStats} from "../cache/index.js";
 
@@ -1250,6 +1250,32 @@ export class OneWayMarketTemplate {
         const _prices = await lending.contracts[this.addresses.controller].contract.user_prices(address, lending.constantOptions) as bigint[];
 
         return _prices.map((_p) => formatUnits(_p)).reverse();
+    }
+
+    public async userLoss(userAddress = ""): Promise<{ deposited_collateral: string, current_collateral_estimation: string, loss: string, loss_pct: string }> {
+        userAddress = _getAddress(userAddress);
+        const [deposited_collateral, _current_collateral_estimation] = await Promise.all([
+            _getUserCollateral(lending.constants.NETWORK_NAME, this.addresses.controller, userAddress),
+            lending.contracts[this.addresses.amm].contract.get_y_up(userAddress),
+        ]);
+        const current_collateral_estimation = lending.formatUnits(_current_collateral_estimation, this.collateral_token.decimals);
+        if (BN(deposited_collateral).lte(0)) {
+            return {
+                deposited_collateral,
+                current_collateral_estimation,
+                loss: "0.0",
+                loss_pct: "0.0",
+            };
+        }
+        const loss = BN(deposited_collateral).minus(current_collateral_estimation).toString()
+        const loss_pct = BN(loss).div(deposited_collateral).times(100).toString();
+
+        return {
+            deposited_collateral,
+            current_collateral_estimation,
+            loss,
+            loss_pct,
+        };
     }
 
     public async userBandsBalances(address = ""): Promise<IDict<{ collateral: string, borrowed: string }>> {

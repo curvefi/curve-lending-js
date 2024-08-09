@@ -112,7 +112,7 @@ export const _getUserCollateral = memoize(
     async (network: INetworkName, controller: string, user: string): Promise<string> => {
         const url = `https://prices.curve.fi/v1/lending/collateral_events/${network}/${controller}/${user}`;
         const response = await axios.get(url, { validateStatus: () => true });
-        return response.data.total_deposit;
+        return response.data.total_deposit_precise;
     },
     {
         promise: true,

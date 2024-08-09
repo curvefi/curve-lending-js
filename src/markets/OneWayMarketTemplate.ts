@@ -1258,6 +1258,7 @@ export class OneWayMarketTemplate {
             _getUserCollateral(lending.constants.NETWORK_NAME, this.addresses.controller, userAddress),
             lending.contracts[this.addresses.amm].contract.get_y_up(userAddress),
         ]);
+
         const current_collateral_estimation = lending.formatUnits(_current_collateral_estimation, this.collateral_token.decimals);
         if (BN(deposited_collateral).lte(0)) {
             return {

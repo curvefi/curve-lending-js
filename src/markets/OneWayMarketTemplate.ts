@@ -23,7 +23,12 @@ import {
     smartNumber,
 } from "../utils.js";
 import {IDict, TGas, TAmount, IReward, I1inchRoute, I1inchSwapData} from "../interfaces.js";
-import { _getExpected1inch, _getSwapData1inch, _getSpotPrice1inch, _getUserCollateral } from "../external-api.js";
+import {
+    _getExpected1inch,
+    _getSwapData1inch,
+    _getSpotPrice1inch,
+    _getUserCollateral,
+} from "../external-api.js";
 import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
 import {cacheKey, cacheStats} from "../cache/index.js";
 
@@ -1254,10 +1259,12 @@ export class OneWayMarketTemplate {
 
     public async userLoss(userAddress = ""): Promise<{ deposited_collateral: string, current_collateral_estimation: string, loss: string, loss_pct: string }> {
         userAddress = _getAddress(userAddress);
-        const [deposited_collateral, _current_collateral_estimation] = await Promise.all([
+        const [userCollateral, _current_collateral_estimation] = await Promise.all([
             _getUserCollateral(lending.constants.NETWORK_NAME, this.addresses.controller, userAddress),
             lending.contracts[this.addresses.amm].contract.get_y_up(userAddress),
         ]);
+
+        const deposited_collateral = userCollateral.total_deposit_precise;
 
         const current_collateral_estimation = lending.formatUnits(_current_collateral_estimation, this.collateral_token.decimals);
         if (BN(deposited_collateral).lte(0)) {
@@ -2887,5 +2894,61 @@ export class OneWayMarketTemplate {
         this._checkLeverageZap();
         await this.leverageRepayApprove(userCollateral, userBorrowed);
         return await this._leverageRepay(stateCollateral, userCollateral, userBorrowed, slippage, false) as string;
+    }
+
+    public async currentLeverage(userAddress = ''): Promise<string> {
+        userAddress = _getAddress(userAddress);
+        const [userCollateral, _current_collateral_estimation] = await Promise.all([
+            _getUserCollateral(lending.constants.NETWORK_NAME, this.addresses.controller, userAddress),
+            lending.contracts[this.addresses.amm].contract.get_y_up(userAddress),
+        ]);
+
+        const total_deposit_from_user = userCollateral.total_deposit_from_user;
+        const current_collateral_estimation = lending.formatUnits(_current_collateral_estimation, this.collateral_token.decimals);
+
+
+        return BN(current_collateral_estimation).div(total_deposit_from_user).toString();
+    }
+
+    public async currentPnL(userAddress = ''): Promise<Record<string, string>> {
+        userAddress = _getAddress(userAddress);
+
+        const calls = [
+            lending.contracts[this.addresses.amm].multicallContract.get_y_up(userAddress),
+            lending.contracts[this.addresses.controller].multicallContract.user_state(userAddress, lending.constantOptions),
+            lending.contracts[this.addresses.amm].multicallContract.price_oracle(userAddress),
+        ];
+
+        const [currentCollateralEstimation, userState, oraclePrice] = await lending.multicallProvider.all(calls) as  [bigint, bigint[],bigint];
+
+        if(!(currentCollateralEstimation || userState || oraclePrice)) {
+            throw new Error('Multicall error')
+        }
+
+        const debt = userState[2];
+
+        const userCollateral = await _getUserCollateral(lending.constants.NETWORK_NAME, this.addresses.controller, userAddress);
+        const totalDepositUsdValue = userCollateral.total_deposit_usd_value;
+
+        const currentCollateralEstimationFormatted = lending.formatUnits(currentCollateralEstimation, this.collateral_token.decimals);
+        const oraclePriceFormatted = lending.formatUnits(oraclePrice, 18);
+        const debtFormatted = lending.formatUnits(debt, 18);
+
+        const currentPosition = BN(currentCollateralEstimationFormatted)
+            .times(oraclePriceFormatted)
+            .minus(debtFormatted)
+            .toString();
+
+        const percentage = BN(currentPosition)
+            .div(totalDepositUsdValue)
+            .minus(1)
+            .times(100)
+            .toString();
+
+        return {
+            currentPosition: currentPosition,
+            deposited: totalDepositUsdValue,
+            percentage: percentage,
+        };
     }
 }

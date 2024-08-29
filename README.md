@@ -828,6 +828,16 @@ import lending from "@curvefi/lending-api";
     //     debt: '3053.026929417074184827'
     // }
     
+    await oneWayMarket.currentLeverage()
+    //0.94083266399502623316
+    
+    await oneWayMarket.currentPosition()
+    // {
+    //      currentPosition: "95777.510614373750083"
+    //      deposited: "219533.5105208847"
+    //      percentage: "-56.372259347958530763"
+    // }
+    
     await oneWayMarket.tokensToLiquidate(addressToLiquidate);
     // 301.533523886491869218
     await oneWayMarket.liquidateIsApproved();

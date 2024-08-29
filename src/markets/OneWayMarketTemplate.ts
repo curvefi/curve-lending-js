@@ -2937,7 +2937,7 @@ export class OneWayMarketTemplate {
         const currentPosition = BN(currentCollateralEstimationFormatted)
             .times(oraclePriceFormatted)
             .minus(debtFormatted)
-            .toString();
+            .toFixed(this.collateral_token.decimals)
 
         const percentage = BN(currentPosition)
             .div(totalDepositUsdValue)
@@ -2947,7 +2947,7 @@ export class OneWayMarketTemplate {
 
         return {
             currentPosition: currentPosition,
-            deposited: totalDepositUsdValue,
+            deposited: totalDepositUsdValue.toString(),
             percentage: percentage,
         };
     }

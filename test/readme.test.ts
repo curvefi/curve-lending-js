@@ -271,6 +271,10 @@ const generalTest = async () => {
 
     console.log(await oneWayMarket.userLoanExists());
     console.log(await oneWayMarket.userState());
+
+    console.log(await oneWayMarket.userLoss());
+    console.log(await oneWayMarket.currentLeverage());
+    console.log(await oneWayMarket.currentPnL());
 }
 
 const createLoanAllRangesTest = async () => {

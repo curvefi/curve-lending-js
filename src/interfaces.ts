@@ -141,3 +141,71 @@ export interface I1inchSwapData {
     protocols: I1inchRoute[],
     slippage: number,
 }
+
+interface Rates {
+    borrowApr: number;
+    borrowApy: number;
+    borrowApyPcent: number;
+    lendApr: number;
+    lendApy: number;
+    lendApyPcent: number;
+}
+
+interface Assets {
+    borrowed: AssetDetail;
+    collateral: AssetDetail;
+}
+
+interface AssetDetail {
+    symbol: string;
+    decimals: number;
+    address: string;
+    blockchainId: string;
+    usdPrice: number;
+}
+
+interface VaultShares {
+    pricePerShare: number;
+    totalShares: number;
+}
+
+interface Total {
+    total: number;
+    usdTotal: number;
+}
+
+interface LendingVaultUrls {
+    deposit: string;
+    withdraw: string;
+}
+
+interface AmmBalances {
+    ammBalanceBorrowed: number;
+    ammBalanceBorrowedUsd: number;
+    ammBalanceCollateral: number;
+    ammBalanceCollateralUsd: number;
+}
+
+export interface IMarketDataAPI {
+    id: string;
+    name: string;
+    address: string;
+    controllerAddress: string;
+    ammAddress: string;
+    monetaryPolicyAddress: string;
+    rates: Rates;
+    gaugeAddress: string;
+    gaugeRewards: any[];
+    assets: Assets;
+    vaultShares: VaultShares;
+    totalSupplied: Total;
+    borrowed: Total;
+    availableToBorrow: Total;
+    lendingVaultUrls: LendingVaultUrls;
+    usdTotal: number;
+    ammBalances: AmmBalances;
+}
+
+export interface IMarketData {
+    lendingVaultData: IMarketDataAPI[]
+}

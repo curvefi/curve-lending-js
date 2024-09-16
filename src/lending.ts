@@ -469,50 +469,35 @@ class Lending implements ILending {
         return COINS_DATA;
     }
 
-    fetchStats = async (amms: string[], controllers: string[], vaults: string[], borrowed_tokens: string[], collateral_tokens: string[], useApi= false) => {
+    fetchStats = async (amms: string[], controllers: string[], vaults: string[], borrowed_tokens: string[], collateral_tokens: string[]) => {
         cacheStats.clear();
 
         const marketCount = controllers.length;
 
-        if (useApi) {
-            const apiData = (await _getMarketsData(this.constants.NETWORK_NAME)).lendingVaultData;
+        const calls: Call[] = [];
 
-            apiData.forEach((market, i) => {
-                cacheStats.set(cacheKey(controllers[i], 'total_debt'), market.borrowed.total);
-                cacheStats.set(cacheKey(vaults[i], 'totalAssets', controllers[i]), market.vaultShares.totalShares);
-                cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', controllers[i]), market.assets.borrowed.usdPrice);
-                cacheStats.set(cacheKey(amms[i], 'rate'), market.ammBalances.ammBalanceCollateral);
-                cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', amms[i]), market.ammBalances.ammBalanceBorrowed);
-                cacheStats.set(cacheKey(amms[i], 'admin_fees_x'), market.ammBalances.ammBalanceCollateralUsd);
-                cacheStats.set(cacheKey(amms[i], 'admin_fees_y'), market.ammBalances.ammBalanceBorrowedUsd);
-                cacheStats.set(cacheKey(collateral_tokens[i], 'balanceOf', amms[i]), market.assets.collateral.usdPrice);
-            });
-        } else {
-            const calls: Call[] = [];
+        for (let i = 0; i < marketCount; i++) {
+            calls.push(createCall(this.contracts[controllers[i]], 'total_debt', []));
+            calls.push(createCall(this.contracts[vaults[i]], 'totalAssets', [controllers[i]]));
+            calls.push(createCall(this.contracts[borrowed_tokens[i]], 'balanceOf', [controllers[i]]));
+            calls.push(createCall(this.contracts[amms[i]], 'rate', []));
+            calls.push(createCall(this.contracts[borrowed_tokens[i]], 'balanceOf', [amms[i]]));
+            calls.push(createCall(this.contracts[amms[i]], 'admin_fees_x', []));
+            calls.push(createCall(this.contracts[amms[i]], 'admin_fees_y', []));
+            calls.push(createCall(this.contracts[collateral_tokens[i]], 'balanceOf', [amms[i]]));
+        }
 
-            for (let i = 0; i < marketCount; i++) {
-                calls.push(createCall(this.contracts[controllers[i]], 'total_debt', []));
-                calls.push(createCall(this.contracts[vaults[i]], 'totalAssets', [controllers[i]]));
-                calls.push(createCall(this.contracts[borrowed_tokens[i]], 'balanceOf', [controllers[i]]));
-                calls.push(createCall(this.contracts[amms[i]], 'rate', []));
-                calls.push(createCall(this.contracts[borrowed_tokens[i]], 'balanceOf', [amms[i]]));
-                calls.push(createCall(this.contracts[amms[i]], 'admin_fees_x', []));
-                calls.push(createCall(this.contracts[amms[i]], 'admin_fees_y', []));
-                calls.push(createCall(this.contracts[collateral_tokens[i]], 'balanceOf', [amms[i]]));
-            }
+        const res = await this.multicallProvider.all(calls);
 
-            const res = await this.multicallProvider.all(calls);
-
-            for (let i = 0; i < marketCount; i++) {
-                cacheStats.set(cacheKey(controllers[i], 'total_debt'), res[(i * 8) + 0]);
-                cacheStats.set(cacheKey(vaults[i], 'totalAssets', controllers[i]), res[(i * 8) + 1]);
-                cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', controllers[i]), res[(i * 8) + 2]);
-                cacheStats.set(cacheKey(amms[i], 'rate'), res[(i * 8) + 3]);
-                cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', amms[i]), res[(i * 8) + 4]);
-                cacheStats.set(cacheKey(amms[i], 'admin_fees_x'), res[(i * 8) + 5]);
-                cacheStats.set(cacheKey(amms[i], 'admin_fees_y'), res[(i * 8) + 6]);
-                cacheStats.set(cacheKey(collateral_tokens[i], 'balanceOf', amms[i]), res[(i * 8) + 7]);
-            }
+        for (let i = 0; i < marketCount; i++) {
+            cacheStats.set(cacheKey(controllers[i], 'total_debt'), res[(i * 8) + 0]);
+            cacheStats.set(cacheKey(vaults[i], 'totalAssets', controllers[i]), res[(i * 8) + 1]);
+            cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', controllers[i]), res[(i * 8) + 2]);
+            cacheStats.set(cacheKey(amms[i], 'rate'), res[(i * 8) + 3]);
+            cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', amms[i]), res[(i * 8) + 4]);
+            cacheStats.set(cacheKey(amms[i], 'admin_fees_x'), res[(i * 8) + 5]);
+            cacheStats.set(cacheKey(amms[i], 'admin_fees_y'), res[(i * 8) + 6]);
+            cacheStats.set(cacheKey(collateral_tokens[i], 'balanceOf', amms[i]), res[(i * 8) + 7]);
         }
     };
 
@@ -615,8 +600,6 @@ class Lending implements ILending {
                 collateral_token: COIN_DATA[collateral_tokens[index]],
             }
         })
-
-        await this.fetchStats(amms, controllers, vaults, borrowed_tokens, collateral_tokens, true);
     }
 
     formatUnits(value: BigNumberish, unit?: string | Numeric): string {

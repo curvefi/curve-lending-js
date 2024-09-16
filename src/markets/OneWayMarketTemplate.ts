@@ -27,7 +27,7 @@ import {
     _getExpected1inch,
     _getSwapData1inch,
     _getSpotPrice1inch,
-    _getUserCollateral,
+    _getUserCollateral, _getMarketsData,
 } from "../external-api.js";
 import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
 import {cacheKey, cacheStats} from "../cache/index.js";
@@ -96,15 +96,15 @@ export class OneWayMarketTemplate {
             base_price: string,
             A: string,
         }>,
-        rates: (isGetter?: boolean) => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
+        rates: (isGetter?: boolean, useAPI?: boolean) => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
         futureRates: (dReserves: TAmount, dDebt: TAmount) => Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}>,
         balances: () => Promise<[string, string]>,
         bandsInfo: () => Promise<{ activeBand: number, maxBand: number, minBand: number, liquidationBand: number | null }>
         bandBalances:(n: number) => Promise<{ borrowed: string, collateral: string }>,
         bandsBalances: () => Promise<{ [index: number]: { borrowed: string, collateral: string } }>,
-        totalDebt: (isGetter?: boolean) => Promise<string>,
-        ammBalances: (isGetter?: boolean) => Promise<{ borrowed: string, collateral: string }>,
-        capAndAvailable: (isGetter?: boolean) => Promise<{ cap: string, available: string }>,
+        totalDebt: (isGetter?: boolean, useAPI?: boolean) => Promise<string>,
+        ammBalances: (isGetter?: boolean, useAPI?: boolean) => Promise<{ borrowed: string, collateral: string }>,
+        capAndAvailable: (isGetter?: boolean, useAPI?: boolean) => Promise<{ cap: string, available: string }>,
     };
     wallet: {
         balances: (address?: string) => Promise<{ collateral: string, borrowed: string, vaultShares: string, gauge: string }>,
@@ -788,47 +788,59 @@ export class OneWayMarketTemplate {
     });
 
     private vaultRewardsApr = async (useApi = true): Promise<IReward[]> => {
-        if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) return [];
+        if(useApi) {
+            const response = await _getMarketsData(lending.constants.NETWORK_NAME);
 
-        // const isDisabledChain = [1313161554].includes(lending.chainId); // Disable Aurora
-        // if (useApi && !isDisabledChain) {
-        //     const rewards = await _getRewardsFromApi();
-        //     if (!rewards[this.addresses.gauge]) return [];
-        //     return rewards[this.addresses.gauge].map((r) => ({ gaugeAddress: r.gaugeAddress, tokenAddress: r.tokenAddress, symbol: r.symbol, apy: r.apy }));
-        // }
+            const market = response.lendingVaultData.find((item) => item.address.toLowerCase() === this.addresses.vault.toLowerCase())
 
-        const apy: IReward[] = [];
-        const rewardTokens = await this.vaultRewardTokens(false);
-        for (const rewardToken of rewardTokens) {
-            const gaugeContract = lending.contracts[this.addresses.gauge].multicallContract;
-            const lpTokenContract = lending.contracts[this.addresses.vault].multicallContract;
-            const rewardContract = lending.contracts[this.addresses.gauge].multicallContract;
+            if(market) {
+                return market.gaugeRewards
+            } else {
+                throw new Error('Market not found in API')
+            }
+        } else {
+            if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) return [];
 
-            const totalLiquidityUSD = await this.vaultTotalLiquidity();
-            const rewardRate = await _getUsdRate(rewardToken.token);
+            // const isDisabledChain = [1313161554].includes(lending.chainId); // Disable Aurora
+            // if (useApi && !isDisabledChain) {
+            //     const rewards = await _getRewardsFromApi();
+            //     if (!rewards[this.addresses.gauge]) return [];
+            //     return rewards[this.addresses.gauge].map((r) => ({ gaugeAddress: r.gaugeAddress, tokenAddress: r.tokenAddress, symbol: r.symbol, apy: r.apy }));
+            // }
 
-            const [rewardData, _stakedSupply, _totalSupply] = (await lending.multicallProvider.all([
-                rewardContract.reward_data(rewardToken.token),
-                gaugeContract.totalSupply(),
-                lpTokenContract.totalSupply(),
-            ]) as any[]);
-            const stakedSupplyBN = toBN(_stakedSupply as bigint);
-            const totalSupplyBN = toBN(_totalSupply as bigint);
-            const inflationBN = toBN(rewardData.rate, rewardToken.decimals);
-            const periodFinish = Number(lending.formatUnits(rewardData.period_finish, 0)) * 1000;
-            const baseApy = periodFinish > Date.now() ?
-                inflationBN.times(31536000).times(rewardRate).div(stakedSupplyBN).times(totalSupplyBN).div(Number(totalLiquidityUSD)) :
-                BN(0);
+            const apy: IReward[] = [];
+            const rewardTokens = await this.vaultRewardTokens(false);
+            for (const rewardToken of rewardTokens) {
+                const gaugeContract = lending.contracts[this.addresses.gauge].multicallContract;
+                const lpTokenContract = lending.contracts[this.addresses.vault].multicallContract;
+                const rewardContract = lending.contracts[this.addresses.gauge].multicallContract;
 
-            apy.push({
-                gaugeAddress: this.addresses.gauge,
-                tokenAddress: rewardToken.token,
-                symbol: rewardToken.symbol,
-                apy: baseApy.times(100).toNumber(),
-            });
+                const totalLiquidityUSD = await this.vaultTotalLiquidity();
+                const rewardRate = await _getUsdRate(rewardToken.token);
+
+                const [rewardData, _stakedSupply, _totalSupply] = (await lending.multicallProvider.all([
+                    rewardContract.reward_data(rewardToken.token),
+                    gaugeContract.totalSupply(),
+                    lpTokenContract.totalSupply(),
+                ]) as any[]);
+                const stakedSupplyBN = toBN(_stakedSupply as bigint);
+                const totalSupplyBN = toBN(_totalSupply as bigint);
+                const inflationBN = toBN(rewardData.rate, rewardToken.decimals);
+                const periodFinish = Number(lending.formatUnits(rewardData.period_finish, 0)) * 1000;
+                const baseApy = periodFinish > Date.now() ?
+                    inflationBN.times(31536000).times(rewardRate).div(stakedSupplyBN).times(totalSupplyBN).div(Number(totalLiquidityUSD)) :
+                    BN(0);
+
+                apy.push({
+                    gaugeAddress: this.addresses.gauge,
+                    tokenAddress: rewardToken.token,
+                    symbol: rewardToken.symbol,
+                    apy: baseApy.times(100).toNumber(),
+                });
+            }
+
+            return apy
         }
-
-        return apy
     }
 
     private async vaultClaimableRewards(address = ""): Promise<{token: string, symbol: string, amount: string}[]> {
@@ -926,23 +938,40 @@ export class OneWayMarketTemplate {
         return await mpContract.future_rate(this.addresses.controller, _dReserves, _dDebt);
     }
 
-    private async statsRates(isGetter = true): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
-        const _rate = await this._getRate(isGetter);
-        const borrowApr =  toBN(_rate).times(365).times(86400).times(100).toString();
-        // borrowApy = e**(rate*365*86400) - 1
-        const borrowApy = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
-        let lendApr = "0";
-        let lendApy = "0";
-        const debt = await this.statsTotalDebt(isGetter);
-        if (Number(debt) > 0) {
-            const { cap } = await this.statsCapAndAvailable(isGetter);
-            lendApr = toBN(_rate).times(365).times(86400).times(debt).div(cap).times(100).toString();
-            // lendApy = (debt * e**(rate*365*86400) - debt) / cap
-            const debtInAYearBN = BN(debt).times(2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber());
-            lendApy = debtInAYearBN.minus(debt).div(cap).times(100).toString();
-        }
+    private async statsRates(isGetter = true, useAPI = false): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
+        if(useAPI) {
+            const response = await _getMarketsData(lending.constants.NETWORK_NAME);
 
-        return { borrowApr, lendApr, borrowApy, lendApy }
+            const market = response.lendingVaultData.find((item) => item.address.toLowerCase() === this.addresses.vault.toLowerCase())
+
+            if(market) {
+                return {
+                    borrowApr: (market.rates.borrowApr * 100).toString(),
+                    lendApr: (market.rates.lendApr * 100).toString(),
+                    borrowApy: (market.rates.borrowApy * 100).toString(),
+                    lendApy: (market.rates.lendApy * 100).toString(),
+                }
+            } else {
+                throw new Error('Market not found in API')
+            }
+        } else {
+            const _rate = await this._getRate(isGetter);
+            const borrowApr =  toBN(_rate).times(365).times(86400).times(100).toString();
+            // borrowApy = e**(rate*365*86400) - 1
+            const borrowApy = String(((2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber()) - 1) * 100);
+            let lendApr = "0";
+            let lendApy = "0";
+            const debt = await this.statsTotalDebt(isGetter);
+            if (Number(debt) > 0) {
+                const { cap } = await this.statsCapAndAvailable(isGetter);
+                lendApr = toBN(_rate).times(365).times(86400).times(debt).div(cap).times(100).toString();
+                // lendApy = (debt * e**(rate*365*86400) - debt) / cap
+                const debtInAYearBN = BN(debt).times(2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber());
+                lendApy = debtInAYearBN.minus(debt).div(cap).times(100).toString();
+            }
+
+            return { borrowApr, lendApr, borrowApy, lendApy }
+        }
     }
 
     private async statsFutureRates(dReserves: TAmount, dDebt: TAmount): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
@@ -1040,70 +1069,112 @@ export class OneWayMarketTemplate {
         return bands
     }
 
-    private async statsTotalDebt(isGetter = true): Promise<string> {
-        let _debt;
-        if(isGetter) {
-            _debt = cacheStats.get(cacheKey(this.addresses.controller, 'total_debt'));
+    private async statsTotalDebt(isGetter = true, useAPI = true): Promise<string> {
+        if(useAPI) {
+            const response = await _getMarketsData(lending.constants.NETWORK_NAME);
+
+            const market = response.lendingVaultData.find((item) => item.address.toLowerCase() === this.addresses.vault.toLowerCase())
+
+            if(market) {
+                return market.borrowed.total.toString();
+            } else {
+                throw new Error('Market not found in API')
+            }
         } else {
-            _debt = await lending.contracts[this.addresses.controller].contract.total_debt(lending.constantOptions);
-            cacheStats.set(cacheKey(this.addresses.controller, 'total_debt'), _debt);
-        }
+            let _debt;
+            if(isGetter) {
+                _debt = cacheStats.get(cacheKey(this.addresses.controller, 'total_debt'));
+            } else {
+                _debt = await lending.contracts[this.addresses.controller].contract.total_debt(lending.constantOptions);
+                cacheStats.set(cacheKey(this.addresses.controller, 'total_debt'), _debt);
+            }
 
-        return formatUnits(_debt, this.borrowed_token.decimals);
-    }
-
-    private statsAmmBalances = async (isGetter = true): Promise<{ borrowed: string, collateral: string }> => {
-        const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
-        const collateralContract = lending.contracts[this.addresses.collateral_token].multicallContract;
-        const ammContract = lending.contracts[this.addresses.amm].multicallContract;
-
-        let _balance_x, _fee_x, _balance_y, _fee_y;
-        if(isGetter) {
-            [_balance_x, _fee_x, _balance_y, _fee_y] = [
-                cacheStats.get(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.amm)),
-                cacheStats.get(cacheKey(this.addresses.amm, 'admin_fees_x')),
-                cacheStats.get(cacheKey(this.addresses.collateral_token, 'balanceOf', this.addresses.amm)),
-                cacheStats.get(cacheKey(this.addresses.amm, 'admin_fees_y')),
-            ]
-        } else {
-            [_balance_x, _fee_x, _balance_y, _fee_y] = await lending.multicallProvider.all([
-                borrowedContract.balanceOf(this.addresses.amm),
-                ammContract.admin_fees_x(),
-                collateralContract.balanceOf(this.addresses.amm),
-                ammContract.admin_fees_y(),
-            ]);
-            cacheStats.set(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.amm), _balance_x);
-            cacheStats.set(cacheKey(this.addresses.amm, 'admin_fees_x'), _fee_x);
-            cacheStats.set(cacheKey(this.addresses.collateral_token, 'balanceOf', this.addresses.amm), _balance_y);
-            cacheStats.set(cacheKey(this.addresses.amm, 'admin_fees_y'), _fee_y);
-        }
-
-        return {
-            borrowed: toBN(_balance_x, this.borrowed_token.decimals).minus(toBN(_fee_x, this.borrowed_token.decimals)).toString(),
-            collateral: toBN(_balance_y, this.collateral_token.decimals).minus(toBN(_fee_y, this.collateral_token.decimals)).toString(),
+            return formatUnits(_debt, this.borrowed_token.decimals);
         }
     }
 
-    private async statsCapAndAvailable(isGetter = true): Promise<{ cap: string, available: string }> {
-        const vaultContract = lending.contracts[this.addresses.vault].multicallContract;
-        const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
+    private statsAmmBalances = async (isGetter = true, useAPI = false): Promise<{ borrowed: string, collateral: string }> => {
+        if(useAPI) {
+            const response = await _getMarketsData(lending.constants.NETWORK_NAME);
 
-        let _cap, _available;
-        if(isGetter) {
-            _cap = cacheStats.get(cacheKey(this.addresses.vault, 'totalAssets', this.addresses.controller));
-            _available = cacheStats.get(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.controller));
+            const market = response.lendingVaultData.find((item) => item.address.toLowerCase() === this.addresses.vault.toLowerCase())
+
+            if(market) {
+                return {
+                    borrowed: market.ammBalances.ammBalanceBorrowed.toString(),
+                    collateral: market.ammBalances.ammBalanceCollateral.toString(),
+                }
+            } else {
+                throw new Error('Market not found in API')
+            }
         } else {
-            [_cap, _available] =await lending.multicallProvider.all([
-                vaultContract.totalAssets(this.addresses.controller),
-                borrowedContract.balanceOf(this.addresses.controller),
-            ]);
-            cacheStats.set(cacheKey(this.addresses.vault, 'totalAssets', this.addresses.controller), _cap);
-            cacheStats.set(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.controller), _available);
-        }
+            const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
+            const collateralContract = lending.contracts[this.addresses.collateral_token].multicallContract;
+            const ammContract = lending.contracts[this.addresses.amm].multicallContract;
 
-        return {
-            cap: lending.formatUnits(_cap, this.borrowed_token.decimals),
-            available: lending.formatUnits(_available, this.borrowed_token.decimals),
+            let _balance_x, _fee_x, _balance_y, _fee_y;
+            if(isGetter) {
+                [_balance_x, _fee_x, _balance_y, _fee_y] = [
+                    cacheStats.get(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.amm)),
+                    cacheStats.get(cacheKey(this.addresses.amm, 'admin_fees_x')),
+                    cacheStats.get(cacheKey(this.addresses.collateral_token, 'balanceOf', this.addresses.amm)),
+                    cacheStats.get(cacheKey(this.addresses.amm, 'admin_fees_y')),
+                ]
+            } else {
+                [_balance_x, _fee_x, _balance_y, _fee_y] = await lending.multicallProvider.all([
+                    borrowedContract.balanceOf(this.addresses.amm),
+                    ammContract.admin_fees_x(),
+                    collateralContract.balanceOf(this.addresses.amm),
+                    ammContract.admin_fees_y(),
+                ]);
+                cacheStats.set(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.amm), _balance_x);
+                cacheStats.set(cacheKey(this.addresses.amm, 'admin_fees_x'), _fee_x);
+                cacheStats.set(cacheKey(this.addresses.collateral_token, 'balanceOf', this.addresses.amm), _balance_y);
+                cacheStats.set(cacheKey(this.addresses.amm, 'admin_fees_y'), _fee_y);
+            }
+
+            return {
+                borrowed: toBN(_balance_x, this.borrowed_token.decimals).minus(toBN(_fee_x, this.borrowed_token.decimals)).toString(),
+                collateral: toBN(_balance_y, this.collateral_token.decimals).minus(toBN(_fee_y, this.collateral_token.decimals)).toString(),
+            }
+        }
+    }
+
+    private async statsCapAndAvailable(isGetter = true, useAPI = false): Promise<{ cap: string, available: string }> {
+        if(useAPI) {
+            const response = await _getMarketsData(lending.constants.NETWORK_NAME);
+
+            const market = response.lendingVaultData.find((item) => item.address.toLowerCase() === this.addresses.vault.toLowerCase())
+
+            if(market) {
+                return {
+                    cap: market.totalSupplied.total.toString(),
+                    available: market.availableToBorrow.total.toString(),
+                }
+            } else {
+                throw new Error('Market not found in API')
+            }
+        } else {
+            const vaultContract = lending.contracts[this.addresses.vault].multicallContract;
+            const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
+
+            let _cap, _available;
+            if(isGetter) {
+                _cap = cacheStats.get(cacheKey(this.addresses.vault, 'totalAssets', this.addresses.controller));
+                _available = cacheStats.get(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.controller));
+            } else {
+                [_cap, _available] =await lending.multicallProvider.all([
+                    vaultContract.totalAssets(this.addresses.controller),
+                    borrowedContract.balanceOf(this.addresses.controller),
+                ]);
+                cacheStats.set(cacheKey(this.addresses.vault, 'totalAssets', this.addresses.controller), _cap);
+                cacheStats.set(cacheKey(this.addresses.borrowed_token, 'balanceOf', this.addresses.controller), _available);
+            }
+
+            return {
+                cap: lending.formatUnits(_cap, this.borrowed_token.decimals),
+                available: lending.formatUnits(_available, this.borrowed_token.decimals),
+            }
         }
     }
 

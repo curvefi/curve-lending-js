@@ -2,7 +2,14 @@ import axios from "axios";
 import memoize from "memoizee";
 import BigNumber from 'bignumber.js';
 import { lending } from "./lending.js";
-import { IExtendedPoolDataFromApi, INetworkName, IPoolFactory, I1inchSwapData, IDict } from "./interfaces";
+import {
+    IExtendedPoolDataFromApi,
+    INetworkName,
+    IPoolFactory,
+    I1inchSwapData,
+    IDict,
+    IMarketData,
+} from "./interfaces";
 
 
 const _getPoolsFromApi = memoize(
@@ -191,6 +198,26 @@ export const _getSpotPrice1inch = memoize(
         if (prices[fromToken] === '0' || prices[toToken] === '0') return undefined;
 
         return (new BigNumber(prices[toToken])).div(prices[fromToken]).toString()
+    },
+    {
+        promise: true,
+        maxAge: 10 * 1000, // 10s
+    }
+)
+
+export const _getMarketsData = memoize(
+    async (network: INetworkName): Promise<IMarketData> => {
+        const url = `https://api.curve.fi/api/getLendingVaults/${network}/oneway`;
+        const response = await axios.get(
+            url,
+            {
+                headers: {"accept": "application/json"},
+                validateStatus: () => true,
+            });
+        if (response.status !== 200) {
+            throw Error(`Fetch error: ${response.status} ${response.statusText}`);
+        }
+        return response.data.data;
     },
     {
         promise: true,

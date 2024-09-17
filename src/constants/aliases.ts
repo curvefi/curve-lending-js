@@ -46,10 +46,12 @@ export const ALIASES_ARBITRUM = lowerCaseValues({
 
 export const ALIASES_OPTIMISM = lowerCaseValues({
     "crv": "0x0994206dfE8De6Ec6920FF4D779B0d950605Fb53",
-    "one_way_factory": "0x0000000000000000000000000000000000000000",
+    "one_way_factory": "0x5EA8f3D674C70b020586933A0a5b250734798BeF",
     "gauge_controller": "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB",
     "gauge_factory": "0xabC000d88f23Bb45525E447528DBF656A9D55bf5",
     "leverage_zap": "0x0000000000000000000000000000000000000000",
+    "gas_oracle": '0xc0d3C0d3C0d3c0D3C0D3C0d3C0d3C0D3C0D3000f',
+    "gas_oracle_blob": '0x420000000000000000000000000000000000000f',
 });
 
 export const ALIASES_XDAI = lowerCaseValues({
@@ -112,5 +114,13 @@ export const ALIASES_BSC = lowerCaseValues({
     "one_way_factory": "0x0000000000000000000000000000000000000000",
     "gauge_controller": "0x0000000000000000000000000000000000000000", // <--- TODO CHANGE
     "gauge_factory": "0xabC000d88f23Bb45525E447528DBF656A9D55bf5",
+    "leverage_zap": "0x0000000000000000000000000000000000000000",
+});
+
+export const ALIASES_FRAXTAL = lowerCaseValues({
+    "crv": "0x331B9182088e2A7d6D3Fe4742AbA1fB231aEcc56",
+    "one_way_factory": "0xf3c9bdAB17B7016fBE3B77D17b1602A7db93ac66",
+    "gauge_controller": "0x0000000000000000000000000000000000000000", // <--- TODO CHANGE
+    "gauge_factory": "0xeF672bD94913CB6f1d2812a6e18c1fFdEd8eFf5c",
     "leverage_zap": "0x0000000000000000000000000000000000000000",
 });

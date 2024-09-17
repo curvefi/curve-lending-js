@@ -6,6 +6,7 @@ import {ICurveContract, IDict, TGas} from "./interfaces.js";
 import { _getUsdPricesFromApi } from "./external-api.js";
 import { lending } from "./lending.js";
 import {JsonFragment} from "ethers/lib.esm";
+import {L2Networks} from "./constants/L2Networks";
 
 export const MAX_ALLOWANCE = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");  // 2**256 - 1
 export const MAX_ACTIVE_BAND = BigInt("57896044618658097711785492504343953926634992332820282019728792003956564819967");  // 2**255 - 1
@@ -305,10 +306,13 @@ export const _getUsdRate = async (assetId: string): Promise<number> => {
         56: "binance-smart-chain",
         100: 'xdai',
         137: 'polygon-pos',
+        196: 'x-layer',
         250: 'fantom',
+        252: 'fraxtal',
         324: 'zksync',
         1284: 'moonbeam',
         2222: 'kava',
+        5000: 'mantle',
         8453: 'base',
         42220: 'celo',
         43114: 'avalanche',
@@ -322,10 +326,13 @@ export const _getUsdRate = async (assetId: string): Promise<number> => {
         56: 'binancecoin',
         100: 'xdai',
         137: 'matic-network',
+        196: 'okb',
         250: 'fantom',
+        252: 'frax-ether',
         324: 'ethereum',
         1284: 'moonbeam',
         2222: 'kava',
+        5000: 'mantle',
         8453: 'ethereum',
         42220: 'celo',
         43114: 'avalanche-2',
@@ -389,6 +396,14 @@ export const getBaseFeeByLastBlock = async ()  => {
         return Number(block.baseFeePerGas) / (10**9);
     } catch (error: any) {
         throw new Error(error)
+    }
+}
+
+export const getGasPriceFromL1 = async (): Promise<number> => {
+    if(L2Networks.includes(lending.chainId) && lending.L1WeightedGasPrice) {
+        return lending.L1WeightedGasPrice + 1e9; // + 1 gwei
+    } else {
+        throw Error("This method exists only for L2 networks");
     }
 }
 

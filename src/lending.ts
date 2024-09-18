@@ -1,4 +1,5 @@
-import { ethers, Contract, Networkish, BigNumberish, Numeric } from "ethers";
+import { ethers,
+    Contract, Networkish, BigNumberish, Numeric, AbstractProvider } from "ethers";
 import { Provider as MulticallProvider, Contract as MulticallContract, Call } from 'ethcall';
 import { IChainId, ILending, IDict, INetworkName, ICurveContract, IOneWayMarket, ICoin } from "./interfaces.js";
 import OneWayLendingFactoryABI from "./constants/abis/OneWayLendingFactoryABI.json" assert { type: 'json' };
@@ -14,6 +15,8 @@ import GaugeFactoryMainnetABI from './constants/abis/GaugeFactoryMainnet.json' a
 import GaugeFactorySidechainABI from './constants/abis/GaugeFactorySidechain.json' assert { type: 'json' };
 import MinterABI from './constants/abis/Minter.json' assert { type: 'json' };
 import LeverageZapABI from './constants/abis/LeverageZap.json' assert { type: 'json' };
+import gasOracleABI from './constants/abis/gas_oracle_optimism.json' assert { type: 'json'};
+import gasOracleBlobABI from './constants/abis/gas_oracle_optimism_blob.json' assert { type: 'json'};
 import {
     ALIASES_ETHEREUM,
     ALIASES_OPTIMISM,
@@ -46,6 +49,7 @@ import {
     COINS_BASE,
     COINS_BSC,
 } from "./constants/coins.js";
+import {L2Networks} from "./constants/L2Networks";
 import { createCall, handleMultiCallResponse} from "./utils.js";
 import {cacheKey, cacheStats} from "./cache/index.js";
 
@@ -136,6 +140,7 @@ class Lending implements ILending {
     feeData: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number };
     constantOptions: { gasLimit: number };
     options: { gasPrice?: number | bigint, maxFeePerGas?: number | bigint, maxPriorityFeePerGas?: number | bigint };
+    L1WeightedGasPrice?: number;
     constants: {
         ONE_WAY_MARKETS: IDict<IOneWayMarket>,
         DECIMALS: IDict<number>;
@@ -277,7 +282,60 @@ class Lending implements ILending {
             this.constants.ALIASES.minter = this.constants.ALIASES.gauge_factory;
             this.setContract(this.constants.ALIASES.gauge_factory, GaugeFactorySidechainABI);
         }
+
+        if(L2Networks.includes(this.chainId)) {
+            // eslint-disable-next-line @typescript-eslint/no-this-alias
+            const lendingInstance = this;
+            lendingInstance.setContract(lendingInstance.constants.ALIASES.gas_oracle, gasOracleABI);
+            lendingInstance.setContract(lendingInstance.constants.ALIASES.gas_oracle_blob, gasOracleBlobABI);
+
+            // @ts-ignore
+            if(AbstractProvider.prototype.originalEstimate) {
+                // @ts-ignore
+                AbstractProvider.prototype.estimateGas = AbstractProvider.prototype.originalEstimate;
+            }
+
+            const originalEstimate = AbstractProvider.prototype.estimateGas;
+
+            const oldEstimate = async function(arg: any) {
+                // @ts-ignore
+                const originalEstimateFunc = originalEstimate.bind(this);
+
+                const gas = await originalEstimateFunc(arg);
+
+                return gas;
+            }
+
+            //Override
+            const newEstimate = async function(arg: any) {
+                // @ts-ignore
+                const L2EstimateGas = originalEstimate.bind(this);
+
+                const L1GasUsed = await lendingInstance.contracts[lendingInstance.constants.ALIASES.gas_oracle_blob].contract.getL1GasUsed(arg.data);
+                const L1Fee = await lendingInstance.contracts[lendingInstance.constants.ALIASES.gas_oracle_blob].contract.getL1Fee(arg.data);
+
+                lendingInstance.L1WeightedGasPrice = Number(L1Fee)/Number(L1GasUsed);
+
+                const L2GasUsed = await L2EstimateGas(arg);
+
+                return [L2GasUsed,L1GasUsed];
+            }
+
+            // @ts-ignore
+            AbstractProvider.prototype.estimateGas = newEstimate;
+            // @ts-ignore
+            AbstractProvider.prototype.originalEstimate = oldEstimate;
+        } else {
+            // @ts-ignore
+            if(AbstractProvider.prototype.originalEstimate) {
+                // @ts-ignore
+                AbstractProvider.prototype.estimateGas = AbstractProvider.prototype.originalEstimate;
+            }
+        }
     }
+
+
+
 
     setContract(address: string, abi: any): void {
         this.contracts[address] = {

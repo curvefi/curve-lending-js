@@ -10,6 +10,7 @@ import {
     getUsdRate,
     getGasPriceFromL2,
     getGasInfoForL2,
+    getGasPriceFromL1,
 } from "./utils.js";
 
 
@@ -41,6 +42,7 @@ const lending = {
     hasAllowance,
     ensureAllowance,
     getUsdRate,
+    getGasPriceFromL1,
     getGasPriceFromL2,
     getGasInfoForL2,
     fetchStats: _lending.fetchStats,

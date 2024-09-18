@@ -131,12 +131,12 @@ export const NETWORK_CONSTANTS: { [index: number]: any } = {
 
 class Lending implements ILending {
     address: string;
-    provider: ethers.BrowserProvider | ethers.JsonRpcProvider;
-    multicallProvider: MulticallProvider;
+    provider: ethers.BrowserProvider | ethers.JsonRpcProvider | null;
+    multicallProvider: MulticallProvider | null;
     signer: ethers.Signer | null;
     signerAddress: string;
     chainId: IChainId;
-    contracts: { [index: string]: ICurveContract };
+    contracts: { [index: string]: ICurveContract } | null;
     feeData: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number };
     constantOptions: { gasLimit: number };
     options: { gasPrice?: number | bigint, maxFeePerGas?: number | bigint, maxPriorityFeePerGas?: number | bigint };
@@ -153,14 +153,12 @@ class Lending implements ILending {
 
     constructor() {
         this.address = '00000'//COINS.lending.toLowerCase();
-        // @ts-ignore
         this.provider = null;
         this.signer = null;
         this.signerAddress = "";
         this.chainId = 1;
-        // @ts-ignore
         this.multicallProvider = null;
-        this.contracts = {};
+        this.contracts = null;
         this.feeData = {}
         this.constantOptions = { gasLimit: 12000000 }
         this.options = {};
@@ -176,19 +174,14 @@ class Lending implements ILending {
     }
 
     async init(
-        providerType: 'JsonRpc' | 'Web3' | 'Infura' | 'Alchemy',
-        providerSettings: { url?: string, privateKey?: string, batchMaxCount? : number } | { externalProvider: ethers.Eip1193Provider } | { network?: Networkish, apiKey?: string },
+        providerType?: 'JsonRpc' | 'Web3' | 'Infura' | 'Alchemy',
+        providerSettings?: { url?: string, privateKey?: string, batchMaxCount? : number } | { externalProvider: ethers.Eip1193Provider } | { network?: Networkish, apiKey?: string },
         options: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number, chainId?: number } = {} // gasPrice in Gwei
     ): Promise<void> {
-        // @ts-ignore
-        this.provider = null;
-        // @ts-ignore
         this.signer = null;
         this.signerAddress = "";
         this.chainId = 1;
-        // @ts-ignore
         this.multicallProvider = null;
-        this.contracts = {};
         this.feeData = {}
         this.constantOptions = { gasLimit: 12000000 }
         this.options = {};
@@ -201,6 +194,9 @@ class Lending implements ILending {
             ZERO_ADDRESS: ethers.ZeroAddress,
             EXCLUDED_PROTOCOLS_1INCH: "",
         };
+
+        if (!providerType) return;
+        this.contracts = {};
 
         // JsonRpc provider
         if (providerType.toLowerCase() === 'JsonRpc'.toLowerCase()) {
@@ -308,6 +304,7 @@ class Lending implements ILending {
 
             //Override
             const newEstimate = async function(arg: any) {
+                if (!lendingInstance.contracts) throw Error('Cannot get new estimate without a provider');
                 // @ts-ignore
                 const L2EstimateGas = originalEstimate.bind(this);
 
@@ -338,6 +335,7 @@ class Lending implements ILending {
 
 
     setContract(address: string, abi: any): void {
+        if (!this.contracts) throw Error('Cannot set contract without a provider');
         this.contracts[address] = {
             contract: new Contract(address, abi, this.signer || this.provider),
             multicallContract: new MulticallContract(address, abi),
@@ -353,6 +351,7 @@ class Lending implements ILending {
     getOneWayMarketList = () => Object.keys(this.constants.ONE_WAY_MARKETS);
 
     getFactoryMarketData = async () => {
+        if (!this.contracts || !this.multicallProvider) throw Error('Cannot get factory market data without a provider');
         const factory = this.contracts[this.constants.ALIASES['one_way_factory']];
         const factoryContract = this.contracts[this.constants.ALIASES['one_way_factory']].contract;
         const markets_count = await factoryContract.market_count();
@@ -370,6 +369,8 @@ class Lending implements ILending {
     }
 
     getCoins = async (collateral_tokens: string[], borrowed_tokens: string[]): Promise<IDict<ICoin>> => {
+        if (!this.contracts || !this.multicallProvider) throw Error('Cannot get coins without a provider');
+
         const calls: Call[] = [];
         const coins = new Set([...collateral_tokens, ...borrowed_tokens])
         const callsMap = ['name', 'decimals', 'symbol']
@@ -377,7 +378,7 @@ class Lending implements ILending {
         coins.forEach((coin:string) => {
             this.setContract(coin, ERC20ABI);
             callsMap.forEach((item) => {
-                calls.push(createCall(this.contracts[coin],item, []))
+                calls.push(createCall(this.contracts![coin],item, []))
             })
         })
 
@@ -400,6 +401,8 @@ class Lending implements ILending {
     }
 
     fetchStats = async (amms: string[], controllers: string[], vaults: string[], borrowed_tokens: string[], collateral_tokens: string[]) => {
+        if (!this.contracts || !this.multicallProvider) throw Error('Cannot fetch stats without a provider');
+
         cacheStats.clear();
 
         const calls: Call[] = [];
@@ -485,6 +488,8 @@ class Lending implements ILending {
     }
 
     async updateFeeData(): Promise<void> {
+        if (!this.provider) throw Error('Cannot update fee data without a provider');
+
         const feeData = await this.provider.getFeeData();
         if (feeData.maxFeePerGas === null || feeData.maxPriorityFeePerGas === null) {
             delete this.options.maxFeePerGas;

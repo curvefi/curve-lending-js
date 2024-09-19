@@ -32,6 +32,7 @@ import {
     ALIASES_ZKSYNC,
     ALIASES_BASE,
     ALIASES_BSC,
+    ALIASES_FRAXTAL,
 } from "./constants/aliases.js";
 import {
     COINS_ETHEREUM,
@@ -48,6 +49,7 @@ import {
     COINS_ZKSYNC,
     COINS_BASE,
     COINS_BSC,
+    COINS_FRAXTAL,
 } from "./constants/coins.js";
 import {L2Networks} from "./constants/L2Networks";
 import { createCall, handleMultiCallResponse} from "./utils.js";
@@ -84,6 +86,11 @@ export const NETWORK_CONSTANTS: { [index: number]: any } = {
         NAME: 'fantom',
         ALIASES: ALIASES_FANTOM,
         COINS: COINS_FANTOM,
+    },
+    252: {
+        NAME: 'fraxtal',
+        ALIASES: ALIASES_FRAXTAL,
+        COINS: COINS_FRAXTAL,
     },
     324: {
         NAME: 'zksync',

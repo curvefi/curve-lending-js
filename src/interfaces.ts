@@ -58,11 +58,11 @@ export interface IOneWayMarket {
 }
 
 export interface ILending {
-    provider: ethers.BrowserProvider | ethers.JsonRpcProvider,
-    multicallProvider: MulticallProvider,
+    provider: ethers.BrowserProvider | ethers.JsonRpcProvider | null,
+    multicallProvider: MulticallProvider | null,
     signer: ethers.Signer | null,
     signerAddress: string,
-    contracts: { [index: string]: { contract: Contract, multicallContract: MulticallContract } },
+    contracts: { [index: string]: { contract: Contract, multicallContract: MulticallContract } } | null,
     feeData: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number },
     constantOptions: { gasLimit: number },
     options: { gasPrice?: number | bigint, maxFeePerGas?: number | bigint, maxPriorityFeePerGas?: number | bigint },

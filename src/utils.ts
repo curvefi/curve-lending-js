@@ -1,10 +1,10 @@
 import axios from "axios";
-import { ethers,  BigNumberish, Numeric } from "ethers";
-import { Call } from "ethcall";
+import {BigNumberish, ethers, Numeric} from "ethers";
+import {Call} from "ethcall";
 import BigNumber from 'bignumber.js';
 import {ICurveContract, IDict, TGas} from "./interfaces.js";
-import { _getUsdPricesFromApi } from "./external-api.js";
-import { lending } from "./lending.js";
+import {_getUsdPricesFromApi} from "./external-api.js";
+import {lending} from "./lending.js";
 import {JsonFragment} from "ethers/lib.esm";
 import {L2Networks} from "./constants/L2Networks";
 
@@ -157,6 +157,8 @@ export const _getCoinDecimals = (coinAddresses: string[]): number[] => {
 // --- BALANCES ---
 
 export const _getBalances = async (coinAddresses: string[], address = ""): Promise<bigint[]> => {
+    if (!lending.contracts || !lending.provider || !lending.multicallProvider) throw Error('Cannot get balances without a provider');
+
     address = _getAddress(address);
     const _coinAddresses = [...coinAddresses];
     const ethIndex = getEthIndex(_coinAddresses);
@@ -187,6 +189,8 @@ export const getBalances = async (coins: string[], address = ""): Promise<string
 }
 
 export const _getAllowance = async (coins: string[], address: string, spender: string): Promise<bigint[]> => {
+    if (!lending.contracts || !lending.multicallProvider) throw Error('Cannot get allowance without a provider');
+
     const _coins = [...coins]
     const ethIndex = getEthIndex(_coins);
     if (ethIndex !== -1) {
@@ -198,7 +202,7 @@ export const _getAllowance = async (coins: string[], address: string, spender: s
     if (_coins.length === 1) {
         allowance = [await lending.contracts[_coins[0]].contract.allowance(address, spender, lending.constantOptions)];
     } else {
-        const contractCalls = _coins.map((coinAddr) => lending.contracts[coinAddr].multicallContract.allowance(address, spender));
+        const contractCalls = _coins.map((coinAddr) => lending.contracts![coinAddr].multicallContract.allowance(address, spender));
         allowance = await lending.multicallProvider.all(contractCalls);
     }
 
@@ -230,6 +234,8 @@ export const hasAllowance = async (coins: string[], amounts: (number | string)[]
 }
 
 export const _ensureAllowance = async (coins: string[], amounts: bigint[], spender: string, isMax = true): Promise<string[]> => {
+    if (!lending.contracts) throw Error('Cannot ensure allowance without a provider');
+
     const address = lending.signerAddress;
     const allowance: bigint[] = await _getAllowance(coins, address, spender);
 
@@ -253,6 +259,8 @@ export const _ensureAllowance = async (coins: string[], amounts: bigint[], spend
 
 // coins can be either addresses or symbols
 export const ensureAllowanceEstimateGas = async (coins: string[], amounts: (number | string)[], spender: string, isMax = true): Promise<TGas> => {
+    if (!lending.contracts) throw Error('Cannot ensure allowance without a provider');
+
     const coinAddresses = _getCoinAddresses(coins);
     const decimals = _getCoinDecimals(coinAddresses);
     const _amounts = amounts.map((a, i) => parseUnits(a, decimals[i]));
@@ -385,10 +393,8 @@ export const getUsdRate = async (coin: string): Promise<number> => {
 }
 
 export const getBaseFeeByLastBlock = async ()  => {
-    const provider = lending.provider;
-
     try {
-        const block = await provider.getBlock('latest');
+        const block = await lending.provider?.getBlock('latest');
         if(!block) {
             return 0.01
         }

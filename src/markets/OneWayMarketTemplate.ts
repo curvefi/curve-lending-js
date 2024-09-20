@@ -393,6 +393,8 @@ export class OneWayMarketTemplate {
     // ---------------- VAULT ----------------
 
     private async vaultMaxDeposit(address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault max deposit without a provider");
+
         address = _getAddress(address);
         // const _amount = await lending.contracts[this.addresses.vault].contract.maxDeposit(address);  TODO use maxDeposit
         const _amount = await lending.contracts[this.addresses.borrowed_token].contract.balanceOf(address);
@@ -401,6 +403,8 @@ export class OneWayMarketTemplate {
     }
 
     private async vaultPreviewDeposit(amount: TAmount): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault preview deposit without a provider");
+
         const _amount = parseUnits(amount, this.borrowed_token.decimals);
         const _shares = await lending.contracts[this.addresses.vault].contract.previewDeposit(_amount);
 
@@ -420,6 +424,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _vaultDeposit(amount: TAmount, estimateGas = false): Promise<string | TGas> {
+        if (!lending.contracts) throw Error("Cannot get vault deposit without a provider");
+
         const _amount = parseUnits(amount, this.borrowed_token.decimals);
         const gas = await lending.contracts[this.addresses.vault].contract.deposit.estimateGas(_amount, { ...lending.constantOptions });
         if (estimateGas) return smartNumber(gas);
@@ -443,6 +449,8 @@ export class OneWayMarketTemplate {
 
 
     private async vaultMaxMint(address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault max mint without a provider");
+
         address = _getAddress(address);
         // const _shares = await lending.contracts[this.addresses.vault].contract.maxMint(address);  TODO use maxMint
         const _assetBalance = await lending.contracts[this.addresses.borrowed_token].contract.balanceOf(address);
@@ -452,6 +460,8 @@ export class OneWayMarketTemplate {
     }
 
     private async vaultPreviewMint(amount: TAmount): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault preview mint without a provider");
+
         const _amount = parseUnits(amount, 18);
         const _assets = await lending.contracts[this.addresses.vault].contract.previewMint(_amount);
 
@@ -471,6 +481,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _vaultMint(amount: TAmount, estimateGas = false): Promise<string | TGas> {
+        if (!lending.contracts) throw Error("Cannot get vault mint without a provider");
+
         const _amount = parseUnits(amount, 18);
         const gas = await lending.contracts[this.addresses.vault].contract.mint.estimateGas(_amount, { ...lending.constantOptions });
         if (estimateGas) return smartNumber(gas);
@@ -494,6 +506,8 @@ export class OneWayMarketTemplate {
 
 
     private async vaultMaxWithdraw(address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault max withdraw without a provider");
+
         address = _getAddress(address);
         const _assets = await lending.contracts[this.addresses.vault].contract.maxWithdraw(address);
 
@@ -501,6 +515,8 @@ export class OneWayMarketTemplate {
     }
 
     private async vaultPreviewWithdraw(amount: TAmount): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault preview withdraw without a provider");
+
         const _amount = parseUnits(amount, this.borrowed_token.decimals);
         const _shares = await lending.contracts[this.addresses.vault].contract.previewWithdraw(_amount);
 
@@ -508,6 +524,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _vaultWithdraw(amount: TAmount, estimateGas = false): Promise<string | TGas> {
+        if(!lending.contracts) throw Error("Cannot get vault withdraw without a provider");
+
         const _amount = parseUnits(amount, this.borrowed_token.decimals);
         const gas = await lending.contracts[this.addresses.vault].contract.withdraw.estimateGas(_amount, { ...lending.constantOptions });
         if (estimateGas) return smartNumber(gas);
@@ -529,6 +547,8 @@ export class OneWayMarketTemplate {
 
 
     private async vaultMaxRedeem(address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault max redeem without a provider");
+
         address = _getAddress(address);
         const _shares = await lending.contracts[this.addresses.vault].contract.maxRedeem(address)
 
@@ -536,6 +556,8 @@ export class OneWayMarketTemplate {
     }
 
     private async vaultPreviewRedeem(amount: TAmount): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault preview redeem without a provider");
+
         const _amount = parseUnits(amount, 18);
         const _assets = await lending.contracts[this.addresses.vault].contract.previewRedeem(_amount);
 
@@ -543,6 +565,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _vaultRedeem(amount: TAmount, estimateGas = false): Promise<string | TGas> {
+        if (!lending.contracts) throw Error("Cannot get vault redeem without a provider");
+
         const _amount = parseUnits(amount, 18);
         const gas = await lending.contracts[this.addresses.vault].contract.redeem.estimateGas(_amount, { ...lending.constantOptions });
         if (estimateGas) return smartNumber(gas);
@@ -565,6 +589,8 @@ export class OneWayMarketTemplate {
     // ---------------- VAULT UTILS ----------------
 
     private async vaultConvertToShares(assets: TAmount): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault convert to shares without a provider");
+
         const _assets = parseUnits(assets, this.borrowed_token.decimals);
         const _shares = await lending.contracts[this.addresses.vault].contract.convertToShares(_assets);
 
@@ -572,6 +598,8 @@ export class OneWayMarketTemplate {
     }
 
     private async vaultConvertToAssets(shares: TAmount): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault convert to assets without a provider");
+
         const _shares = parseUnits(shares);
         const _assets = await lending.contracts[this.addresses.vault].contract.convertToAssets(_shares);
 
@@ -602,17 +630,21 @@ export class OneWayMarketTemplate {
     }
 
     private async vaultStakeEstimateGas(vaultShares: number | string): Promise<TGas> {
+        if (!lending.contracts) throw Error("Cannot get vault stake without a provider");
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
             throw Error(`stakeEstimateGas method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
         }
+
         const _vaultShares = parseUnits(vaultShares);
         return smartNumber(await lending.contracts[this.addresses.gauge].contract.deposit.estimateGas(_vaultShares, lending.constantOptions));
     }
 
     private async vaultStake(vaultShares: number | string): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault stake without a provider");
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
             throw Error(`stake method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
         }
+
         const _vaultShares = parseUnits(vaultShares);
         await _ensureAllowance([this.addresses.vault], [_vaultShares], this.addresses.gauge)
 
@@ -622,6 +654,7 @@ export class OneWayMarketTemplate {
     }
 
     private async vaultUnstakeEstimateGas(vaultShares: number | string): Promise<TGas> {
+        if (!lending.contracts) throw Error("Cannot get vault unstake gas estimation without a provider");
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
             throw Error(`unstakeEstimateGas method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
         }
@@ -630,6 +663,7 @@ export class OneWayMarketTemplate {
     }
 
     private async vaultUnstake(vaultShares: number | string): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get vault unstake without a provider");
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
             throw Error(`unstake method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
         }
@@ -643,6 +677,7 @@ export class OneWayMarketTemplate {
     // ---------------- VAULT STAKING REWARDS ----------------
 
     private vaultRewardsOnly(): boolean {
+        if (!lending.contracts) throw Error('Cannot check vault rewards-only without provider');
         if (lending.chainId === 2222 || lending.chainId === 324) return true;  // TODO remove this for Kava and ZkSync
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) throw Error(`${this.name} doesn't have gauge`);
         const gaugeContract = lending.contracts[this.addresses.gauge].contract;
@@ -658,6 +693,8 @@ export class OneWayMarketTemplate {
     }
 
     private _calcCrvApr = async (futureWorkingSupplyBN: BigNumber | null = null): Promise<[baseApy: number, boostedApy: number]> => {
+        if (!lending.contracts || !lending.multicallProvider) throw Error('Cannot calculate vault CRV APR without provider');
+
         const totalLiquidityUSD = await this.vaultTotalLiquidity();
         if (Number(totalLiquidityUSD) === 0) return [0, 0];
 
@@ -720,6 +757,7 @@ export class OneWayMarketTemplate {
     }
 
     private async vaultClaimableCrv (address = ""): Promise<string> {
+        if (!lending.contracts) throw Error('Cannot check vault claimable CRV without provider');
         if (this.vaultRewardsOnly()) throw Error(`${this.name} has Rewards-Only Gauge. Use claimableRewards instead`);
         address = address || lending.signerAddress;
         if (!address) throw Error("Need to connect wallet or pass address into args");
@@ -728,6 +766,7 @@ export class OneWayMarketTemplate {
     }
 
     private async _vaultClaimCrv(estimateGas: boolean): Promise<string | TGas> {
+        if (!lending.contracts) throw Error('Cannot claim vault CRV without provider');
         if (this.vaultRewardsOnly()) throw Error(`${this.name} has Rewards-Only Gauge. Use claimRewards instead`);
         const contract = lending.contracts[lending.constants.ALIASES.minter].contract;
         const gas = await contract.mint.estimateGas(this.addresses.gauge, lending.constantOptions);
@@ -747,6 +786,7 @@ export class OneWayMarketTemplate {
     }
 
     private vaultRewardTokens = memoize(async (useApi = true): Promise<{token: string, symbol: string, decimals: number}[]> => {
+        if (!lending.contracts || !lending.multicallProvider) throw Error('Cannot get vault reward tokens without provider');
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) return []
 
         // if (useApi) {
@@ -788,6 +828,7 @@ export class OneWayMarketTemplate {
     });
 
     private vaultRewardsApr = async (useApi = true): Promise<IReward[]> => {
+        if (!lending.contracts || !lending.multicallProvider) throw Error('Cannot get vault rewards APR without provider');
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) return [];
 
         // const isDisabledChain = [1313161554].includes(lending.chainId); // Disable Aurora
@@ -832,6 +873,7 @@ export class OneWayMarketTemplate {
     }
 
     private async vaultClaimableRewards(address = ""): Promise<{token: string, symbol: string, amount: string}[]> {
+        if (!lending.contracts) throw Error('Cannot check vault claimable rewards without provider');
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
             throw Error(`claimableRewards method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
         }
@@ -854,6 +896,7 @@ export class OneWayMarketTemplate {
     }
 
     private async _vaultClaimRewards(estimateGas: boolean): Promise<string | TGas> {
+        if (!lending.contracts) throw Error('Cannot claim vault rewards without provider');
         if (this.addresses.gauge === lending.constants.ZERO_ADDRESS) {
             throw Error(`claimRewards method doesn't exist for pool ${this.name} (id: ${this.name}). There is no gauge`);
         }
@@ -885,6 +928,8 @@ export class OneWayMarketTemplate {
             base_price: string,
             A: string,
         }> => {
+        if (!lending.contracts || !lending.multicallProvider) throw Error('Cannot get stats parameters without provider');
+
         const llammaContract = lending.contracts[this.addresses.amm].multicallContract;
         const controllerContract = lending.contracts[this.addresses.controller].multicallContract;
 
@@ -911,6 +956,7 @@ export class OneWayMarketTemplate {
     });
 
     private _getRate = async (isGetter = true): Promise<bigint> => {
+        if (!lending.contracts) throw Error('Cannot get rate without provider');
         let _rate;
         if(isGetter) {
             _rate = cacheStats.get(cacheKey(this.addresses.amm, 'rate'));
@@ -922,6 +968,8 @@ export class OneWayMarketTemplate {
     }
 
     private _getFutureRate = async (_dReserves: bigint, _dDebt: bigint): Promise<bigint> => {
+        if (!lending.contracts) throw Error('Cannot get future rate without provider');
+
         const mpContract = lending.contracts[this.addresses.monetary_policy].contract;
         return await mpContract.future_rate(this.addresses.controller, _dReserves, _dDebt);
     }
@@ -967,6 +1015,8 @@ export class OneWayMarketTemplate {
     }
 
     private async statsBalances(): Promise<[string, string]> {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot get statsBalances without provider");
+
         const borrowedContract = lending.contracts[this.borrowed_token.address].multicallContract;
         const collateralContract = lending.contracts[this.collateral_token.address].multicallContract;
         const ammContract = lending.contracts[this.addresses.amm].multicallContract;
@@ -985,6 +1035,8 @@ export class OneWayMarketTemplate {
     }
 
     private statsBandsInfo = memoize(async (): Promise<{ activeBand: number, maxBand: number, minBand: number, liquidationBand: number | null }> => {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot get bands info without provider");
+
         const ammContract = lending.contracts[this.addresses.amm].multicallContract;
         const calls = [
             ammContract.active_band(),
@@ -1004,6 +1056,8 @@ export class OneWayMarketTemplate {
     });
 
     private async statsBandBalances(n: number): Promise<{ borrowed: string, collateral: string }> {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot get band balances without provider");
+
         const ammContract = lending.contracts[this.addresses.amm].multicallContract;
         const calls = [];
         calls.push(ammContract.bands_x(n), ammContract.bands_y(n));
@@ -1017,6 +1071,8 @@ export class OneWayMarketTemplate {
     }
 
     private async statsBandsBalances(): Promise<{ [index: number]: { borrowed: string, collateral: string } }> {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot get bands balances without provider");
+
         const { maxBand, minBand } = await this.statsBandsInfo();
 
         const ammContract = lending.contracts[this.addresses.amm].multicallContract;
@@ -1041,6 +1097,8 @@ export class OneWayMarketTemplate {
     }
 
     private async statsTotalDebt(isGetter = true): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get total debt without provider");
+
         let _debt;
         if(isGetter) {
             _debt = cacheStats.get(cacheKey(this.addresses.controller, 'total_debt'));
@@ -1053,6 +1111,8 @@ export class OneWayMarketTemplate {
     }
 
     private statsAmmBalances = async (isGetter = true): Promise<{ borrowed: string, collateral: string }> => {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot get amm balances without provider");
+
         const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
         const collateralContract = lending.contracts[this.addresses.collateral_token].multicallContract;
         const ammContract = lending.contracts[this.addresses.amm].multicallContract;
@@ -1085,6 +1145,8 @@ export class OneWayMarketTemplate {
     }
 
     private async statsCapAndAvailable(isGetter = true): Promise<{ cap: string, available: string }> {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot get cap and available without provider");
+
         const vaultContract = lending.contracts[this.addresses.vault].multicallContract;
         const borrowedContract = lending.contracts[this.addresses.borrowed_token].multicallContract;
 
@@ -1110,6 +1172,8 @@ export class OneWayMarketTemplate {
     // ---------------- PRICES ----------------
 
     public A = memoize(async(): Promise<string> => {
+        if (!lending.contracts) throw Error("Cannot get A without provider");
+
         const _A = await lending.contracts[this.addresses.amm].contract.A(lending.constantOptions) as bigint;
         return formatUnits(_A, 0);
     },
@@ -1119,6 +1183,8 @@ export class OneWayMarketTemplate {
     });
 
     public basePrice = memoize(async(): Promise<string> => {
+        if (!lending.contracts) throw Error("Cannot get base price without provider");
+
         const _price = await lending.contracts[this.addresses.amm].contract.get_base_price(lending.constantOptions) as bigint;
         return formatUnits(_price);
     },
@@ -1128,6 +1194,8 @@ export class OneWayMarketTemplate {
     });
 
     public oraclePrice = memoize(async (): Promise<string> => {
+        if (!lending.contracts) throw Error("Cannot get oracle price without provider");
+
         const _price = await lending.contracts[this.addresses.amm].contract.price_oracle(lending.constantOptions) as bigint;
         return formatUnits(_price);
     },
@@ -1157,6 +1225,7 @@ export class OneWayMarketTemplate {
     }
 
     public async price(): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get price without a provider");
         const _price = await lending.contracts[this.addresses.amm].contract.get_p(lending.constantOptions) as bigint;
         return formatUnits(_price);
     }
@@ -1198,11 +1267,14 @@ export class OneWayMarketTemplate {
     // ---------------- USER POSITION ----------------
 
     public async userLoanExists(address = ""): Promise<boolean> {
+        if (!lending.contracts) throw Error("Cannot check whether user loan exists without a provider");
         address = _getAddress(address);
         return  await lending.contracts[this.addresses.controller].contract.loan_exists(address, lending.constantOptions);
     }
 
     public _userState = memoize(async (address = ""): Promise<{ _collateral: bigint, _borrowed: bigint, _debt: bigint, _N: bigint }> => {
+        if (!lending.contracts) throw Error("Cannot get user state without a provider");
+
         address = _getAddress(address);
         const contract = lending.contracts[this.addresses.controller].contract;
         const [_collateral, _borrowed, _debt, _N] = await contract.user_state(address, lending.constantOptions) as bigint[];
@@ -1226,6 +1298,8 @@ export class OneWayMarketTemplate {
     }
 
     public async userHealth(full = true, address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get user health without a provider");
+
         address = _getAddress(address);
         let _health = await lending.contracts[this.addresses.controller].contract.health(address, full, lending.constantOptions) as bigint;
         _health = _health * BigInt(100);
@@ -1234,6 +1308,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _userBands(address: string): Promise<bigint[]> {
+        if (!lending.contracts) throw Error("Cannot get user bands without a provider");
+
         address = _getAddress(address);
         const _bands = await lending.contracts[this.addresses.amm].contract.read_user_tick_numbers(address, lending.constantOptions) as bigint[];
 
@@ -1251,6 +1327,8 @@ export class OneWayMarketTemplate {
     }
 
     public async userPrices(address = ""): Promise<string[]> {
+        if (!lending.contracts) throw Error("Cannot get user prices without a provider");
+
         address = _getAddress(address);
         const _prices = await lending.contracts[this.addresses.controller].contract.user_prices(address, lending.constantOptions) as bigint[];
 
@@ -1258,6 +1336,8 @@ export class OneWayMarketTemplate {
     }
 
     public async userLoss(userAddress = ""): Promise<{ deposited_collateral: string, current_collateral_estimation: string, loss: string, loss_pct: string }> {
+        if (!lending.contracts) throw Error("Cannot get user loss without a provider");
+
         userAddress = _getAddress(userAddress);
         const [userCollateral, _current_collateral_estimation] = await Promise.all([
             _getUserCollateral(lending.constants.NETWORK_NAME, this.addresses.controller, userAddress),
@@ -1287,6 +1367,8 @@ export class OneWayMarketTemplate {
     }
 
     public async userBandsBalances(address = ""): Promise<IDict<{ collateral: string, borrowed: string }>> {
+        if (!lending.contracts) throw Error("Cannot get user bands balances without a provider");
+
         const [n2, n1] = await this.userBands(address);
         if (n1 == 0 && n2 == 0) return {};
 
@@ -1313,6 +1395,8 @@ export class OneWayMarketTemplate {
     }
 
     public async createLoanMaxRecv(collateral: number | string, range: number): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get max borrowable without a provider");
+
         this._checkRange(range);
         const _collateral = parseUnits(collateral, this.collateral_token.decimals);
         const contract = lending.contracts[this.addresses.controller].contract;
@@ -1321,6 +1405,8 @@ export class OneWayMarketTemplate {
     }
 
     public createLoanMaxRecvAllRanges = memoize(async (collateral: number | string): Promise<{ [index: number]: string }> => {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot create loan max recv all ranges without a provider");
+
         const _collateral = parseUnits(collateral, this.collateral_token.decimals);
 
         const calls = [];
@@ -1351,11 +1437,15 @@ export class OneWayMarketTemplate {
     }
 
     private async _calcN1(_collateral: bigint, _debt: bigint, range: number): Promise<bigint> {
+        if (!lending.contracts) throw Error("Cannot calculate debt n1 without a provider");
+
         this._checkRange(range);
         return await lending.contracts[this.addresses.controller].contract.calculate_debt_n1(_collateral, _debt, range, lending.constantOptions);
     }
 
     private async _calcN1AllRanges(_collateral: bigint, _debt: bigint, maxN: number): Promise<bigint[]> {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot calculate debt n1 all ranges without a provider");
+
         const calls = [];
         for (let N = this.minBands; N <= maxN; N++) {
             calls.push(lending.contracts[this.addresses.controller].multicallContract.calculate_debt_n1(_collateral, _debt, N));
@@ -1364,6 +1454,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _getPrices(_n2: bigint, _n1: bigint): Promise<string[]> {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot get prices without a provider");
+
         const contract = lending.contracts[this.addresses.amm].multicallContract;
         return (await lending.multicallProvider.all([
             contract.p_oracle_down(_n2),
@@ -1441,6 +1533,8 @@ export class OneWayMarketTemplate {
     }
 
     public async createLoanHealth(collateral: number | string, debt: number | string, range: number, full = true): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot create loan health without a provider");
+
         const _collateral = parseUnits(collateral, this.collateral_token.decimals);
         const _debt = parseUnits(debt, this.borrowed_token.decimals);
 
@@ -1464,6 +1558,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _createLoan(collateral: number | string, debt: number | string, range: number, estimateGas: boolean): Promise<string | TGas> {
+        if (!lending.contracts) throw Error("Cannot create loan without a provider");
+
         if (await this.userLoanExists()) throw Error("Loan already created");
         this._checkRange(range);
 
@@ -1491,6 +1587,8 @@ export class OneWayMarketTemplate {
     // ---------------- BORROW MORE ----------------
 
     public async borrowMoreMaxRecv(collateralAmount: number | string): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get borrow more max recv without a provider");
+
         const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState();
         const _collateral = _currentCollateral + parseUnits(collateralAmount, this.collateral_token.decimals);
 
@@ -1526,6 +1624,8 @@ export class OneWayMarketTemplate {
     }
 
     public async borrowMoreHealth(collateral: number | string, debt: number | string, full = true, address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get borrow more health without a provider");
+
         address = _getAddress(address);
         const _collateral = parseUnits(collateral, this.collateral_token.decimals);
         const _debt = parseUnits(debt, this.borrowed_token.decimals);
@@ -1550,6 +1650,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _borrowMore(collateral: number | string, debt: number | string, estimateGas: boolean): Promise<string | TGas> {
+        if (!lending.contracts) throw Error("Cannot borrow more without a provider");
+
         const { borrowed, debt: currentDebt } = await this.userState();
         if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
         if (Number(borrowed) > 0) throw Error(`User ${lending.signerAddress} is already in liquidation mode`);
@@ -1602,6 +1704,8 @@ export class OneWayMarketTemplate {
     }
 
     public async addCollateralHealth(collateral: number | string, full = true, address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get add collateral health without a provider");
+
         address = _getAddress(address);
         const _collateral = parseUnits(collateral, this.collateral_token.decimals);
 
@@ -1625,6 +1729,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _addCollateral(collateral: number | string, address: string, estimateGas: boolean): Promise<string | TGas> {
+        if (!lending.contracts) throw Error("Cannot add collateral without a provider");
+
         const { borrowed, debt: currentDebt } = await this.userState(address);
         if (Number(currentDebt) === 0) throw Error(`Loan for ${address} does not exist`);
         if (Number(borrowed) > 0) throw Error(`User ${address} is already in liquidation mode`);
@@ -1654,6 +1760,8 @@ export class OneWayMarketTemplate {
     // ---------------- REMOVE COLLATERAL ----------------
 
     public async maxRemovable(): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get max removable without a provider");
+
         const { _collateral: _currentCollateral, _debt: _currentDebt, _N } = await this._userState();
         const _requiredCollateral = await lending.contracts[this.addresses.controller].contract.min_collateral(_currentDebt, _N, lending.constantOptions)
 
@@ -1684,6 +1792,8 @@ export class OneWayMarketTemplate {
     }
 
     public async removeCollateralHealth(collateral: number | string, full = true, address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get remove collateral health without a provider");
+
         address = _getAddress(address);
         const _collateral = parseUnits(collateral, this.collateral_token.decimals) * BigInt(-1);
 
@@ -1695,6 +1805,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _removeCollateral(collateral: number | string, estimateGas: boolean): Promise<string | TGas> {
+        if (!lending.contracts) throw Error("Cannot remove collateral without a provider");
+
         const { borrowed, debt: currentDebt } = await this.userState();
         if (Number(currentDebt) === 0) throw Error(`Loan for ${lending.signerAddress} does not exist`);
         if (Number(borrowed) > 0) throw Error(`User ${lending.signerAddress} is already in liquidation mode`);
@@ -1756,6 +1868,8 @@ export class OneWayMarketTemplate {
     }
 
     public async repayHealth(debt: number | string, full = true, address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get repay health without a provider");
+
         address = _getAddress(address);
         const _debt = parseUnits(debt) * BigInt(-1);
 
@@ -1767,6 +1881,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _repay(debt: number | string, address: string, estimateGas: boolean): Promise<string | TGas> {
+        if (!lending.contracts) throw Error("Cannot repay without a provider");
+
         address = _getAddress(address);
         const { debt: currentDebt } = await this.userState(address);
         if (Number(currentDebt) === 0) throw Error(`Loan for ${address} does not exist`);
@@ -1837,6 +1953,8 @@ export class OneWayMarketTemplate {
     // ---------------- SWAP ----------------
 
     public async maxSwappable(i: number, j: number): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get max swappable without a provider");
+
         if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
         const inDecimals = this.coinDecimals[i];
         const contract = lending.contracts[this.addresses.amm].contract;
@@ -1847,6 +1965,7 @@ export class OneWayMarketTemplate {
     }
 
     private async _swapExpected(i: number, j: number, _amount: bigint): Promise<bigint> {
+        if (!lending.contracts) throw Error("Cannot get swap expected without a provider");
         return await lending.contracts[this.addresses.amm].contract.get_dy(i, j, _amount, lending.constantOptions) as bigint;
     }
 
@@ -1860,6 +1979,8 @@ export class OneWayMarketTemplate {
     }
 
     public async swapRequired(i: number, j: number, outAmount: number | string): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get swap required without a provider");
+
         if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
         const [inDecimals, outDecimals] = this.coinDecimals;
         const _amount = parseUnits(outAmount, outDecimals);
@@ -1920,6 +2041,7 @@ export class OneWayMarketTemplate {
     }
 
     private async _swap(i: number, j: number, amount: number | string, slippage: number, estimateGas: boolean): Promise<string | TGas> {
+        if (!lending.contracts) throw Error("Cannot swap without a provider");
         if (!(i === 0 && j === 1) && !(i === 1 && j === 0)) throw Error("Wrong index");
 
         const [inDecimals, outDecimals] = [this.coinDecimals[i], this.coinDecimals[j]];
@@ -1949,6 +2071,8 @@ export class OneWayMarketTemplate {
     // ---------------- LIQUIDATE ----------------
 
     public async tokensToLiquidate(address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get tokens to liquidate without a provider");
+
         address = _getAddress(address);
         const _tokens = await lending.contracts[this.addresses.controller].contract.tokens_to_liquidate(address, lending.constantOptions) as bigint;
 
@@ -1971,6 +2095,8 @@ export class OneWayMarketTemplate {
     }
 
     private async _liquidate(address: string, slippage: number, estimateGas: boolean): Promise<string | TGas> {
+        if (!lending.contracts) throw Error("Cannot liquidate without a provider");
+
         const { borrowed, debt: currentDebt } = await this.userState(address);
         if (slippage <= 0) throw Error("Slippage must be > 0");
         if (slippage > 100) throw Error("Slippage must be <= 100");
@@ -2068,6 +2194,8 @@ export class OneWayMarketTemplate {
             maxLeverage: string,
             avgPrice: string,
         }> {
+        if (!lending.contracts) throw Error("Cannot get max borrowable without a provider");
+
         // max_borrowable = userCollateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
         this._checkLeverageZap();
         if (range > 0) this._checkRange(range);
@@ -2125,6 +2253,8 @@ export class OneWayMarketTemplate {
             maxLeverage: string,
             avgPrice: string,
         }>> => {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot get max borrowable all ranges without a provider");
+
         this._checkLeverageZap();
         const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
         const contract = lending.contracts[lending.constants.ALIASES.leverage_zap].multicallContract;
@@ -2277,6 +2407,8 @@ export class OneWayMarketTemplate {
     }
 
     private _leverageCalcN1 = memoize(async (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number, user?: string): Promise<bigint> => {
+        if (!lending.contracts) throw Error("Cannot calculate debt n1 without a provider");
+
         if (range > 0) this._checkRange(range);
         let _stateDebt = BigInt(0);
         if (user) {
@@ -2295,6 +2427,8 @@ export class OneWayMarketTemplate {
     });
 
     private _leverageCalcN1AllRanges = memoize(async (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, maxN: number): Promise<bigint[]> => {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot calculate debt n1 all ranges without a provider");
+
         const { _futureStateCollateral } = await this._leverageExpectedCollateral(userCollateral, userBorrowed, debt);
         const _debt = parseUnits(debt, this.borrowed_token.decimals);
         const calls = [];
@@ -2389,6 +2523,8 @@ export class OneWayMarketTemplate {
         full: boolean,
         user = lending.constants.ZERO_ADDRESS
     ): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get leverage health without a provider");
+
         if (range > 0) this._checkRange(range);
         const { _totalCollateral } = await this._leverageExpectedCollateral(userCollateral, userBorrowed, dDebt, user);
         const { _borrowed, _N } = await this._userState(user);
@@ -2458,6 +2594,8 @@ export class OneWayMarketTemplate {
         slippage: number,
         estimateGas: boolean
     ): Promise<string | TGas>  {
+        if (!lending.contracts) throw Error("Cannot create leverage loan without a provider");
+
         if (await this.userLoanExists()) throw Error("Loan already created");
         this._checkRange(range);
 
@@ -2515,6 +2653,8 @@ export class OneWayMarketTemplate {
             avgPrice: string,
         }> {
         // max_borrowable = userCollateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
+        if (!lending.contracts) throw Error("Cannot get leverage borrow more max recv without a provider");
+
         this._checkLeverageZap();
         address = _getAddress(address);
         const { _collateral: _stateCollateral, _borrowed: _stateBorrowed, _debt: _stateDebt, _N } = await this._userState(address);
@@ -2632,6 +2772,7 @@ export class OneWayMarketTemplate {
         slippage: number,
         estimateGas: boolean
     ): Promise<string | TGas>  {
+        if (!lending.contracts) throw Error("Cannot leverage borrow more without a provider");
         if (!(await this.userLoanExists())) throw Error("Loan does not exist");
         const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
         const _userBorrowed = parseUnits(userBorrowed, this.borrowed_token.decimals);
@@ -2753,6 +2894,8 @@ export class OneWayMarketTemplate {
     }
 
     private _leverageRepayBands = memoize( async (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address: string): Promise<[bigint, bigint]> => {
+        if (!lending.contracts) throw Error("Cannot leverage repay bands without a provider");
+
         address = _getAddress(address);
         if (!(await this.leverageRepayIsAvailable(stateCollateral, userCollateral, userBorrowed, address))) return [parseUnits(0, 0), parseUnits(0, 0)];
 
@@ -2793,6 +2936,8 @@ export class OneWayMarketTemplate {
     }
 
     private async leverageRepayHealth(stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, full = true, address = ""): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot leverage repay health without a provider");
+
         this._checkLeverageZap();
         address = _getAddress(address);
         const { _borrowed: _stateBorrowed, _debt, _N } = await this._userState(address);
@@ -2854,6 +2999,8 @@ export class OneWayMarketTemplate {
         slippage: number,
         estimateGas: boolean
     ): Promise<string | TGas>  {
+        if (!lending.contracts) throw Error("Cannot leverage repay without a provider");
+
         if (!(await this.userLoanExists())) throw Error("Loan does not exist");
         const _stateCollateral = parseUnits(stateCollateral, this.collateral_token.decimals);
         const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
@@ -2897,6 +3044,8 @@ export class OneWayMarketTemplate {
     }
 
     public async currentLeverage(userAddress = ''): Promise<string> {
+        if (!lending.contracts) throw Error("Cannot get current leverage without a provider");
+
         userAddress = _getAddress(userAddress);
         const [userCollateral, _current_collateral_estimation] = await Promise.all([
             _getUserCollateral(lending.constants.NETWORK_NAME, this.addresses.controller, userAddress),
@@ -2911,6 +3060,8 @@ export class OneWayMarketTemplate {
     }
 
     public async currentPnL(userAddress = ''): Promise<Record<string, string>> {
+        if (!lending.contracts || !lending.multicallProvider) throw Error("Cannot get current leverage without a provider");
+
         userAddress = _getAddress(userAddress);
 
         const calls = [

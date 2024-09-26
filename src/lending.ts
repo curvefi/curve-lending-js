@@ -1,7 +1,16 @@
 import { ethers,
     Contract, Networkish, BigNumberish, Numeric, AbstractProvider } from "ethers";
 import { Provider as MulticallProvider, Contract as MulticallContract, Call } from 'ethcall';
-import { IChainId, ILending, IDict, INetworkName, ICurveContract, IOneWayMarket, ICoin } from "./interfaces.js";
+import {
+    IChainId,
+    ILending,
+    IDict,
+    INetworkName,
+    ICurveContract,
+    IOneWayMarket,
+    ICoin,
+    IMarketDataAPI,
+} from "./interfaces.js";
 import OneWayLendingFactoryABI from "./constants/abis/OneWayLendingFactoryABI.json" assert { type: 'json' };
 import ERC20ABI from './constants/abis/ERC20.json' assert { type: 'json' };
 import LlammaABI from './constants/abis/Llamma.json' assert { type: 'json' };
@@ -54,6 +63,7 @@ import {
 import {L2Networks} from "./constants/L2Networks";
 import { createCall, handleMultiCallResponse} from "./utils.js";
 import {cacheKey, cacheStats} from "./cache/index.js";
+import {_getMarketsData} from "./external-api.js";
 
 export const NETWORK_CONSTANTS: { [index: number]: any } = {
     1: {
@@ -376,68 +386,131 @@ class Lending implements ILending {
         return handleMultiCallResponse(callsMap, res)
     }
 
-    getCoins = async (collateral_tokens: string[], borrowed_tokens: string[]): Promise<IDict<ICoin>> => {
-        const calls: Call[] = [];
-        const coins = new Set([...collateral_tokens, ...borrowed_tokens])
-        const callsMap = ['name', 'decimals', 'symbol']
+    getFactoryMarketDataByAPI = async () => {
+        const apiData = (await _getMarketsData(this.constants.NETWORK_NAME)).lendingVaultData;
 
-        coins.forEach((coin:string) => {
-            this.setContract(coin, ERC20ABI);
-            callsMap.forEach((item) => {
-                calls.push(createCall(this.contracts[coin],item, []))
-            })
-        })
+        const result: Record<string, string[]> = {
+            names: [],
+            amms: [],
+            controllers: [],
+            borrowed_tokens: [],
+            collateral_tokens: [],
+            monetary_policies: [],
+            vaults: [],
+            gauges: [],
+        };
 
-        const res = await this.multicallProvider.all(calls);
+        apiData.forEach((market: IMarketDataAPI) => {
+            result.names.push(market.name);
+            result.amms.push(market.ammAddress.toLowerCase());
+            result.controllers.push(market.controllerAddress.toLowerCase());
+            result.borrowed_tokens.push(market.assets.borrowed.address.toLowerCase());
+            result.collateral_tokens.push(market.assets.collateral.address.toLowerCase());
+            result.monetary_policies.push(market.monetaryPolicyAddress.toLowerCase());
+            result.vaults.push(market.address.toLowerCase());
+            result.gauges.push(market.gaugeAddress?.toLowerCase() || this.constants.ZERO_ADDRESS);
+        });
 
-        const {name, decimals, symbol} = handleMultiCallResponse(callsMap, res)
-        const COINS_DATA: IDict<ICoin> = {}
+        return result;
+    }
 
-        Array.from(coins).forEach((coin: string, index: number) => {
-            COINS_DATA[coin] = {
-                address: coin,
-                decimals: Number(decimals[index]),
-                name: name[index],
-                symbol: symbol[index],
-            }
-        })
+    getCoins = async (collateral_tokens: string[], borrowed_tokens: string[], useApi = false): Promise<IDict<ICoin>> => {
+        const coins = new Set([...collateral_tokens, ...borrowed_tokens]);
+        const COINS_DATA: IDict<ICoin> = {};
+
+        if (useApi) {
+            const apiData = (await _getMarketsData(this.constants.NETWORK_NAME)).lendingVaultData;
+            apiData.forEach((market) => {
+                const borrowedCoin = market.assets.borrowed;
+                const collateralCoin = market.assets.collateral;
+
+                if (coins.has(borrowedCoin.address)) {
+                    COINS_DATA[borrowedCoin.address] = {
+                        address: borrowedCoin.address,
+                        decimals: borrowedCoin.decimals,
+                        name: borrowedCoin.symbol,
+                        symbol: borrowedCoin.symbol,
+                    };
+                }
+
+                if (coins.has(collateralCoin.address)) {
+                    COINS_DATA[collateralCoin.address] = {
+                        address: collateralCoin.address,
+                        decimals: collateralCoin.decimals,
+                        name: collateralCoin.symbol,
+                        symbol: collateralCoin.symbol,
+                    };
+                }
+            });
+        } else {
+            const calls: Call[] = [];
+            const callsMap = ['name', 'decimals', 'symbol'];
+
+            coins.forEach((coin: string) => {
+                this.setContract(coin, ERC20ABI);
+                callsMap.forEach((item) => {
+                    calls.push(createCall(this.contracts[coin], item, []));
+                });
+            });
+
+            const res = await this.multicallProvider.all(calls);
+            const { name, decimals, symbol } = handleMultiCallResponse(callsMap, res);
+
+            Array.from(coins).forEach((coin: string, index: number) => {
+                COINS_DATA[coin] = {
+                    address: coin,
+                    decimals: Number(decimals[index]),
+                    name: name[index],
+                    symbol: symbol[index],
+                };
+            });
+        }
 
         return COINS_DATA;
-
     }
 
     fetchStats = async (amms: string[], controllers: string[], vaults: string[], borrowed_tokens: string[], collateral_tokens: string[]) => {
         cacheStats.clear();
 
-        const calls: Call[] = [];
         const marketCount = controllers.length;
 
+        const calls: Call[] = [];
+
         for (let i = 0; i < marketCount; i++) {
-            calls.push(createCall(this.contracts[controllers[i]],'total_debt', []))
-            calls.push(createCall(this.contracts[vaults[i]],'totalAssets', [controllers[i]]))
-            calls.push(createCall(this.contracts[borrowed_tokens[i]],'balanceOf', [controllers[i]]))
-            calls.push(createCall(this.contracts[amms[i]],'rate', []))
-            calls.push(createCall(this.contracts[borrowed_tokens[i]],'balanceOf', [amms[i]]))
-            calls.push(createCall(this.contracts[amms[i]],'admin_fees_x', []))
-            calls.push(createCall(this.contracts[amms[i]],'admin_fees_y', []))
-            calls.push(createCall(this.contracts[collateral_tokens[i]],'balanceOf', [amms[i]]))
+            calls.push(createCall(this.contracts[controllers[i]], 'total_debt', []));
+            calls.push(createCall(this.contracts[vaults[i]], 'totalAssets', [controllers[i]]));
+            calls.push(createCall(this.contracts[borrowed_tokens[i]], 'balanceOf', [controllers[i]]));
+            calls.push(createCall(this.contracts[amms[i]], 'rate', []));
+            calls.push(createCall(this.contracts[borrowed_tokens[i]], 'balanceOf', [amms[i]]));
+            calls.push(createCall(this.contracts[amms[i]], 'admin_fees_x', []));
+            calls.push(createCall(this.contracts[amms[i]], 'admin_fees_y', []));
+            calls.push(createCall(this.contracts[collateral_tokens[i]], 'balanceOf', [amms[i]]));
         }
 
         const res = await this.multicallProvider.all(calls);
 
         for (let i = 0; i < marketCount; i++) {
-            cacheStats.set(cacheKey(controllers[i], 'total_debt'), res[(i*8) + 0]);
-            cacheStats.set(cacheKey(vaults[i], 'totalAssets', controllers[i]), res[(i*8) + 1]);
-            cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', controllers[i]), res[(i*8) + 2]);
-            cacheStats.set(cacheKey(amms[i], 'rate'), res[(i*8) + 3]);
-            cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', amms[i]), res[(i*8) + 4]);
-            cacheStats.set(cacheKey(amms[i], 'admin_fees_x'), res[(i*8) + 5]);
-            cacheStats.set(cacheKey(amms[i], 'admin_fees_y'), res[(i*8) + 6]);
-            cacheStats.set(cacheKey(collateral_tokens[i], 'balanceOf', amms[i]), res[(i*8) + 7]);
+            cacheStats.set(cacheKey(controllers[i], 'total_debt'), res[(i * 8) + 0]);
+            cacheStats.set(cacheKey(vaults[i], 'totalAssets', controllers[i]), res[(i * 8) + 1]);
+            cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', controllers[i]), res[(i * 8) + 2]);
+            cacheStats.set(cacheKey(amms[i], 'rate'), res[(i * 8) + 3]);
+            cacheStats.set(cacheKey(borrowed_tokens[i], 'balanceOf', amms[i]), res[(i * 8) + 4]);
+            cacheStats.set(cacheKey(amms[i], 'admin_fees_x'), res[(i * 8) + 5]);
+            cacheStats.set(cacheKey(amms[i], 'admin_fees_y'), res[(i * 8) + 6]);
+            cacheStats.set(cacheKey(collateral_tokens[i], 'balanceOf', amms[i]), res[(i * 8) + 7]);
+        }
+    };
+
+
+    fetchOneWayMarkets = async (useAPI = true) => {
+        if(useAPI) {
+            await this._fetchOneWayMarketsByAPI()
+        } else {
+            await this._fetchOneWayMarketsByBlockchain()
         }
     }
 
-    fetchOneWayMarkets = async () => {
+    _fetchOneWayMarketsByBlockchain = async () => {
         const {names, amms, controllers, borrowed_tokens, collateral_tokens, monetary_policies, vaults, gauges} = await this.getFactoryMarketData()
         const COIN_DATA = await this.getCoins(collateral_tokens, borrowed_tokens);
         for (const c in COIN_DATA) {
@@ -481,6 +554,52 @@ class Lending implements ILending {
         })
 
         await this.fetchStats(amms, controllers, vaults, borrowed_tokens, collateral_tokens);
+    }
+
+    _fetchOneWayMarketsByAPI = async () => {
+        const {names, amms, controllers, borrowed_tokens, collateral_tokens, monetary_policies, vaults, gauges} = await this.getFactoryMarketDataByAPI()
+        const COIN_DATA = await this.getCoins(collateral_tokens, borrowed_tokens, true);
+        for (const c in COIN_DATA) {
+            this.constants.DECIMALS[c] = COIN_DATA[c].decimals;
+        }
+
+        amms.forEach((amm: string, index: number) => {
+            this.setContract(amms[index], LlammaABI);
+            this.setContract(controllers[index], ControllerABI);
+            this.setContract(monetary_policies[index], MonetaryPolicyABI);
+            this.setContract(vaults[index], VaultABI);
+            if(gauges[index]){
+                this.setContract(gauges[index], this.chainId === 1 ? GaugeABI : SidechainGaugeABI);
+            }
+            COIN_DATA[vaults[index]] = {
+                address: vaults[index],
+                decimals: 18,
+                name: "Curve Vault for " + COIN_DATA[borrowed_tokens[index]].name,
+                symbol: "cv" + COIN_DATA[borrowed_tokens[index]].symbol,
+            };
+            COIN_DATA[gauges[index]] = {
+                address: gauges[index],
+                decimals: 18,
+                name: "Curve.fi " + COIN_DATA[borrowed_tokens[index]].name + " Gauge Deposit",
+                symbol: "cv" + COIN_DATA[borrowed_tokens[index]].symbol + "-gauge",
+            };
+            this.constants.DECIMALS[vaults[index]] = 18;
+            this.constants.DECIMALS[gauges[index]] = 18;
+            this.constants.ONE_WAY_MARKETS[`one-way-market-${index}`] = {
+                name: names[index],
+                addresses: {
+                    amm: amms[index],
+                    controller: controllers[index],
+                    borrowed_token: borrowed_tokens[index],
+                    collateral_token: collateral_tokens[index],
+                    monetary_policy: monetary_policies[index],
+                    vault: vaults[index],
+                    gauge: gauges[index],
+                },
+                borrowed_token: COIN_DATA[borrowed_tokens[index]],
+                collateral_token: COIN_DATA[collateral_tokens[index]],
+            }
+        })
     }
 
     formatUnits(value: BigNumberish, unit?: string | Numeric): string {

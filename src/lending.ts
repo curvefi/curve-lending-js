@@ -13,6 +13,7 @@ import {
 } from "./interfaces.js";
 import OneWayLendingFactoryABI from "./constants/abis/OneWayLendingFactoryABI.json" assert { type: 'json' };
 import ERC20ABI from './constants/abis/ERC20.json' assert { type: 'json' };
+import ERC4626ABI from './constants/abis/ERC4626.json' assert { type: 'json' };
 import LlammaABI from './constants/abis/Llamma.json' assert { type: 'json' };
 import ControllerABI from './constants/abis/Controller.json' assert { type: 'json' };
 import MonetaryPolicyABI from './constants/abis/MonetaryPolicy.json' assert { type: 'json' };
@@ -60,7 +61,7 @@ import {
     COINS_BSC,
     COINS_FRAXTAL,
 } from "./constants/coins.js";
-import {L2Networks} from "./constants/L2Networks";
+import { L2Networks } from "./constants/L2Networks.js";
 import { createCall, handleMultiCallResponse} from "./utils.js";
 import {cacheKey, cacheStats} from "./cache/index.js";
 import {_getMarketsData} from "./external-api.js";
@@ -273,6 +274,11 @@ class Lending implements ILending {
         this.constants.COINS = NETWORK_CONSTANTS[this.chainId].COINS;
         this.constants.EXCLUDED_PROTOCOLS_1INCH = NETWORK_CONSTANTS[this.chainId].EXCLUDED_PROTOCOLS_1INCH;
         this.setContract(this.constants.ALIASES.crv, ERC20ABI);
+        this.setContract(this.constants.ALIASES.crvUSD, ERC20ABI);
+        this.setContract(this.constants.ALIASES.st_crvUSD, ERC4626ABI);
+        this.constants.DECIMALS[this.constants.ALIASES.crv] = 18;
+        this.constants.DECIMALS[this.constants.ALIASES.crvUSD] = 18;
+        this.constants.DECIMALS[this.constants.ALIASES.st_crvUSD] = 18;
 
         this.multicallProvider = new MulticallProvider(this.chainId, this.provider);
 
@@ -351,10 +357,8 @@ class Lending implements ILending {
         }
     }
 
-
-
-
     setContract(address: string, abi: any): void {
+        if (address === this.constants.ZERO_ADDRESS || address === undefined) return;
         this.contracts[address] = {
             contract: new Contract(address, abi, this.signer || this.provider),
             multicallContract: new MulticallContract(address, abi),

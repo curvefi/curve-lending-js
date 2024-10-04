@@ -2,11 +2,11 @@ import axios from "axios";
 import { ethers,  BigNumberish, Numeric } from "ethers";
 import { Call } from "ethcall";
 import BigNumber from 'bignumber.js';
-import {ICurveContract, IDict, TGas} from "./interfaces.js";
+import { ICurveContract, IDict, TGas } from "./interfaces.js";
 import { _getUsdPricesFromApi } from "./external-api.js";
 import { lending } from "./lending.js";
-import {JsonFragment} from "ethers/lib.esm";
-import {L2Networks} from "./constants/L2Networks";
+import { JsonFragment } from "ethers/lib.esm";
+import { L2Networks } from "./constants/L2Networks.js";
 
 export const MAX_ALLOWANCE = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");  // 2**256 - 1
 export const MAX_ACTIVE_BAND = BigInt("57896044618658097711785492504343953926634992332820282019728792003956564819967");  // 2**255 - 1

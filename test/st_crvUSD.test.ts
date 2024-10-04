@@ -14,7 +14,6 @@ describe('st-crvUSD test', async function () {
         const initialBalances = await lending.st_crvUSD.userBalances();
         const depositAmount = Number(await lending.st_crvUSD.maxDeposit()) / 2;
         const expectedShares = await lending.st_crvUSD.previewDeposit(depositAmount);
-        console.log(expectedShares);
 
         await lending.st_crvUSD.deposit(depositAmount);
 

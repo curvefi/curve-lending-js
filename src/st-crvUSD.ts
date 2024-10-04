@@ -77,14 +77,15 @@ export const depositApprove = async (assets: TAmount): Promise<string[]> => {
 
 const _deposit = async (assets: TAmount, estimateGas = false): Promise<string | TGas> => {
     const _assets = parseUnits(assets);
-    const gas = await lending.contracts[lending.constants.ALIASES.st_crvUSD].contract.deposit.estimateGas(_assets, { ...lending.constantOptions });
+    const contract = lending.contracts[lending.constants.ALIASES.st_crvUSD].contract;
+    const gas = await contract.deposit.estimateGas(_assets, lending.signerAddress, { ...lending.constantOptions });
     if (estimateGas) return smartNumber(gas);
 
     await lending.updateFeeData();
 
     const gasLimit = _mulBy1_3(DIGas(gas));
 
-    return (await lending.contracts[lending.constants.ALIASES.st_crvUSD].contract.deposit(_assets, { ...lending.options, gasLimit })).hash;
+    return (await contract.deposit(_assets, lending.signerAddress, { ...lending.options, gasLimit })).hash;
 }
 
 export const depositEstimateGas = async (assets: TAmount): Promise<TGas> => {
@@ -131,14 +132,15 @@ export const mintApprove = async (shares: TAmount): Promise<string[]> => {
 
 const _mint = async (shares: TAmount, estimateGas = false): Promise<string | TGas> => {
     const _shares = parseUnits(shares);
-    const gas = await lending.contracts[lending.constants.ALIASES.st_crvUSD].contract.mint.estimateGas(_shares, { ...lending.constantOptions });
+    const contract = lending.contracts[lending.constants.ALIASES.st_crvUSD].contract;
+    const gas = await contract.mint.estimateGas(_shares, lending.signerAddress, { ...lending.constantOptions });
     if (estimateGas) return smartNumber(gas);
 
     await lending.updateFeeData();
 
     const gasLimit = _mulBy1_3(DIGas(gas));
 
-    return (await lending.contracts[lending.constants.ALIASES.st_crvUSD].contract.mint(_shares, { ...lending.options, gasLimit })).hash;
+    return (await contract.mint(_shares, lending.signerAddress, { ...lending.options, gasLimit })).hash;
 }
 
 export const mintEstimateGas = async (shares: TAmount): Promise<TGas> => {
@@ -169,14 +171,15 @@ export const previewWithdraw = async (assets: TAmount): Promise<string> => {
 
 const _withdraw = async (assets: TAmount, estimateGas = false): Promise<string | TGas> => {
     const _assets = parseUnits(assets);
-    const gas = await lending.contracts[lending.constants.ALIASES.st_crvUSD].contract.withdraw.estimateGas(_assets, { ...lending.constantOptions });
+    const contract = lending.contracts[lending.constants.ALIASES.st_crvUSD].contract;
+    const gas = await contract.withdraw.estimateGas(_assets, lending.signerAddress, lending.signerAddress, { ...lending.constantOptions });
     if (estimateGas) return smartNumber(gas);
 
     await lending.updateFeeData();
 
     const gasLimit = _mulBy1_3(DIGas(gas));
 
-    return (await lending.contracts[lending.constants.ALIASES.st_crvUSD].contract.withdraw(_assets, { ...lending.options, gasLimit })).hash;
+    return (await contract.withdraw(_assets, lending.signerAddress, lending.signerAddress, { ...lending.options, gasLimit })).hash;
 }
 
 export const withdrawEstimateGas = async (assets: TAmount): Promise<TGas> => {
@@ -205,14 +208,15 @@ export const previewRedeem = async (shares: TAmount): Promise<string> => {
 
 const _redeem = async (shares: TAmount, estimateGas = false): Promise<string | TGas> => {
     const _shares = parseUnits(shares, 18);
-    const gas = await lending.contracts[lending.constants.ALIASES.st_crvUSD].contract.redeem.estimateGas(_shares, { ...lending.constantOptions });
+    const contract = lending.contracts[lending.constants.ALIASES.st_crvUSD].contract;
+    const gas = await contract.redeem.estimateGas(_shares, lending.signerAddress, lending.signerAddress, { ...lending.constantOptions });
     if (estimateGas) return smartNumber(gas);
 
     await lending.updateFeeData();
 
     const gasLimit = _mulBy1_3(DIGas(gas));
 
-    return (await lending.contracts[lending.constants.ALIASES.st_crvUSD].contract.redeem(_shares, { ...lending.options, gasLimit })).hash;
+    return (await contract.redeem(_shares, lending.signerAddress, lending.signerAddress, { ...lending.options, gasLimit })).hash;
 }
 
 export const redeemEstimateGas = async (shares: TAmount): Promise<TGas> => {

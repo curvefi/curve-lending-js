@@ -650,8 +650,8 @@ export class OneWayMarketTemplate {
         return !('inflation_rate()' in gaugeContract || 'inflation_rate(uint256)' in gaugeContract);
     }
 
-    private async vaultTotalLiquidity(): Promise<string> {
-        const { cap } = await this.statsCapAndAvailable();
+    private async vaultTotalLiquidity(useAPI = true): Promise<string> {
+        const { cap } = await this.statsCapAndAvailable(true, useAPI);
         const price = await _getUsdRate(this.addresses.borrowed_token);
 
         return BN(cap).times(price).toFixed(6)
@@ -974,7 +974,7 @@ export class OneWayMarketTemplate {
         }
     }
 
-    private async statsFutureRates(dReserves: TAmount, dDebt: TAmount): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
+    private async statsFutureRates(dReserves: TAmount, dDebt: TAmount, useAPI = true): Promise<{borrowApr: string, lendApr: string, borrowApy: string, lendApy: string}> {
         const _dReserves = parseUnits(dReserves, this.borrowed_token.decimals);
         const _dDebt = parseUnits(dDebt, this.borrowed_token.decimals);
         const _rate = await this._getFutureRate(_dReserves, _dDebt);
@@ -985,7 +985,7 @@ export class OneWayMarketTemplate {
         let lendApy = "0";
         const debt = Number(await this.statsTotalDebt()) + Number(dDebt);
         if (Number(debt) > 0) {
-            const cap = Number((await this.statsCapAndAvailable()).cap) + Number(dReserves);
+            const cap = Number((await this.statsCapAndAvailable(true, useAPI)).cap) + Number(dReserves);
             lendApr = toBN(_rate).times(365).times(86400).times(debt).div(cap).times(100).toString();
             // lendApy = (debt * e**(rate*365*86400) - debt) / cap
             const debtInAYearBN = BN(debt).times(2.718281828459 ** (toBN(_rate).times(365).times(86400)).toNumber());

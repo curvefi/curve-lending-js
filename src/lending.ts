@@ -429,6 +429,7 @@ class Lending implements ILending {
                 const collateralCoin = market.assets.collateral;
 
                 if (coins.has(borrowedCoin.address)) {
+                    this.setContract(borrowedCoin.address, ERC20ABI);
                     COINS_DATA[borrowedCoin.address] = {
                         address: borrowedCoin.address,
                         decimals: borrowedCoin.decimals,
@@ -438,6 +439,7 @@ class Lending implements ILending {
                 }
 
                 if (coins.has(collateralCoin.address)) {
+                    this.setContract(collateralCoin.address, ERC20ABI);
                     COINS_DATA[collateralCoin.address] = {
                         address: collateralCoin.address,
                         decimals: collateralCoin.decimals,
@@ -472,6 +474,7 @@ class Lending implements ILending {
 
         return COINS_DATA;
     }
+
 
     fetchStats = async (amms: string[], controllers: string[], vaults: string[], borrowed_tokens: string[], collateral_tokens: string[]) => {
         cacheStats.clear();

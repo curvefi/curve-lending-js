@@ -6,14 +6,45 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      # todo: we should commit the lock file and use npm ci
-      - run: npm install
-      - run: npm run build
+      - run: npm ci
+      - run: npx hardhat node --fork ${{ secrets.ETH_RPC }} &
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/checkout@v4
+        with:
+          repository: curvefi/mint-test-tokens
+          path: mint-test-tokens
+      - run: pip install -r requirements.txt
+        working-directory: mint-test-tokens
+      - run: brownie run mainnet-mint --network mainnet-hardhat-fork -i
+        working-directory: mint-test-tokens
+
       - run: npm run build:tests
       - run: npm run test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
       - run: npm run lint
-        if: always()
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run build

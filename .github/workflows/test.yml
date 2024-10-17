@@ -5,6 +5,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 360  # todo: decrease after testing works
     steps:
       # set up environment
       - uses: actions/checkout@v4
@@ -15,7 +16,8 @@ jobs:
 
       # install dependencies, start hardhat node
       - run: npm ci
-      - run: npx hardhat node --fork ${{ secrets.ETH_RPC }} &
+      - name: Start Hardhat Fork
+        run: npx hardhat node --fork ${{ secrets.ETH_RPC }} &
 
       # mint test tokens
       - uses: actions/checkout@v4
@@ -27,11 +29,13 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: mint-test-tokens/requirements.txt
-      - run: pip install -r requirements.txt
-        working-directory: mint-test-tokens
-      - run: mkdir .brownie && echo "${{ vars.BROWNIE_NETWORK_CONFIG }}" > .brownie/network-config.yaml
-        working-directory: mint-test-tokens
-      - run: brownie run mainnet-mint --network mainnet-hardhat-fork -i
+      - name: Mint test tokens
+        run: |
+          pip install -r requirements.txt
+          mkdir .brownie
+          brownie networks add Ethereum mainnet-hardhat-fork host=http://localhost:8545 chainid=1
+          brownie networks list
+          brownie run mainnet-mint --network mainnet-hardhat-fork -i
         working-directory: mint-test-tokens
 
       # build and run tests
@@ -41,6 +45,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     if: github.ref != 'refs/heads/test'  # todo: remove after testing works
+    timeout-minutes: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,6 +58,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     if: github.ref != 'refs/heads/test'  # todo: remove after testing works
+    timeout-minutes: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

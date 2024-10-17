@@ -6,24 +6,27 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm ci
-      - run: npx hardhat node --fork ${{ secrets.ETH_RPC }} &
-
+          cache: 'npm'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: 'pip'
+
+      - uses: actions/checkout@v4
+      - run: npm ci
+
+      - run: npx hardhat node --fork ${{ secrets.ETH_RPC }} &
+
       - uses: actions/checkout@v4
         with:
           repository: curvefi/mint-test-tokens
           path: mint-test-tokens
       - run: pip install -r requirements.txt
         working-directory: mint-test-tokens
-      - run: echo "${{ vars.BROWNIE_NETWORK_CONFIG }}" > brownie-config.yaml
+      - run: echo "${{ vars.BROWNIE_NETWORK_CONFIG }}" > .brownie/network-config.yaml
         working-directory: mint-test-tokens
       - run: brownie run mainnet-mint --network mainnet-hardhat-fork -i
         working-directory: mint-test-tokens
@@ -38,6 +41,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
       - run: npm ci
       - run: npm run lint
 
@@ -48,5 +52,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
       - run: npm ci
       - run: npm run build

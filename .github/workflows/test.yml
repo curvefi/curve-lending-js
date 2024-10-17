@@ -6,6 +6,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # set up environment
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -15,11 +17,11 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - uses: actions/checkout@v4
+      # install dependencies, start hardhat node
       - run: npm ci
-
       - run: npx hardhat node --fork ${{ secrets.ETH_RPC }} &
 
+      # mint test tokens
       - uses: actions/checkout@v4
         with:
           repository: curvefi/mint-test-tokens
@@ -31,6 +33,7 @@ jobs:
       - run: brownie run mainnet-mint --network mainnet-hardhat-fork -i
         working-directory: mint-test-tokens
 
+      # build and run tests
       - run: npm run build:tests
       - run: npm run test
 

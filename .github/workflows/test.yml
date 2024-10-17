@@ -23,6 +23,8 @@ jobs:
           path: mint-test-tokens
       - run: pip install -r requirements.txt
         working-directory: mint-test-tokens
+      - run: echo "${{ vars.BROWNIE_NETWORK_CONFIG }}" > brownie-config.yaml
+        working-directory: mint-test-tokens
       - run: brownie run mainnet-mint --network mainnet-hardhat-fork -i
         working-directory: mint-test-tokens
 

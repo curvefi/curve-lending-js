@@ -1,4 +1,5 @@
 .idea
+.brownie
 node_modules
 dist
 lib

@@ -29,7 +29,7 @@ jobs:
           cache-dependency-path: mint-test-tokens/requirements.txt
       - run: pip install -r requirements.txt
         working-directory: mint-test-tokens
-      - run: echo "${{ vars.BROWNIE_NETWORK_CONFIG }}" > .brownie/network-config.yaml
+      - run: mkdir .brownie && echo "${{ vars.BROWNIE_NETWORK_CONFIG }}" > .brownie/network-config.yaml
         working-directory: mint-test-tokens
       - run: brownie run mainnet-mint --network mainnet-hardhat-fork -i
         working-directory: mint-test-tokens
@@ -40,7 +40,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/test'
+    if: github.ref != 'refs/heads/test'  # todo: remove after testing works
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,7 +52,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/test'
+    if: github.ref != 'refs/heads/test'  # todo: remove after testing works
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -33,7 +33,11 @@ jobs:
         run: |
           pip install -r requirements.txt
           mkdir .brownie
-          brownie networks add Ethereum mainnet-hardhat-fork host=http://localhost:8545 chainid=1
+          brownie networks add Ethereum \
+            mainnet-hardhat-fork \
+            chainid=1 \
+            host=http://localhost:8545 \
+            explorer=https://api.etherscan.io/api
           brownie networks list
           brownie run mainnet-mint --network mainnet-hardhat-fork -i
         working-directory: mint-test-tokens

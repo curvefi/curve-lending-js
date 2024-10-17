@@ -12,10 +12,6 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
 
       # install dependencies, start hardhat node
       - run: npm ci
@@ -26,6 +22,11 @@ jobs:
         with:
           repository: curvefi/mint-test-tokens
           path: mint-test-tokens
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: mint-test-tokens/requirements.txt
       - run: pip install -r requirements.txt
         working-directory: mint-test-tokens
       - run: echo "${{ vars.BROWNIE_NETWORK_CONFIG }}" > .brownie/network-config.yaml
@@ -39,6 +40,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/test'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,6 +52,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/test'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

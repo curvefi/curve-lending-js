@@ -22,7 +22,7 @@ import {
     DIGas,
     smartNumber,
 } from "../utils.js";
-import {IDict, TGas, TAmount, IReward, I1inchRoute, I1inchSwapData} from "../interfaces.js";
+import {IDict, TGas, TAmount, IReward, I1inchRoute, I1inchSwapData, IOneWayMarket} from "../interfaces.js";
 import {
     _getExpected1inch,
     _getSwapData1inch,
@@ -239,9 +239,8 @@ export class OneWayMarketTemplate {
         }
     };
 
-    constructor(id: string) {
+    constructor(id: string, marketData: IOneWayMarket) {
         this.id = id;
-        const marketData = lending.constants.ONE_WAY_MARKETS[id];
         this.name = marketData.name;
         this.addresses = marketData.addresses;
         this.borrowed_token = marketData.borrowed_token;

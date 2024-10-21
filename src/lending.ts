@@ -525,7 +525,7 @@ class Lending implements ILending {
         }
 
         amms.forEach((amm: string, index: number) => {
-            this.setContract(amms[index], LlammaABI);
+            this.setContract(amm, LlammaABI);
             this.setContract(controllers[index], ControllerABI);
             this.setContract(monetary_policies[index], MonetaryPolicyABI);
             this.setContract(vaults[index], VaultABI);

@@ -1,0 +1,73 @@
+name: Test
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # todo: decrease after testing works
+    steps:
+      # set up environment
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # install dependencies, start hardhat node
+      - run: npm ci
+      - name: Start Hardhat Fork
+        run: npx hardhat node --fork ${{ secrets.ETH_RPC }} &
+
+      # mint test tokens
+      - uses: actions/checkout@v4
+        with:
+          repository: curvefi/mint-test-tokens
+          path: mint-test-tokens
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: mint-test-tokens/requirements.txt
+      - name: Mint test tokens
+        run: |
+          pip install -r requirements.txt
+          mkdir .brownie
+          brownie networks add Ethereum \
+            mainnet-hardhat-fork \
+            chainid=1 \
+            host=http://localhost:8545 \
+            explorer=https://api.etherscan.io/api?apikey=${{ secrets.ETHERSCAN_API_KEY }}
+          brownie networks list
+          brownie run mainnet-mint --network mainnet-hardhat-fork -i
+        working-directory: mint-test-tokens
+
+      # build and run tests
+      - run: npm run build:tests
+      - run: npm run test
+
+  lint:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/test'  # todo: remove after testing works
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  build:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/test'  # todo: remove after testing works
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build

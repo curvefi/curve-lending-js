@@ -71,8 +71,8 @@ export const depositApproveEstimateGas = async (assets: TAmount): Promise<TGas> 
     return await ensureAllowanceEstimateGas([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD);
 }
 
-export const depositApprove = async (assets: TAmount): Promise<string[]> => {
-    return await ensureAllowance([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD);
+export const depositApprove = async (assets: TAmount, isMax = true): Promise<string[]> => {
+    return await ensureAllowance([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD, isMax);
 }
 
 const _deposit = async (assets: TAmount, estimateGas = false): Promise<string | TGas> => {
@@ -125,9 +125,9 @@ export const mintApproveEstimateGas = async (shares: TAmount): Promise<TGas> => 
     return await ensureAllowanceEstimateGas([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD);
 }
 
-export const mintApprove = async (shares: TAmount): Promise<string[]> => {
+export const mintApprove = async (shares: TAmount, isMax = true): Promise<string[]> => {
     const assets = await previewMint(shares);
-    return await ensureAllowance([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD);
+    return await ensureAllowance([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD, isMax);
 }
 
 const _mint = async (shares: TAmount, estimateGas = false): Promise<string | TGas> => {

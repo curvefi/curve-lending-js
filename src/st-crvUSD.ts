@@ -4,9 +4,11 @@ import {
     ensureAllowanceEstimateGas,
     formatUnits,
     hasAllowance,
+    getAllowance,
     parseUnits,
     smartNumber,
     getBalances,
+    MAX_ALLOWANCE,
 } from "./utils.js";
 import { lending } from "./lending.js";
 import { TAmount, TGas } from "./interfaces.js";
@@ -67,12 +69,16 @@ export const depositIsApproved = async(assets: TAmount): Promise<boolean> => {
     return await hasAllowance([lending.constants.ALIASES.crvUSD], [assets], lending.signerAddress, lending.constants.ALIASES.st_crvUSD);
 }
 
+export const depositAllowance = async(): Promise<string[]> => {
+    return await getAllowance([lending.constants.ALIASES.crvUSD], lending.signerAddress, lending.constants.ALIASES.st_crvUSD);
+}
+
 export const depositApproveEstimateGas = async (assets: TAmount): Promise<TGas> => {
     return await ensureAllowanceEstimateGas([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD);
 }
 
-export const depositApprove = async (assets: TAmount): Promise<string[]> => {
-    return await ensureAllowance([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD);
+export const depositApprove = async (assets: TAmount, isMax = true): Promise<string[]> => {
+    return await ensureAllowance([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD, isMax);
 }
 
 const _deposit = async (assets: TAmount, estimateGas = false): Promise<string | TGas> => {
@@ -120,14 +126,24 @@ export const mintIsApproved = async (shares: TAmount): Promise<boolean> => {
     return await hasAllowance([lending.constants.ALIASES.crvUSD], [assets], lending.signerAddress, lending.constants.ALIASES.st_crvUSD);
 }
 
+export const mintAllowance = async (): Promise<string[]> => {
+    const assets = await getAllowance([lending.constants.ALIASES.crvUSD], lending.signerAddress, lending.constants.ALIASES.st_crvUSD);
+    try {
+        return [await convertToShares(assets[0])]
+    } catch (e) {
+        if (parseUnits(assets[0]) === MAX_ALLOWANCE) return [lending.formatUnits(MAX_ALLOWANCE)];
+        throw e;
+    }
+}
+
 export const mintApproveEstimateGas = async (shares: TAmount): Promise<TGas> => {
     const assets = await previewMint(shares);
     return await ensureAllowanceEstimateGas([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD);
 }
 
-export const mintApprove = async (shares: TAmount): Promise<string[]> => {
+export const mintApprove = async (shares: TAmount, isMax = true): Promise<string[]> => {
     const assets = await previewMint(shares);
-    return await ensureAllowance([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD);
+    return await ensureAllowance([lending.constants.ALIASES.crvUSD], [assets], lending.constants.ALIASES.st_crvUSD, isMax);
 }
 
 const _mint = async (shares: TAmount, estimateGas = false): Promise<string | TGas> => {

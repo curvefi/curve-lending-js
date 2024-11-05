@@ -10,7 +10,7 @@ export const ALIASES_ETHEREUM = lowerCaseValues({
     "leverage_zap": "0x3294514B78Df4Bb90132567fcf8E5e99f390B687",
     "leverage_markets_start_id": "9",
     "crvUSD": "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E",
-    "st_crvUSD": "0xcea18a8752bb7e7817f9ae7565328fe415c0f2ca", // TODO It's Yearn vault for tests, change to real
+    "st_crvUSD": "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367",
 });
 
 export const ALIASES_POLYGON = lowerCaseValues({

@@ -151,17 +151,17 @@ interface Rates {
     lendApyPcent: number;
 }
 
-interface Assets {
-    borrowed: AssetDetail;
-    collateral: AssetDetail;
-}
-
 interface AssetDetail {
     symbol: string;
     decimals: number;
     address: string;
     blockchainId: string;
     usdPrice: number;
+}
+
+interface Assets {
+    borrowed: AssetDetail;
+    collateral: AssetDetail;
 }
 
 interface VaultShares {
@@ -208,4 +208,12 @@ export interface IMarketDataAPI {
 
 export interface IMarketData {
     lendingVaultData: IMarketDataAPI[]
+}
+
+export interface IQuoteOdos {
+    outAmounts: string[],
+    priceImpact: number,
+    pathId: string | null,
+    pathVizImage: string,
+    slippage: number,
 }

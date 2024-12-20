@@ -937,7 +937,7 @@ import lending from "@curvefi/lending-api";
     //     leverage: '1.4796358613861877'
     //     avgPrice: '3169.8299919022623523421'
     // }
-    await oneWayMarket.leverage.createLoanPriceImpact(userCollateral, userBorrowed, debt);
+    await oneWayMarket.leverage.createLoanPriceImpact(userBorrowed, debt);
     // 0.08944411854377342 %
     await oneWayMarket.leverage.createLoanMaxRange(userCollateral, userBorrowed, debt);
     // 50
@@ -956,30 +956,8 @@ import lending from "@curvefi/lending-api";
     //     '0xd5491d9f1e9d8ac84b03867494e35b25efad151c597d2fa4211d7bf5d540c98e',
     //     '0x93565f37ec5be902a824714a30bddc25cf9cd9ed39b4c0e8de61fab44af5bc8c'
     // ]
-    await oneWayMarket.leverage.createLoanRoute(userBorrowed, debt);
-    // [
-    //     { 
-    //         part: 100,
-    //         hops: [
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_CURVE_STABLE_NG',
-    //                     part: 100,
-    //                     fromTokenAddress: '0x498bf2b1e120fed3ad3d42ea2165e9b73f99c1e5',
-    //                     toTokenAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9'
-    //                 }
-    //             ],
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_UNISWAP_V3',
-    //                     part: 100,
-    //                     fromTokenAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
-    //                     toTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1'
-    //                 }
-    //             ]
-    //         ]
-    //     }
-    // ]
+    await oneWayMarket.leverage.createLoanRouteImage(userBorrowed, debt);
+    // 'data:image/svg+xml;base64,PHN2ZyBpZD0ic2Fua2V5UGFyZW50U3ZnIiB4bWxucz...'
 
     
     // You must call oneWayMarket.leverage.createLoanExpectedCollateral() with the same args before
@@ -1043,7 +1021,7 @@ import lending from "@curvefi/lending-api";
     //     collateralFromDebt: '3.152876753452705342'
     //     avgPrice: '3171.70659749038129067231'
     // }
-    await oneWayMarket.leverage.borrowMorePriceImpact(userCollateral, userBorrowed, debt);
+    await oneWayMarket.leverage.borrowMorePriceImpact(userBorrowed, debt);
     // 0.010784277354269765 %
     await oneWayMarket.leverage.borrowMoreBands(userCollateral, userBorrowed, debt);
     // [ 47, 38 ]
@@ -1057,69 +1035,8 @@ import lending from "@curvefi/lending-api";
     // true
     await oneWayMarket.leverage.borrowMoreApprove(userCollateral, userBorrowed);
     // []
-    await oneWayMarket.leverage.borrowMoreRoute(userBorrowed, debt);
-    // [
-    //     {
-    //         part: 50,
-    //         hops: [
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_CURVE_STABLE_NG',
-    //                     part: 100,
-    //                     fromTokenAddress: '0x498bf2b1e120fed3ad3d42ea2165e9b73f99c1e5',
-    //                     toTokenAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9'
-    //                 }
-    //             ],
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_PANCAKESWAP_V3',
-    //                     part: 12,
-    //                     fromTokenAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
-    //                     toTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1'
-    //                 },
-    //                 {
-    //                     name: 'ARBITRUM_PANCAKESWAP_V3',
-    //                     part: 42,
-    //                     fromTokenAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
-    //                     toTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1'
-    //                 },
-    //                 {
-    //                     name: 'ARBITRUM_UNISWAP_V3',
-    //                     part: 46,
-    //                     fromTokenAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
-    //                     toTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1'
-    //                 }
-    //             ]
-    //         ]
-    //     },
-    //     {
-    //         part: 50,
-    //         hops: [
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_CURVE_STABLE_NG',
-    //                     part: 100,
-    //                     fromTokenAddress: '0x498bf2b1e120fed3ad3d42ea2165e9b73f99c1e5',
-    //                     toTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831'
-    //                 }
-    //             ],
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_PANCAKESWAP_V3',
-    //                     part: 10,
-    //                     fromTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
-    //                     toTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1'
-    //                 },
-    //                 {
-    //                     name: 'ARBITRUM_UNISWAP_V3',
-    //                     part: 90,
-    //                     fromTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
-    //                     toTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1'
-    //                 }
-    //             ]
-    //         ]
-    //     }
-    // ]
+    await oneWayMarket.leverage.borrowMoreRouteImage(userBorrowed, debt);
+    // 'data:image/svg+xml;base64,PHN2ZyBpZD0ic2Fua2V5UGFyZW50U3ZnIiB4bWxucz...'
 
     // You must call oneWayMarket.leverage.borrowMoreExpectedCollateral() with the same args before
     await oneWayMarket.leverage.borrowMore(userCollateral, userBorrowed, debt, slippage);
@@ -1177,7 +1094,7 @@ import lending from "@curvefi/lending-api";
     //     avgPrice: '3166.29427953324743125312'
     // }
 
-    await oneWayMarket.leverage.repayPriceImpact(stateCollateral, userCollateral, userBorrowed);
+    await oneWayMarket.leverage.repayPriceImpact(stateCollateral, userCollateral);
     // 0.013150142802201724 %
     await oneWayMarket.leverage.repayIsFull(stateCollateral, userCollateral, userBorrowed);
     // false
@@ -1195,72 +1112,8 @@ import lending from "@curvefi/lending-api";
     // false
     await oneWayMarket.leverage.repayApprove(userCollateral, userBorrowed);
     // ['0xd8a8d3b3f67395e1a4f4d4f95b041edcaf1c9f7bab5eb8a8a767467678295498']
-    await oneWayMarket.leverage.repayRoute(stateCollateral, userCollateral);
-    // [
-    //     {
-    //         part: 10,
-    //         hops: [
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_CURVE_V2',
-    //                     part: 32,
-    //                     fromTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
-    //                     toTokenAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9'
-    //                 },
-    //                 {
-    //                     name: 'ARBITRUM_PANCAKESWAP_V3',
-    //                     part: 68,
-    //                     fromTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
-    //                     toTokenAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9'
-    //                 }
-    //             ],
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_CURVE_STABLE_NG',
-    //                     part: 100,
-    //                     fromTokenAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
-    //                     toTokenAddress: '0x498bf2b1e120fed3ad3d42ea2165e9b73f99c1e5'
-    //                 }
-    //             ]
-    //         ]
-    //     },
-    //     {
-    //         part: 90,
-    //         hops: [
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_UNISWAP_V3',
-    //                     part: 8,
-    //                     fromTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
-    //                     toTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831'
-    //                 },
-    //                 {
-    //                     name: 'ARBITRUM_INTEGRAL',
-    //                     part: 92,
-    //                     fromTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
-    //                     toTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831'
-    //                 }
-    //             ],
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_CAMELOT_V3',
-    //                     part: 100,
-    //                     fromTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
-    //                     toTokenAddress: '0xff970a61a04b1ca14834a43f5de4533ebddb5cc8'
-    //                 }
-    //             ],
-    //             [
-    //                 {
-    //                     name: 'ARBITRUM_CURVE_STABLE_NG',
-    //                     part: 100,
-    //                     fromTokenAddress: '0xff970a61a04b1ca14834a43f5de4533ebddb5cc8',
-    //                     toTokenAddress: '0x498bf2b1e120fed3ad3d42ea2165e9b73f99c1e5'
-    //                 }
-    //             ]
-    //         ]
-    //     }
-    // ]
-
+    await oneWayMarket.leverage.repayRouteImage(stateCollateral, userCollateral);
+    // 'data:image/svg+xml;base64,PHN2ZyBpZD0ic2Fua2V5UGFyZW50U3ZnIiB4bWxucz...'
 
     // You must call oneWayMarket.leverage.repayExpectedBorrowed() with the same args before
     await oneWayMarket.leverage.repay(stateCollateral, userCollateral, userBorrowed, slippage);

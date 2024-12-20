@@ -359,7 +359,7 @@ const leverageTest = async () => {
     console.log(await oneWayMarket.leverage.maxLeverage(range));
     console.log(await oneWayMarket.leverage.createLoanMaxRecv(userCollateral, userBorrowed, range));
     console.log(await oneWayMarket.leverage.createLoanExpectedCollateral(userCollateral, userBorrowed, debt, slippage));
-    console.log(await oneWayMarket.leverage.createLoanPriceImpact(userCollateral, userBorrowed, debt));
+    console.log(await oneWayMarket.leverage.createLoanPriceImpact(userBorrowed, debt));
     console.log(await oneWayMarket.leverage.createLoanMaxRange(userCollateral, userBorrowed, debt));
     console.log(await oneWayMarket.leverage.createLoanBands(userCollateral, userBorrowed, debt, range));
     console.log(await oneWayMarket.leverage.createLoanPrices(userCollateral, userBorrowed, debt, range));
@@ -367,13 +367,7 @@ const leverageTest = async () => {
     console.log(await oneWayMarket.leverage.createLoanHealth(userCollateral, userBorrowed, debt, range, false));
     console.log(await oneWayMarket.leverage.createLoanIsApproved(userCollateral, userBorrowed));
     console.log(await oneWayMarket.leverage.createLoanApprove(userCollateral, userBorrowed));
-    let route = await oneWayMarket.leverage.createLoanRoute(userBorrowed, debt);
-    console.log(route);
-    for (const r of route) {
-        console.log(r);
-        console.log(r.part);
-        console.log(r.hops);
-    }
+    console.log(oneWayMarket.leverage.createLoanRouteImage(userBorrowed, debt));
 
     console.log(await oneWayMarket.leverage.createLoan(userCollateral, userBorrowed, debt, range, slippage));
 
@@ -391,20 +385,15 @@ const leverageTest = async () => {
     debt = 10000;
     console.log(await oneWayMarket.leverage.borrowMoreMaxRecv(userCollateral, userBorrowed));
     console.log(await oneWayMarket.leverage.borrowMoreExpectedCollateral(userCollateral, userBorrowed, debt, slippage));
-    console.log(await oneWayMarket.leverage.borrowMorePriceImpact(userCollateral, userBorrowed, debt));
+    console.log(await oneWayMarket.leverage.borrowMorePriceImpact(userBorrowed, debt));
     console.log(await oneWayMarket.leverage.borrowMoreBands(userCollateral, userBorrowed, debt));
     console.log(await oneWayMarket.leverage.borrowMorePrices(userCollateral, userBorrowed, debt));
     console.log(await oneWayMarket.leverage.borrowMoreHealth(userCollateral, userBorrowed, debt, true));
     console.log(await oneWayMarket.leverage.borrowMoreHealth(userCollateral, userBorrowed, debt, false));
     console.log(await oneWayMarket.leverage.borrowMoreIsApproved(userCollateral, userBorrowed));
     console.log(await oneWayMarket.leverage.borrowMoreApprove(userCollateral, userBorrowed));
-    route = await oneWayMarket.leverage.borrowMoreRoute(userBorrowed, debt);
-    console.log(route);
-    for (const r of route) {
-        console.log(r);
-        console.log(r.part);
-        console.log(r.hops);
-    }
+    console.log(await oneWayMarket.leverage.borrowMoreRouteImage(userBorrowed, debt));
+
     console.log(await oneWayMarket.leverage.borrowMore(userCollateral, userBorrowed, debt, slippage));
 
     console.log(await oneWayMarket.wallet.balances());
@@ -420,7 +409,7 @@ const leverageTest = async () => {
     userCollateral = 1;
     userBorrowed = 1500;
     console.log(await oneWayMarket.leverage.repayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed, slippage));
-    console.log(await oneWayMarket.leverage.repayPriceImpact(stateCollateral, userCollateral, userBorrowed));
+    console.log(await oneWayMarket.leverage.repayPriceImpact(stateCollateral, userCollateral));
     console.log(await oneWayMarket.leverage.repayIsFull(stateCollateral, userCollateral, userBorrowed));
     console.log(await oneWayMarket.leverage.repayIsAvailable(stateCollateral, userCollateral, userBorrowed));
     console.log(await oneWayMarket.leverage.repayBands(stateCollateral, userCollateral, userBorrowed));
@@ -429,13 +418,7 @@ const leverageTest = async () => {
     console.log(await oneWayMarket.leverage.repayHealth(stateCollateral, userCollateral, userBorrowed, false));
     console.log(await oneWayMarket.leverage.repayIsApproved(userCollateral, userBorrowed));
     console.log(await oneWayMarket.leverage.repayApprove(userCollateral, userBorrowed));
-    route = await oneWayMarket.leverage.repayRoute(stateCollateral, userCollateral);
-    console.log(route);
-    for (const r of route) {
-        console.log(r);
-        console.log(r.part);
-        console.log(r.hops);
-    }
+    console.log(await oneWayMarket.leverage.repayRouteImage(stateCollateral, userCollateral));
 
     console.log(await oneWayMarket.leverage.repay(stateCollateral, userCollateral, userBorrowed, slippage));
 

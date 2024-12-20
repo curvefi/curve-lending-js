@@ -23,7 +23,7 @@ import {
     smartNumber,
 } from "../utils.js";
 import {IDict, TGas, TAmount, IReward, IQuoteOdos, IOneWayMarket} from "../interfaces.js";
-import { _getExpectedOdos, _getQuoteOdos, _assembleTxOdos, _getSpotPriceOdos, _getUserCollateral, _getMarketsData } from "../external-api.js";
+import { _getExpectedOdos, _getQuoteOdos, _assembleTxOdos, _getUserCollateral, _getMarketsData } from "../external-api.js";
 import ERC20Abi from '../constants/abis/ERC20.json' assert { type: 'json' };
 import {cacheKey, cacheStats} from "../cache/index.js";
 
@@ -177,7 +177,7 @@ export class OneWayMarketTemplate {
             }>>,
         createLoanExpectedCollateral: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, slippage?: number) =>
             Promise<{ totalCollateral: string, userCollateral: string, collateralFromUserBorrowed: string, collateralFromDebt: string, leverage: string, avgPrice: string }>,
-        createLoanPriceImpact: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<string | undefined>,
+        createLoanPriceImpact: (userBorrowed: TAmount, debt: TAmount) => Promise<string>,
         createLoanMaxRange: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<number>,
         createLoanBands: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount, range: number) => Promise<[number, number]>,
         createLoanBandsAllRanges: (userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount) => Promise<IDict<[number, number] | null>>,
@@ -200,7 +200,7 @@ export class OneWayMarketTemplate {
             }>,
         borrowMoreExpectedCollateral: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, slippage?: number, address?: string) =>
             Promise<{ totalCollateral: string, userCollateral: string, collateralFromUserBorrowed: string, collateralFromDebt: string, avgPrice: string }>,
-        borrowMorePriceImpact: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<string | undefined>,
+        borrowMorePriceImpact: (userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<string>,
         borrowMoreBands: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<[number, number]>,
         borrowMorePrices: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address?: string) => Promise<string[]>,
         borrowMoreHealth: (userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, full?: boolean, address?: string) => Promise<string>,
@@ -211,7 +211,7 @@ export class OneWayMarketTemplate {
 
         repayExpectedBorrowed: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, slippage?: number) =>
             Promise<{ totalBorrowed: string, borrowedFromStateCollateral: string, borrowedFromUserCollateral: string, userBorrowed: string, avgPrice: string }>,
-        repayPriceImpact: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount) => Promise<string | undefined>,
+        repayPriceImpact: (stateCollateral: TAmount, userCollateral: TAmount) => Promise<string>,
         repayIsFull: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<boolean>,
         repayIsAvailable: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<boolean>,
         repayBands: (stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address?: string) => Promise<[number, number]>,
@@ -2325,14 +2325,11 @@ export class OneWayMarketTemplate {
         }
     }
 
-    private async leverageCreateLoanPriceImpact(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<string | undefined> {
+    private async leverageCreateLoanPriceImpact(userBorrowed: TAmount, debt: TAmount): Promise<string> {
         this._checkLeverageZap();
-        const { avgPrice } = await this._leverageExpectedCollateral(userCollateral, userBorrowed, debt);
-        const spotPrice = await _getSpotPriceOdos(this.borrowed_token.address, this.collateral_token.address);
-        if (spotPrice === undefined) return undefined;
-        if (BN(avgPrice).lt(spotPrice)) return "0";
-
-        return BN(avgPrice).minus(spotPrice).div(spotPrice).times(100).toString();
+        const _debt = parseUnits(debt, this.borrowed_token.decimals);
+        const _userBorrowed = parseUnits(userBorrowed, this.borrowed_token.decimals);
+        return this._getSwapDataFromCache(this.addresses.borrowed_token, _debt + _userBorrowed).priceImpact.toString();
     }
 
     private async leverageCreateLoanMaxRange(userCollateral: TAmount, userBorrowed: TAmount, debt: TAmount): Promise<number> {
@@ -2656,14 +2653,11 @@ export class OneWayMarketTemplate {
         }
     }
 
-    private async leverageBorrowMorePriceImpact(userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address = ""): Promise<string | undefined> {
+    private async leverageBorrowMorePriceImpact(userBorrowed: TAmount, dDebt: TAmount): Promise<string> {
         this._checkLeverageZap();
-        const { avgPrice } = await this._leverageExpectedCollateral(userCollateral, userBorrowed, dDebt, address);
-        const spotPrice = await _getSpotPriceOdos(this.borrowed_token.address, this.collateral_token.address);
-        if (spotPrice === undefined) return undefined;
-        if (BN(avgPrice).lt(spotPrice)) return "0";
-
-        return BN(avgPrice).minus(spotPrice).div(spotPrice).times(100).toString();
+        const _dDebt = parseUnits(dDebt, this.borrowed_token.decimals);
+        const _userBorrowed = parseUnits(userBorrowed, this.borrowed_token.decimals);
+        return this._getSwapDataFromCache(this.addresses.borrowed_token, _dDebt + _userBorrowed).priceImpact.toString();
     }
 
     private async leverageBorrowMoreBands(userCollateral: TAmount, userBorrowed: TAmount, dDebt: TAmount, address = ""): Promise<[number, number]> {
@@ -2787,14 +2781,15 @@ export class OneWayMarketTemplate {
         }
     };
 
-    private async leverageRepayPriceImpact(stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount): Promise<string | undefined> {
+    private async leverageRepayPriceImpact(stateCollateral: TAmount, userCollateral: TAmount): Promise<string> {
         this._checkLeverageZap();
-        const { avgPrice } = this._leverageRepayExpectedBorrowed(stateCollateral, userCollateral, userBorrowed);
-        const spotPrice = await _getSpotPriceOdos(this.borrowed_token.address, this.collateral_token.address);
-        if (spotPrice === undefined) return undefined;
-        if (BN(spotPrice).lt(avgPrice)) return "0";
-
-        return BN(spotPrice).minus(avgPrice).div(spotPrice).times(100).toString();
+        const _stateCollateral = parseUnits(stateCollateral, this.collateral_token.decimals);
+        const _userCollateral = parseUnits(userCollateral, this.collateral_token.decimals);
+        if (_stateCollateral + _userCollateral > BigInt(0)) {
+            return this._getSwapDataFromCache(this.addresses.collateral_token, _stateCollateral + _userCollateral).priceImpact.toString();
+        } else {
+            return "0.0"
+        }
     }
 
     private async leverageRepayIsFull(stateCollateral: TAmount, userCollateral: TAmount, userBorrowed: TAmount, address = ""): Promise<boolean> {

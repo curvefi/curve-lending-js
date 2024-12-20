@@ -212,6 +212,7 @@ export interface IMarketData {
 
 export interface IQuoteOdos {
     outAmounts: string[],
+    priceImpact: number,
     pathId: string | null,
     pathVizImage: string,
     slippage: number,

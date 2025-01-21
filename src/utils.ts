@@ -1,4 +1,3 @@
-import axios from "axios";
 import { ethers,  BigNumberish, Numeric } from "ethers";
 import { Call } from "ethcall";
 import BigNumber from 'bignumber.js';
@@ -128,7 +127,7 @@ export const handleMultiCallResponse = (callsMap: string[], response: any[]) => 
     const result: Record<string, any> = {};
     const responseLength = callsMap.length;
     for(let i = 0; i < responseLength; i++) {
-        result[callsMap[i]] = response.filter((a, j) => j % responseLength === i) as string[];
+        result[callsMap[i]] = response.filter((_, j) => j % responseLength === i) as string[];
     }
     return result;
 }
@@ -357,11 +356,12 @@ export const _getUsdRate = async (assetId: string): Promise<number> => {
         const url = [nativeTokenName, 'ethereum', 'bitcoin', 'link', 'curve-dao-token', 'stasis-eurs'].includes(assetId.toLowerCase()) ?
             `https://api.coingecko.com/api/v3/simple/price?ids=${assetId}&vs_currencies=usd` :
             `https://api.coingecko.com/api/v3/simple/token_price/${chainName}?contract_addresses=${assetId}&vs_currencies=usd`
-        const response = await axios.get(url);
+        const response = await fetch(url);
+        const data = await response.json() as IDict<{ usd: number }>
         try {
-            _usdRatesCache[assetId] = {'rate': response.data[assetId]['usd'] ?? 0, 'time': Date.now()};
+            _usdRatesCache[assetId] = {rate: data[assetId]['usd'] ?? 0, time: Date.now()};
         } catch (err) { // TODO pay attention!
-            _usdRatesCache[assetId] = {'rate': 0, 'time': Date.now()};
+            _usdRatesCache[assetId] = {rate: 0, time: Date.now()};
         }
     }
 
@@ -373,7 +373,7 @@ export const getUsdRate = async (coin: string): Promise<number> => {
     return await _getUsdRate(coinAddress);
 }
 
-export const getBaseFeeByLastBlock = async ()  => {
+export const getBaseFeeByLastBlock = async (): Promise<number>  => {
     const provider = lending.provider;
 
     try {

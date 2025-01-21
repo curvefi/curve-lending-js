@@ -47,7 +47,7 @@ import {
 async function init (
     providerType: 'JsonRpc' | 'Web3' | 'Infura' | 'Alchemy',
     providerSettings: { url?: string, privateKey?: string, batchMaxCount? : number } | { externalProvider: ethers.Eip1193Provider } | { network?: Networkish, apiKey?: string },
-    options: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number, chainId?: number } = {},
+    options: { gasPrice?: number, maxFeePerGas?: number, maxPriorityFeePerGas?: number, chainId?: number } = {}
 ): Promise<void> {
     await _lending.init(providerType, providerSettings, options);
     // @ts-ignore

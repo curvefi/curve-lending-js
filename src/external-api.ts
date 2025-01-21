@@ -1,4 +1,4 @@
-import {BigNumberish, ethers} from "ethers";
+import {ethers} from "ethers";
 import memoize from "memoizee";
 import {lending} from "./lending.js";
 import {IDict, IExtendedPoolDataFromApi, IMarketData, INetworkName, IPoolFactory, IQuoteOdos} from "./interfaces";
@@ -189,3 +189,4 @@ export const _assembleTxOdos = memoize(
         maxAge: 10 * 1000, // 10s
     }
 )
+

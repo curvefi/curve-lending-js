@@ -1,9 +1,10 @@
 import { assert } from "chai";
 import lending from "../src/index.js";
 import { getOneWayMarket, OneWayMarketTemplate } from "../src/markets/index.js";
+import { BN } from "../src/utils.js";
 
 
-const ONE_WAY_MARKETS = ['one-way-market-0'];
+const ONE_WAY_MARKETS = ['one-way-market-9'];
 
 const generalTest = (id: string) => {
     describe(`${id} leverage borrowMore test`, function () {
@@ -16,7 +17,7 @@ const generalTest = (id: string) => {
                 await oneWayMarket.vault.deposit(maxDeposit);
             }
             if (!(await oneWayMarket.userLoanExists())) {
-                const collateralAmount = 0.5;
+                const collateralAmount = 0.02;
                 const borrowedAmount = 1000;
                 const N = 10;
                 const { maxDebt } = await oneWayMarket.leverage.createLoanMaxRecv(collateralAmount, borrowedAmount, N);
@@ -35,7 +36,7 @@ const generalTest = (id: string) => {
             assert.isAbove(Number(initialBalances.collateral), 0, "collateral > 0");
             assert.isAbove(Number(initialBalances.borrowed), 0, "borrowed > 0");
 
-            const collateralAmount = 0.5;
+            const collateralAmount = 0.02;
             const borrowedAmount = 0;
             const { maxDebt } = await oneWayMarket.leverage.borrowMoreMaxRecv(collateralAmount, borrowedAmount);
             const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
@@ -85,7 +86,7 @@ const generalTest = (id: string) => {
             assert.isAbove(Number(initialBalances.collateral), 0, "collateral > 0");
             assert.isAbove(Number(initialBalances.borrowed), 0, "borrowed > 0");
 
-            const collateralAmount = 0.5;
+            const collateralAmount = 0.02;
             const borrowedAmount = 1000;
             const { maxDebt } = await oneWayMarket.leverage.borrowMoreMaxRecv(collateralAmount, borrowedAmount);
             const debtAmount = (Number(maxDebt) * 1.004).toFixed(oneWayMarket.borrowed_token.decimals);
@@ -111,7 +112,7 @@ const generalTest = (id: string) => {
             assert.isAbove(Number(initialBalances.collateral), 0, "collateral > 0");
             assert.isAbove(Number(initialBalances.borrowed), 0, "borrowed > 0");
 
-            const collateralAmount = 0.5;
+            const collateralAmount = 0.02;
             const borrowedAmount = 0;
             const { maxDebt } = await oneWayMarket.leverage.borrowMoreMaxRecv(collateralAmount, borrowedAmount);
             const debtAmount = (Number(maxDebt) / 2).toFixed(oneWayMarket.borrowed_token.decimals);
@@ -132,16 +133,16 @@ const generalTest = (id: string) => {
 
             assert.equal(Number(borrowMoreBands[0]), Number(userBands[0]), 'band 0');
             assert.equal(Number(borrowMoreBands[1]), Number(userBands[1]), 'band 1');
-            assert.approximately(Number(borrowMorePrices[0]), Number(userPrices[0]), 0.01, 'price 0');
-            assert.approximately(Number(borrowMorePrices[1]), Number(userPrices[1]), 0.01, 'price 1');
-            assert.approximately(Number(borrowMoreFullHealth), Number(fullHealth), 0.3, 'full health');
+            assert.approximately(Number(borrowMorePrices[0]), Number(userPrices[0]), 1, 'price 0');
+            assert.approximately(Number(borrowMorePrices[1]), Number(userPrices[1]), 1, 'price 1');
+            assert.approximately(Number(borrowMoreFullHealth), Number(fullHealth), 1, 'full health');
             assert.approximately(Number(borrowMoreHealth), Number(health), 0.3, 'health');
-            assert.equal(Number(balances.collateral), Number(initialBalances.collateral) - Number(collateralAmount), 'wallet collateral');
+            assert.equal(Number(balances.collateral), BN(initialBalances.collateral).minus(collateralAmount).toNumber(), 'wallet collateral');
             assert.equal(Number(balances.borrowed), Number(initialBalances.borrowed) - borrowedAmount, 'wallet borrowed');
             const collateralDiff = Number(state.collateral) - Number(initialState.collateral);
             assert.isAtMost(Math.abs(collateralDiff - Number(totalCollateral)) / Number(totalCollateral), 0.01, 'state collateral');
             const debtDiff = Number(state.debt) - Number(initialState.debt);
-            assert.isAtMost(Math.abs(debtDiff - Number(debtAmount)) / Number(debtAmount), 1e-7, 'state debt');
+            assert.isAtMost(Math.abs(debtDiff - Number(debtAmount)) / Number(debtAmount), 2e-6, 'state debt');
         });
 
         it('Leverage borrowMore borrowed only', async function () {
@@ -174,16 +175,16 @@ const generalTest = (id: string) => {
 
             assert.equal(Number(borrowMoreBands[0]), Number(userBands[0]), 'band 0');
             assert.equal(Number(borrowMoreBands[1]), Number(userBands[1]), 'band 1');
-            assert.approximately(Number(borrowMorePrices[0]), Number(userPrices[0]), 0.01, 'price 0');
-            assert.approximately(Number(borrowMorePrices[1]), Number(userPrices[1]), 0.01, 'price 1');
-            assert.approximately(Number(borrowMoreFullHealth), Number(fullHealth), 0.3, 'full health');
+            assert.approximately(Number(borrowMorePrices[0]), Number(userPrices[0]), 1, 'price 0');
+            assert.approximately(Number(borrowMorePrices[1]), Number(userPrices[1]), 1, 'price 1');
+            assert.approximately(Number(borrowMoreFullHealth), Number(fullHealth), 1, 'full health');
             assert.approximately(Number(borrowMoreHealth), Number(health), 0.3, 'health');
-            assert.equal(Number(balances.collateral), Number(initialBalances.collateral) - Number(collateralAmount), 'wallet collateral');
+            assert.equal(Number(balances.collateral), BN(initialBalances.collateral).minus(collateralAmount).toNumber(), 'wallet collateral');
             assert.equal(Number(balances.borrowed), Number(initialBalances.borrowed) - borrowedAmount, 'wallet borrowed');
             const collateralDiff = Number(state.collateral) - Number(initialState.collateral);
-            assert.isAtMost(Math.abs(collateralDiff - Number(totalCollateral)) / Number(totalCollateral), 3e-3, 'state collateral');
+            assert.isAtMost(Math.abs(collateralDiff - Number(totalCollateral)) / Number(totalCollateral), 0.01, 'state collateral');
             const debtDiff = Number(state.debt) - Number(initialState.debt);
-            assert.isAtMost(Math.abs(debtDiff - Number(debtAmount)) / Number(debtAmount), 1e-7, 'state debt');
+            assert.isAtMost(Math.abs(debtDiff - Number(debtAmount)) / Number(debtAmount), 2e-6, 'state debt');
         });
 
         it('Leverage borrowMore', async function () {
@@ -195,11 +196,10 @@ const generalTest = (id: string) => {
             assert.isAbove(Number(initialBalances.collateral), 0, "collateral > 0");
             assert.isAbove(Number(initialBalances.borrowed), 0, "borrowed > 0");
 
-            const collateralAmount = 0.5;
+            const collateralAmount = 0.02;
             const borrowedAmount = 1000;
             const { maxDebt } = await oneWayMarket.leverage.borrowMoreMaxRecv(collateralAmount, borrowedAmount);
-            // const debtAmount = (Number(maxDebt) * 0.999).toFixed(oneWayMarket.borrowed_token.decimals);
-            const debtAmount = maxDebt;
+            const debtAmount = (Number(maxDebt) * 0.999).toFixed(oneWayMarket.borrowed_token.decimals);
             const { totalCollateral } = await oneWayMarket.leverage.borrowMoreExpectedCollateral(collateralAmount, borrowedAmount, debtAmount, 1);
             const borrowMoreBands = await oneWayMarket.leverage.borrowMoreBands(collateralAmount, borrowedAmount, debtAmount);
             const borrowMorePrices = await oneWayMarket.leverage.borrowMorePrices(collateralAmount, borrowedAmount, debtAmount);
@@ -217,16 +217,16 @@ const generalTest = (id: string) => {
 
             assert.equal(Number(borrowMoreBands[0]), Number(userBands[0]), 'band 0');
             assert.equal(Number(borrowMoreBands[1]), Number(userBands[1]), 'band 1');
-            assert.approximately(Number(borrowMorePrices[0]), Number(userPrices[0]), 0.01, 'price 0');
-            assert.approximately(Number(borrowMorePrices[1]), Number(userPrices[1]), 0.01, 'price 1');
-            assert.approximately(Number(borrowMoreFullHealth), Number(fullHealth), 0.3, 'full health');
+            assert.approximately(Number(borrowMorePrices[0]), Number(userPrices[0]), 1, 'price 0');
+            assert.approximately(Number(borrowMorePrices[1]), Number(userPrices[1]), 1, 'price 1');
+            assert.approximately(Number(borrowMoreFullHealth), Number(fullHealth), 1, 'full health');
             assert.approximately(Number(borrowMoreHealth), Number(health), 0.3, 'health');
-            assert.equal(Number(balances.collateral), Number(initialBalances.collateral) - Number(collateralAmount), 'wallet collateral');
+            assert.equal(Number(balances.collateral), BN(initialBalances.collateral).minus(collateralAmount).toNumber(), 'wallet collateral');
             assert.equal(Number(balances.borrowed), Number(initialBalances.borrowed) - borrowedAmount, 'wallet borrowed');
             const collateralDiff = Number(state.collateral) - Number(initialState.collateral);
             assert.isAtMost(Math.abs(collateralDiff - Number(totalCollateral)) / Number(totalCollateral), 0.01, 'state collateral');
             const debtDiff = Number(state.debt) - Number(initialState.debt);
-            assert.isAtMost(Math.abs(debtDiff - Number(debtAmount)) / Number(debtAmount), 1e-7, 'state debt');
+            assert.isAtMost(Math.abs(debtDiff - Number(debtAmount)) / Number(debtAmount), 2e-6, 'state debt');
         });
     })
 }

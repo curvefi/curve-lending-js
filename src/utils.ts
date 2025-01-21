@@ -7,6 +7,7 @@ import { _getUsdPricesFromApi } from "./external-api.js";
 import { lending } from "./lending.js";
 import { JsonFragment } from "ethers/lib.esm";
 import { L2Networks } from "./constants/L2Networks.js";
+import memoize from "memoizee";
 
 export const MAX_ALLOWANCE = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");  // 2**256 - 1
 export const MAX_ACTIVE_BAND = BigInt("57896044618658097711785492504343953926634992332820282019728792003956564819967");  // 2**255 - 1
@@ -186,12 +187,11 @@ export const getBalances = async (coins: string[], address = ""): Promise<string
     return _balances.map((_b, i: number ) => formatUnits(_b, decimals[i]));
 }
 
-export const _getAllowance = async (coins: string[], address: string, spender: string): Promise<bigint[]> => {
+export const _getAllowance = memoize(async (coins: string[], address: string, spender: string): Promise<bigint[]> => {
     const _coins = [...coins]
     const ethIndex = getEthIndex(_coins);
     if (ethIndex !== -1) {
         _coins.splice(ethIndex, 1);
-
     }
 
     let allowance: bigint[];
@@ -202,13 +202,18 @@ export const _getAllowance = async (coins: string[], address: string, spender: s
         allowance = await lending.multicallProvider.all(contractCalls);
     }
 
-
     if (ethIndex !== -1) {
         allowance.splice(ethIndex, 0, MAX_ALLOWANCE);
     }
 
     return allowance;
-}
+},
+{
+    promise: true,
+    maxAge: 5 * 1000, // 5s
+    primitive: true,
+    length: 3,
+});
 
 // coins can be either addresses or symbols
 export const getAllowance = async (coins: string[], address: string, spender: string): Promise<string[]> => {
@@ -229,20 +234,16 @@ export const hasAllowance = async (coins: string[], amounts: (number | string)[]
     return _allowance.map((a, i) => a >= _amounts[i]).reduce((a, b) => a && b);
 }
 
-export const _ensureAllowance = async (coins: string[], amounts: bigint[], spender: string, isMax = true): Promise<string[]> => {
+export const _ensureAllowance = async (coins: string[], _amounts: bigint[], spender: string, isMax = true): Promise<string[]> => {
     const address = lending.signerAddress;
-    const allowance: bigint[] = await _getAllowance(coins, address, spender);
+    const _allowance: bigint[] = await _getAllowance(coins, address, spender);
 
     const txHashes: string[] = []
-    for (let i = 0; i < allowance.length; i++) {
-        if (allowance[i] < amounts[i]) {
+    for (let i = 0; i < _allowance.length; i++) {
+        if (_allowance[i] < _amounts[i]) {
             const contract = lending.contracts[coins[i]].contract;
-            const _approveAmount = isMax ? MAX_ALLOWANCE : amounts[i];
+            const _approveAmount = isMax ? MAX_ALLOWANCE : _amounts[i];
             await lending.updateFeeData();
-            if (allowance[i] > lending.parseUnits("0")) {
-                const gasLimit = _mulBy1_3(DIGas(await contract.approve.estimateGas(spender, lending.parseUnits("0"), lending.constantOptions)));
-                txHashes.push((await contract.approve(spender, lending.parseUnits("0"), { ...lending.options, gasLimit })).hash);
-            }
             const gasLimit = _mulBy1_3(DIGas(await contract.approve.estimateGas(spender, _approveAmount, lending.constantOptions)));
             txHashes.push((await contract.approve(spender, _approveAmount, { ...lending.options, gasLimit })).hash);
         }
@@ -256,27 +257,15 @@ export const ensureAllowanceEstimateGas = async (coins: string[], amounts: (numb
     const coinAddresses = _getCoinAddresses(coins);
     const decimals = _getCoinDecimals(coinAddresses);
     const _amounts = amounts.map((a, i) => parseUnits(a, decimals[i]));
-    const address = lending.signerAddress;
-    const _allowance: bigint[] = await _getAllowance(coinAddresses, address, spender);
+    const _allowance: bigint[] = await _getAllowance(coinAddresses, lending.signerAddress, spender);
 
     let gas = [0,0];
     for (let i = 0; i < _allowance.length; i++) {
         if (_allowance[i] < _amounts[i]) {
             const contract = lending.contracts[coinAddresses[i]].contract;
             const _approveAmount = isMax ? MAX_ALLOWANCE : _amounts[i];
-            if (_allowance[i] > lending.parseUnits("0")) {
-                let currentGas = smartNumber(await contract.approve.estimateGas(spender, lending.parseUnits("0"), lending.constantOptions));
-                // For some coins (crv for example ) we can't estimate the second tx gas (approve: 0 --> amount), so we assume it will cost the same amount of gas
-                if (typeof currentGas === "number") {
-                    currentGas = currentGas * 2;
-                } else {
-                    currentGas = currentGas.map((g) => g * 2)
-                }
-                gas = gasSum(gas, currentGas);
-            } else {
-                const currentGas = smartNumber(await contract.approve.estimateGas(spender, _approveAmount, lending.constantOptions));
-                gas = gasSum(gas, currentGas);
-            }
+            const currentGas = smartNumber(await contract.approve.estimateGas(spender, _approveAmount, lending.constantOptions));
+            gas = gasSum(gas, currentGas);
         }
     }
 

@@ -109,7 +109,7 @@ export const _getUsdPricesFromApi = async (): Promise<IDict<number>> => {
 }
 
 type UserCollateral = {
-    total_deposit_precise: string | number,
+    total_deposit_precise: string,
     total_deposit_from_user: string | number,
     total_deposit_usd_value: string | number,
 };

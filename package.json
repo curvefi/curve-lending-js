@@ -1,6 +1,6 @@
 {
   "name": "@curvefi/lending-api",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "description": "JavaScript library for Curve Lending",
   "main": "lib/index.js",
   "author": "Macket",
@@ -22,7 +22,7 @@
     "@types/chai": "^4.2.18",
     "@types/memoizee": "^0.4.7",
     "@types/mocha": "^8.2.2",
-    "@types/node": "^14.14.37",
+    "@types/node": "^22.10.7",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.20.0",
     "babel-eslint": "^10.1.0",
@@ -33,7 +33,6 @@
     "vue-eslint-parser": "^7.6.0"
   },
   "dependencies": {
-    "axios": "^0.21.1",
     "bignumber.js": "^9.0.1",
     "ethcall": "^6.0.2",
     "ethers": "^6.10.0",

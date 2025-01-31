@@ -1,6 +1,6 @@
 import axios from "axios";
 import { ethers,  BigNumberish, Numeric } from "ethers";
-import { Call } from "ethcall";
+import { Call } from "@curvefi/ethcall";
 import BigNumber from 'bignumber.js';
 import { ICurveContract, IDict, TGas } from "./interfaces.js";
 import { _getUsdPricesFromApi } from "./external-api.js";
@@ -398,7 +398,11 @@ export const getGasPriceFromL1 = async (): Promise<number> => {
 
 export const getGasPriceFromL2 = async (): Promise<number> => {
     if(lending.chainId === 42161) {
-        return await getBaseFeeByLastBlock()
+        try {
+            return await getBaseFeeByLastBlock()
+        } catch (e: any) {
+            throw Error(e)
+        }
     } else {
         throw Error("This method exists only for ARBITRUM network");
     }
@@ -406,11 +410,15 @@ export const getGasPriceFromL2 = async (): Promise<number> => {
 
 export const getGasInfoForL2 = async (): Promise<Record<string, number>> => {
     if(lending.chainId === 42161) {
-        const baseFee = await getBaseFeeByLastBlock()
+        try {
+            const baseFee = await getBaseFeeByLastBlock()
 
-        return  {
-            maxFeePerGas: Number(((baseFee * 1.1) + 0.01).toFixed(2)),
-            maxPriorityFeePerGas: 0.01,
+            return  {
+                maxFeePerGas: Number(((baseFee * 1.1) + 0.01).toFixed(2)),
+                maxPriorityFeePerGas: 0.01,
+            }
+        } catch (e: any) {
+            throw Error(e)
         }
     } else {
         throw Error("This method exists only for ARBITRUM network");

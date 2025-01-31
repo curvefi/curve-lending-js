@@ -1,6 +1,6 @@
 import { ethers,
     Contract, Networkish, BigNumberish, Numeric, AbstractProvider } from "ethers";
-import { Provider as MulticallProvider, Contract as MulticallContract, Call } from 'ethcall';
+import { Provider as MulticallProvider, Contract as MulticallContract, Call } from '@curvefi/ethcall';
 import {
     IChainId,
     ILending,

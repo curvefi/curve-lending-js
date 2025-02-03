@@ -270,7 +270,7 @@ class Lending implements ILending {
         console.log("CURVE-LENDING-JS IS CONNECTED TO NETWORK:", { name: network.name.toUpperCase(), chainId: Number(this.chainId) });
 
         if(this.chainId === 42161) {
-            this.constantOptions = { gasLimit: 32000000 }
+            this.constantOptions = { gasLimit: 1125899906842624 } // https://arbiscan.io/chart/gaslimit
         }
 
         this.constants.NETWORK_NAME = NETWORK_CONSTANTS[this.chainId].NAME;

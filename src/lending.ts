@@ -180,7 +180,7 @@ class Lending implements ILending {
         this.multicallProvider = null;
         this.contracts = {};
         this.feeData = {}
-        this.constantOptions = { gasLimit: 12000000 }
+        this.constantOptions = { gasLimit: 120000000 }
         this.options = {};
         this.constants = {
             ONE_WAY_MARKETS: {},

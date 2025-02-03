@@ -2931,12 +2931,13 @@ export class OneWayMarketTemplate {
             if (slippage !== swapData.slippage) throw Error(`You must call leverage.repayExpectedBorrowed() with slippage=${slippage} first`)
             calldata = await _assembleTxOdos(swapData.pathId as string);
         }
+
+        console.log('params', [0, parseUnits(this._getMarketId(), 0), _userCollateral, _userBorrowed], calldata)
         const contract = lending.contracts[this.addresses.controller].contract;
         const gas = await contract.repay_extended.estimateGas(
             lending.constants.ALIASES.leverage_zap,
             [0, parseUnits(this._getMarketId(), 0), _userCollateral, _userBorrowed],
             calldata,
-            { ...lending.constantOptions }
         );
         if (estimateGas) return smartNumber(gas);
 

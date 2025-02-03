@@ -2937,7 +2937,7 @@ export class OneWayMarketTemplate {
         const gas = await contract.repay_extended.estimateGas(
             lending.constants.ALIASES.leverage_zap,
             [0, parseUnits(this._getMarketId(), 0), _userCollateral, _userBorrowed],
-            calldata,
+            calldata
         );
         if (estimateGas) return smartNumber(gas);
 

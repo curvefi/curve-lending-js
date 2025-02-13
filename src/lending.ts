@@ -43,6 +43,7 @@ import {
     ALIASES_BASE,
     ALIASES_BSC,
     ALIASES_FRAXTAL,
+    ALIASES_SONIC,
 } from "./constants/aliases.js";
 import {
     COINS_ETHEREUM,
@@ -60,6 +61,7 @@ import {
     COINS_BASE,
     COINS_BSC,
     COINS_FRAXTAL,
+    COINS_SONIC,
 } from "./constants/coins.js";
 import { L2Networks } from "./constants/L2Networks.js";
 import { createCall, handleMultiCallResponse} from "./utils.js";
@@ -92,6 +94,11 @@ export const NETWORK_CONSTANTS: { [index: number]: any } = {
         NAME: 'polygon',
         ALIASES: ALIASES_POLYGON,
         COINS: COINS_POLYGON,
+    },
+    146: {
+        NAME: 'sonic',
+        ALIASES: ALIASES_SONIC,
+        COINS: COINS_SONIC,
     },
     250: {
         NAME: 'fantom',

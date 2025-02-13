@@ -129,3 +129,10 @@ export const ALIASES_FRAXTAL = lowerCaseValues({
     "leverage_zap": "0x37c5ab57AF7100Bdc9B668d766e193CCbF6614FD", // odos
     "leverage_markets_start_id": "0",
 });
+
+export const ALIASES_SONIC = lowerCaseValues({
+    "crv": "0x5Af79133999f7908953E94b7A5CF367740Ebee35",
+    "one_way_factory": "0x30d1859dad5a52ae03b6e259d1b48c4b12933993",
+    "gauge_controller": "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB",
+    "gauge_factory": "0xf3A431008396df8A8b2DF492C913706BDB0874ef",
+});

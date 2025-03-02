@@ -33,3 +33,5 @@ export const COINS_BASE = lowerCaseValues({});
 export const COINS_BSC = lowerCaseValues({});
 
 export const COINS_FRAXTAL = lowerCaseValues({});
+
+export const COINS_SONIC = lowerCaseValues({});

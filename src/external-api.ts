@@ -16,7 +16,7 @@ import {
 
 const _getPoolsFromApi = memoize(
     async (network: INetworkName, poolFactory: IPoolFactory ): Promise<IExtendedPoolDataFromApi> => {
-        const url = `https://api.curve.fi/api/getPools/${network}/${poolFactory}`;
+        const url = lending.chainId === 146 ? `https://api-core.curve.fi/v1//getPools/${network}/${poolFactory}` : `https://api.curve.fi/api/getPools/${network}/${poolFactory}`;
         const response = await axios.get(url, { validateStatus: () => true });
         return response.data.data ?? { poolData: [], tvl: 0, tvlAll: 0 };
     },
@@ -27,16 +27,24 @@ const _getPoolsFromApi = memoize(
 )
 
 const _getAllPoolsFromApi = async (network: INetworkName): Promise<IExtendedPoolDataFromApi[]> => {
-    return await Promise.all([
-        _getPoolsFromApi(network, "main"),
-        _getPoolsFromApi(network, "crypto"),
-        _getPoolsFromApi(network, "factory"),
-        _getPoolsFromApi(network, "factory-crvusd"),
-        _getPoolsFromApi(network, "factory-crypto"),
-        _getPoolsFromApi(network, "factory-twocrypto"),
-        _getPoolsFromApi(network, "factory-tricrypto"),
-        _getPoolsFromApi(network, "factory-stable-ng"),
-    ]);
+    if(lending.chainId === 146) {
+        return await Promise.all([
+            _getPoolsFromApi(network, "factory-twocrypto"),
+            _getPoolsFromApi(network, "factory-tricrypto"),
+            _getPoolsFromApi(network, "factory-stable-ng"),
+        ]);
+    } else {
+        return await Promise.all([
+            _getPoolsFromApi(network, "main"),
+            _getPoolsFromApi(network, "crypto"),
+            _getPoolsFromApi(network, "factory"),
+            _getPoolsFromApi(network, "factory-crvusd"),
+            _getPoolsFromApi(network, "factory-crypto"),
+            _getPoolsFromApi(network, "factory-twocrypto"),
+            _getPoolsFromApi(network, "factory-tricrypto"),
+            _getPoolsFromApi(network, "factory-stable-ng"),
+        ]);
+    }
 }
 
 export const _getUsdPricesFromApi = async (): Promise<IDict<number>> => {

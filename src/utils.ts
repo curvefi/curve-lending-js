@@ -295,7 +295,7 @@ export const _getUsdRate = async (assetId: string): Promise<number> => {
         56: "binance-smart-chain",
         100: 'xdai',
         137: 'polygon-pos',
-        146: 'sonic-3',
+        146: 'sonic',
         196: 'x-layer',
         250: 'fantom',
         252: 'fraxtal',

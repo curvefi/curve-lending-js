@@ -135,4 +135,6 @@ export const ALIASES_SONIC = lowerCaseValues({
     "one_way_factory": "0x30d1859dad5a52ae03b6e259d1b48c4b12933993",
     "gauge_controller": "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB",
     "gauge_factory": "0xf3A431008396df8A8b2DF492C913706BDB0874ef",
+    "leverage_zap": "0x5552b631e2aD801fAa129Aacf4B701071cC9D1f7", // odos
+    "leverage_markets_start_id": "0",
 });

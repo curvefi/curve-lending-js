@@ -125,7 +125,8 @@ export const ALIASES_FRAXTAL = lowerCaseValues({
     "crv": "0x331B9182088e2A7d6D3Fe4742AbA1fB231aEcc56",
     "one_way_factory": "0xf3c9bdAB17B7016fBE3B77D17b1602A7db93ac66",
     "gauge_controller": "0x0000000000000000000000000000000000000000", // <--- TODO CHANGE
-    "gauge_factory": "0xeF672bD94913CB6f1d2812a6e18c1fFdEd8eFf5c",
+    "gauge_factory_old": "0xeF672bD94913CB6f1d2812a6e18c1fFdEd8eFf5c",
+    "gauge_factory": "0x0b8d6b6cefc7aa1c2852442e518443b1b22e1c52",
     "leverage_zap": "0x37c5ab57AF7100Bdc9B668d766e193CCbF6614FD", // odos
     "leverage_markets_start_id": "0",
 });

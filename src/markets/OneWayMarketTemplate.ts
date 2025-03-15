@@ -723,7 +723,32 @@ export class OneWayMarketTemplate {
 
     private async _vaultClaimCrv(estimateGas: boolean): Promise<string | TGas> {
         if (this.vaultRewardsOnly()) throw Error(`${this.name} has Rewards-Only Gauge. Use claimRewards instead`);
-        const contract = lending.contracts[lending.constants.ALIASES.minter].contract;
+
+        let isOldFactory = false;
+        let contract;
+
+        if (lending.chainId !== 1) {
+            if (lending.constants.ALIASES.gauge_factory_old && lending.constants.ALIASES.gauge_factory_old !== lending.constants.ZERO_ADDRESS) {
+                const oldFactoryContract = lending.contracts[lending.constants.ALIASES.gauge_factory_old].contract;
+                const lpToken = await lending.contracts[this.addresses.gauge].contract.lp_token();
+                const gaugeAddress = await oldFactoryContract.get_gauge_from_lp_token(lpToken);
+
+                isOldFactory = gaugeAddress.toLowerCase() === this.addresses.gauge.toLowerCase();
+
+                if (isOldFactory) {
+                    contract = oldFactoryContract;
+                }
+            }
+        }
+
+        if (!isOldFactory) {
+            contract = lending.contracts[lending.constants.ALIASES.minter].contract
+        }
+
+        if(!contract) {
+            throw Error(`${this.name} couldn't match gauge factory`);
+        }
+
         const gas = await contract.mint.estimateGas(this.addresses.gauge, lending.constantOptions);
         if (estimateGas) return smartNumber(gas);
 

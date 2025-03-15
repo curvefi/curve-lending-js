@@ -313,8 +313,18 @@ class Lending implements ILending {
             this.setContract(this.constants.ALIASES.minter, MinterABI);
             this.setContract(this.constants.ALIASES.gauge_factory, GaugeFactoryMainnetABI);
         } else {
-            this.constants.ALIASES.minter = this.constants.ALIASES.gauge_factory;
-            this.setContract(this.constants.ALIASES.gauge_factory, GaugeFactorySidechainABI);
+            if(this.constants.ALIASES.gauge_factory_old && this.constants.ALIASES.gauge_factory_old !== this.constants.ZERO_ADDRESS) {
+                // set old gauge factory
+                this.constants.ALIASES.minter_old = this.constants.ALIASES.gauge_factory_old;
+                this.setContract(this.constants.ALIASES.gauge_factory_old, GaugeFactorySidechainABI);
+
+                // set new gauge factory
+                this.constants.ALIASES.minter = this.constants.ALIASES.gauge_factory;
+                this.setContract(this.constants.ALIASES.gauge_factory, GaugeFactorySidechainABI);
+            } else {
+                this.constants.ALIASES.minter = this.constants.ALIASES.gauge_factory;
+                this.setContract(this.constants.ALIASES.gauge_factory, GaugeFactorySidechainABI);
+            }
         }
 
         if(L2Networks.includes(this.chainId)) {

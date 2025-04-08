@@ -130,9 +130,12 @@ export const _getUserCollateral = memoize(
         const url = `https://prices.curve.fi/v1/lending/collateral_events/${network}/${controller}/${user}`;
         const response = await axios.get(url, { validateStatus: () => true });
         return {
+            total_borrowed: response.data.total_borrowed,
+            total_deposit_from_user_precise: response.data.total_deposit_from_user_precise, // Total deposit
             total_deposit_precise: response.data.total_deposit_precise,
             total_deposit_from_user: response.data.total_deposit_from_user,
             total_deposit_usd_value: response.data.total_deposit_usd_value,
+            total_deposit_from_user_usd_value: response.data.total_deposit_from_user_usd_value,
         }
     },
     {

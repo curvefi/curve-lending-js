@@ -16,7 +16,7 @@ import {
 
 const _getPoolsFromApi = memoize(
     async (network: INetworkName, poolFactory: IPoolFactory ): Promise<IExtendedPoolDataFromApi> => {
-        const url = lending.chainId === 146 ? `https://api-core.curve.fi/v1//getPools/${network}/${poolFactory}` : `https://api.curve.fi/api/getPools/${network}/${poolFactory}`;
+        const url = lending.chainId === 146 ? `https://api-core.curve.finance/v1//getPools/${network}/${poolFactory}` : `https://api.curve.finance/api/getPools/${network}/${poolFactory}`;
         const response = await axios.get(url, { validateStatus: () => true });
         return response.data.data ?? { poolData: [], tvl: 0, tvlAll: 0 };
     },
@@ -127,7 +127,7 @@ export const _getUsdPricesFromApi = async (): Promise<IDict<number>> => {
 
 export const _getUserCollateral = memoize(
     async (network: INetworkName, controller: string, user: string): Promise<Record<string, any>> => {
-        const url = `https://prices.curve.fi/v1/lending/collateral_events/${network}/${controller}/${user}`;
+        const url = `https://prices.curve.finance/v1/lending/collateral_events/${network}/${controller}/${user}`;
         const response = await axios.get(url, { validateStatus: () => true });
         return {
             total_borrowed: response.data.total_borrowed,
@@ -146,7 +146,7 @@ export const _getUserCollateral = memoize(
 
 export const _getMarketsData = memoize(
     async (network: INetworkName): Promise<IMarketData> => {
-        const url = `https://api.curve.fi/api/getLendingVaults/${network}/oneway`;
+        const url = `https://api.curve.finance/api/getLendingVaults/${network}/oneway`;
         const response = await axios.get(
             url,
             {
@@ -172,7 +172,7 @@ export const _getQuoteOdos = async (fromToken: string, toToken: string, _amount:
     if (ethers.getAddress(fromToken) == "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") fromToken = "0x0000000000000000000000000000000000000000";
     if (ethers.getAddress(toToken) == "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") toToken = "0x0000000000000000000000000000000000000000";
 
-    const url = `https://prices.curve.fi/odos/quote?chain_id=${lending.chainId}&from_address=${ethers.getAddress(fromToken)}` +
+    const url = `https://prices.curve.finance/odos/quote?chain_id=${lending.chainId}&from_address=${ethers.getAddress(fromToken)}` +
         `&to_address=${ethers.getAddress(toToken)}&amount=${_amount.toString()}&slippage=${slippage}&pathVizImage=${pathVizImage}` +
         `&caller_address=${ethers.getAddress(lending.constants.ALIASES.leverage_zap)}&blacklist=${ethers.getAddress(blacklist)}`;
 
@@ -195,7 +195,7 @@ export const _getExpectedOdos = async (fromToken: string, toToken: string, _amou
 
 export const _assembleTxOdos = memoize(
     async (pathId: string): Promise<string> => {
-        const url = `https://prices.curve.fi/odos/assemble?user=${ethers.getAddress(lending.constants.ALIASES.leverage_zap)}&path_id=${pathId}`;
+        const url = `https://prices.curve.finance/odos/assemble?user=${ethers.getAddress(lending.constants.ALIASES.leverage_zap)}&path_id=${pathId}`;
 
         const response = await axios.get(
             url,
@@ -219,7 +219,7 @@ export const _getSpotPriceOdos = memoize(
     async (fromToken: string, toToken: string): Promise<string | undefined> => {
         fromToken = ethers.getAddress(fromToken);
         toToken = ethers.getAddress(toToken);
-        const url = `https://prices.curve.fi/odos/prices?chain_id=${lending.chainId}&tokens=${fromToken},${toToken}`;
+        const url = `https://prices.curve.finance/odos/prices?chain_id=${lending.chainId}&tokens=${fromToken},${toToken}`;
         const response = await axios.get(
             url,
             {
@@ -253,7 +253,7 @@ export const _getSpotPriceOdos = memoize(
 export const _getExpected1inch = memoize(
     async (fromToken: string, toToken: string, _amount: bigint): Promise<string> => {
         if (_amount === BigInt(0)) return "0.0";
-        const url = `https://prices.curve.fi/1inch/swap/v6.0/${lending.chainId}/quote?src=${fromToken}&dst=${toToken}&amount=${_amount}&excludedProtocols=${lending.constants.EXCLUDED_PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true`;
+        const url = `https://prices.curve.finance/1inch/swap/v6.0/${lending.chainId}/quote?src=${fromToken}&dst=${toToken}&amount=${_amount}&excludedProtocols=${lending.constants.EXCLUDED_PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true`;
         const response = await axios.get(
             url,
             {
@@ -275,7 +275,7 @@ export const _getExpected1inch = memoize(
 export const _getSwapData1inch = memoize(
     async (fromToken: string, toToken: string, _amount: bigint, slippage: number): Promise<I1inchSwapData> => {
         if (_amount === BigInt(0)) throw Error("Amount must be > 0");
-        const url = `https://prices.curve.fi/1inch/swap/v6.0/${lending.chainId}/swap?src=${fromToken}&dst=${toToken}&amount=${_amount}&from_=${lending.constants.ALIASES.leverage_zap}&slippage=${slippage}&excludedProtocols=${lending.constants.EXCLUDED_PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true&disableEstimate=true`;
+        const url = `https://prices.curve.finance/1inch/swap/v6.0/${lending.chainId}/swap?src=${fromToken}&dst=${toToken}&amount=${_amount}&from_=${lending.constants.ALIASES.leverage_zap}&slippage=${slippage}&excludedProtocols=${lending.constants.EXCLUDED_PROTOCOLS_1INCH}&includeTokensInfo=true&includeProtocols=true&disableEstimate=true`;
         const response = await axios.get(
             url,
             {
@@ -296,7 +296,7 @@ export const _getSwapData1inch = memoize(
 
 export const _getSpotPrice1inch = memoize(
     async (fromToken: string, toToken: string): Promise<string | undefined> => {
-        const url = `https://prices.curve.fi/1inch/price/v1.1/${lending.chainId}?tokens=${fromToken},${toToken}&currency=USD`;
+        const url = `https://prices.curve.finance/1inch/price/v1.1/${lending.chainId}?tokens=${fromToken},${toToken}&currency=USD`;
         const response = await axios.get(
             url,
             {

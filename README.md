@@ -6,6 +6,11 @@ Install from npm:
 
 `npm install @curvefi/lending-api`
 
+# ⚠️ DEPRECATED
+
+This library is no longer maintained. Please switch to [curve-llamalend.js](https://github.com/curvefi/curve-llamalend.js) instead.
+
+
 ## Init
 ```ts
 import lending from "@curvefi/lending-api";
